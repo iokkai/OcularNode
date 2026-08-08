@@ -1,0 +1,498 @@
+package com.example.camera
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.ImageFormat
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
+import android.util.Log
+import android.util.Size
+import androidx.camera.core.Camera
+import androidx.camera.core.CameraControl
+import androidx.camera.core.CameraInfo
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import android.graphics.RectF
+import android.graphics.Typeface
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+
+class CameraManagerHelper(private val context: Context) {
+
+    private val executor = Executors.newSingleThreadExecutor()
+    private var cameraProvider: ProcessCameraProvider? = null
+    private var camera: Camera? = null
+
+    // Configuration State
+    var lensFacing: Int = CameraSelector.LENS_FACING_BACK
+        private set
+    var isTorchOn: Boolean = false
+        private set
+    var jpegQuality: Int = 60
+    var currentResolutionString: String = "720p"
+    var nightVisionMode: String = "auto" // "off", "on", "auto"
+    var isNightVisionActive: Boolean = false
+        private set
+    var isMotionDetectionEnabled: Boolean = false
+    var motionSensitivity: Float = 5.0f // 1..10
+    var motionCooldownSeconds: Int = 30 // seconds
+    var autoNightVisionThreshold: Float = 45.0f
+
+    // Motion Detection State
+    private var prevLumaMatrix: FloatArray? = null
+    private var prevMatrixWidth = 0
+    private var prevMatrixHeight = 0
+    private var lastMotionTime = 0L
+    private val isProcessingFrame = AtomicBoolean(false)
+
+    // Callbacks
+    var onFrameEncoded: ((ByteArray) -> Unit)? = null
+    var onMotionDetected: ((Float, ByteArray, Bitmap?) -> Unit)? = null // percentage, thumbnail JPEG, rotated Bitmap
+    var onLumaMeasured: ((Float) -> Unit)? = null
+
+    private var currentLifecycleOwner: LifecycleOwner? = null
+    private var currentPreviewSurface: Preview.SurfaceProvider? = null
+
+    fun startCamera(
+        lifecycleOwner: LifecycleOwner,
+        previewSurface: Preview.SurfaceProvider? = null,
+        onReady: () -> Unit = {}
+    ) {
+        this.currentLifecycleOwner = lifecycleOwner
+        if (previewSurface != null) {
+            this.currentPreviewSurface = previewSurface
+        }
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            try {
+                cameraProvider = cameraProviderFuture.get()
+                bindCameraUseCases()
+                onReady()
+            } catch (e: Exception) {
+                Log.e("CameraManagerHelper", "Error starting camera provider", e)
+            }
+        }, ContextCompat.getMainExecutor(context))
+    }
+
+    fun attachPreviewSurface(lifecycleOwner: LifecycleOwner, previewSurface: Preview.SurfaceProvider) {
+        this.currentLifecycleOwner = lifecycleOwner
+        this.currentPreviewSurface = previewSurface
+        bindCameraUseCases()
+    }
+
+    fun bindCameraUseCases(
+        lifecycleOwner: LifecycleOwner? = currentLifecycleOwner,
+        previewSurface: Preview.SurfaceProvider? = currentPreviewSurface
+    ) {
+        val owner = lifecycleOwner ?: currentLifecycleOwner ?: return
+        val provider = cameraProvider ?: return
+        provider.unbindAll()
+
+        val cameraSelector = CameraSelector.Builder()
+            .requireLensFacing(lensFacing)
+            .build()
+
+        val targetSize = getTargetSize(currentResolutionString)
+
+        val imageAnalysisBuilder = ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+
+        if (targetSize != null) {
+            imageAnalysisBuilder.setTargetResolution(targetSize)
+        }
+
+        val imageAnalysis = imageAnalysisBuilder.build()
+        imageAnalysis.setAnalyzer(executor) { imageProxy ->
+            processImageProxy(imageProxy)
+        }
+
+        val surfaceToUse = previewSurface ?: currentPreviewSurface
+
+        try {
+            if (surfaceToUse != null) {
+                val preview = Preview.Builder().build()
+                preview.setSurfaceProvider(surfaceToUse)
+                camera = provider.bindToLifecycle(owner, cameraSelector, preview, imageAnalysis)
+            } else {
+                camera = provider.bindToLifecycle(owner, cameraSelector, imageAnalysis)
+            }
+            if (lensFacing == CameraSelector.LENS_FACING_BACK && isTorchOn) {
+                camera?.cameraControl?.enableTorch(true)
+            }
+        } catch (e: Exception) {
+            Log.e("CameraManagerHelper", "Primary bind failed with resolution $currentResolutionString, trying fallback...", e)
+            // Fallback retry without target resolution
+            try {
+                val fallbackAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .build()
+                fallbackAnalysis.setAnalyzer(executor) { imageProxy ->
+                    processImageProxy(imageProxy)
+                }
+
+                if (surfaceToUse != null) {
+                    val preview = Preview.Builder().build()
+                    preview.setSurfaceProvider(surfaceToUse)
+                    camera = provider.bindToLifecycle(owner, cameraSelector, preview, fallbackAnalysis)
+                } else {
+                    camera = provider.bindToLifecycle(owner, cameraSelector, fallbackAnalysis)
+                }
+                if (lensFacing == CameraSelector.LENS_FACING_BACK && isTorchOn) {
+                    camera?.cameraControl?.enableTorch(true)
+                }
+            } catch (fallbackEx: Exception) {
+                Log.e("CameraManagerHelper", "Fallback bind also failed", fallbackEx)
+            }
+        }
+    }
+
+    fun switchCamera(lifecycleOwner: LifecycleOwner? = null, previewSurface: Preview.SurfaceProvider? = null) {
+        if (lifecycleOwner != null) this.currentLifecycleOwner = lifecycleOwner
+        if (previewSurface != null) this.currentPreviewSurface = previewSurface
+        lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
+            CameraSelector.LENS_FACING_FRONT
+        } else {
+            CameraSelector.LENS_FACING_BACK
+        }
+        isTorchOn = false // Torch only available on back
+        bindCameraUseCases()
+    }
+
+    fun setTorch(enable: Boolean) {
+        if (lensFacing == CameraSelector.LENS_FACING_BACK && camera?.cameraInfo?.hasFlashUnit() == true) {
+            isTorchOn = enable
+            camera?.cameraControl?.enableTorch(enable)
+        }
+    }
+
+    fun setResolution(resolution: String, lifecycleOwner: LifecycleOwner? = null, previewSurface: Preview.SurfaceProvider? = null) {
+        if (lifecycleOwner != null) this.currentLifecycleOwner = lifecycleOwner
+        if (previewSurface != null) this.currentPreviewSurface = previewSurface
+        currentResolutionString = resolution
+        bindCameraUseCases()
+    }
+
+    private fun getTargetSize(res: String): Size? {
+        return when (res) {
+            "1080p" -> Size(1920, 1080)
+            "720p" -> Size(1280, 720)
+            "480p" -> Size(854, 480)
+            "360p" -> Size(640, 360)
+            else -> Size(1280, 720)
+        }
+    }
+
+    private fun processImageProxy(imageProxy: ImageProxy) {
+        if (!isProcessingFrame.compareAndSet(false, true)) {
+            imageProxy.close()
+            return
+        }
+
+        try {
+            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+            val yPlane = imageProxy.planes[0]
+            val yBuffer = yPlane.buffer
+            val yRowStride = yPlane.rowStride
+            val ySize = yBuffer.remaining()
+            val width = imageProxy.width
+            val height = imageProxy.height
+
+            // 1. Calculate Frame Average Luma
+            var totalLuma = 0L
+            val step = (ySize / 500).coerceAtLeast(1)
+            var sampleCount = 0
+            for (i in 0 until ySize step step) {
+                totalLuma += (yBuffer.get(i).toInt() and 0xFF)
+                sampleCount++
+            }
+            val avgLuma = if (sampleCount > 0) (totalLuma.toFloat() / sampleCount) else 100f
+            onLumaMeasured?.invoke(avgLuma)
+
+            // Determine Night Vision state
+            isNightVisionActive = when (nightVisionMode) {
+                "on" -> true
+                "off" -> false
+                else -> avgLuma < autoNightVisionThreshold
+            }
+
+            // 2. Convert YUV_420_888 to NV21, stripping rowStride padding to prevent line artifacts
+            val nv21Bytes = yuv420888ToNv21(imageProxy)
+            val yuvImage = YuvImage(
+                nv21Bytes,
+                ImageFormat.NV21,
+                width,
+                height,
+                null
+            )
+
+            var rawJpegBytes: ByteArray
+
+            val outStream = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(Rect(0, 0, width, height), 100, outStream)
+            val uncompressedJpeg = outStream.toByteArray()
+            val decodeOpts = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            var bitmap = BitmapFactory.decodeByteArray(uncompressedJpeg, 0, uncompressedJpeg.size, decodeOpts)
+
+            if (bitmap != null) {
+                if (isMotionDetectionEnabled) {
+                    analyzeMotion(yBuffer, yRowStride, width, height, avgLuma, bitmap, rotationDegrees)
+                }
+
+                val matrix = Matrix()
+                if (rotationDegrees != 0) {
+                    matrix.postRotate(rotationDegrees.toFloat())
+                }
+                if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                    matrix.postScale(-1f, 1f) // Mirror front camera
+                }
+
+                if (isNightVisionActive) {
+                    val nvBitmap = applyNightVisionFilter(bitmap)
+                    if (nvBitmap != bitmap) {
+                        bitmap.recycle()
+                        bitmap = nvBitmap
+                    }
+                }
+
+                var transformedBitmap = Bitmap.createBitmap(
+                    bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+                )
+                if (transformedBitmap != bitmap) {
+                    bitmap.recycle()
+                }
+
+                val mutableBitmap = if (transformedBitmap.isMutable) transformedBitmap else transformedBitmap.copy(Bitmap.Config.ARGB_8888, true)
+                if (mutableBitmap != transformedBitmap) {
+                    transformedBitmap.recycle()
+                }
+
+                // 3. Overlay Current Time Watermark at Bottom-Left Corner (Compact & Subtle)
+                val canvas = Canvas(mutableBitmap)
+                val timeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+                val textSize = (mutableBitmap.height * 0.022f).coerceAtLeast(12f)
+                val textPaint = Paint().apply {
+                    color = Color.WHITE
+                    this.textSize = textSize
+                    isAntiAlias = true
+                    typeface = Typeface.MONOSPACE
+                    setShadowLayer(3f, 1f, 1f, Color.BLACK)
+                }
+
+                val bgPaint = Paint().apply {
+                    color = Color.parseColor("#99000000") // Subtle semi-transparent black box
+                    style = Paint.Style.FILL
+                }
+
+                val textWidth = textPaint.measureText(timeStr)
+                val margin = (mutableBitmap.height * 0.015f).coerceAtLeast(8f)
+                val x = margin
+                val y = mutableBitmap.height - margin
+
+                val bgRect = RectF(
+                    x - 6f,
+                    y - textSize - 3f,
+                    x + textWidth + 6f,
+                    y + 4f
+                )
+                canvas.drawRoundRect(bgRect, 6f, 6f, bgPaint)
+                canvas.drawText(timeStr, x, y, textPaint)
+
+                val finalStream = ByteArrayOutputStream()
+                mutableBitmap.compress(Bitmap.CompressFormat.JPEG, jpegQuality, finalStream)
+                rawJpegBytes = finalStream.toByteArray()
+                mutableBitmap.recycle()
+            } else {
+                rawJpegBytes = uncompressedJpeg
+            }
+
+            onFrameEncoded?.invoke(rawJpegBytes)
+
+        } catch (e: Exception) {
+            Log.e("CameraManagerHelper", "Error processing frame", e)
+        } finally {
+            imageProxy.close()
+            isProcessingFrame.set(false)
+        }
+    }
+
+    private fun yuv420888ToNv21(imageProxy: ImageProxy): ByteArray {
+        val width = imageProxy.width
+        val height = imageProxy.height
+        val pixelCount = width * height
+        val nv21 = ByteArray(pixelCount + (pixelCount / 2))
+
+        val yPlane = imageProxy.planes[0]
+        val uPlane = imageProxy.planes[1]
+        val vPlane = imageProxy.planes[2]
+
+        val yBuffer = yPlane.buffer
+        val uBuffer = uPlane.buffer
+        val vBuffer = vPlane.buffer
+
+        val yRowStride = yPlane.rowStride
+        val uRowStride = uPlane.rowStride
+        val vRowStride = vPlane.rowStride
+
+        val uPixelStride = uPlane.pixelStride
+        val vPixelStride = vPlane.pixelStride
+
+        // Copy Y plane row by row to strip rowStride padding
+        var nvIndex = 0
+        yBuffer.rewind()
+        if (yRowStride == width) {
+            yBuffer.get(nv21, 0, pixelCount)
+            nvIndex = pixelCount
+        } else {
+            val rowBuffer = ByteArray(width)
+            for (row in 0 until height) {
+                yBuffer.position(row * yRowStride)
+                yBuffer.get(rowBuffer, 0, width)
+                System.arraycopy(rowBuffer, 0, nv21, nvIndex, width)
+                nvIndex += width
+            }
+        }
+
+        // Copy UV channels
+        uBuffer.rewind()
+        vBuffer.rewind()
+        val chromaHeight = height / 2
+        val chromaWidth = width / 2
+
+        for (row in 0 until chromaHeight) {
+            for (col in 0 until chromaWidth) {
+                val vPos = row * vRowStride + col * vPixelStride
+                val uPos = row * uRowStride + col * uPixelStride
+
+                nv21[nvIndex++] = vBuffer.get(vPos)
+                nv21[nvIndex++] = uBuffer.get(uPos)
+            }
+        }
+
+        return nv21
+    }
+
+    private fun applyNightVisionFilter(src: Bitmap): Bitmap {
+        val dest = Bitmap.createBitmap(src.width, src.height, src.config ?: Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(dest)
+        val paint = Paint()
+
+        // Step 1: Pure Grayscale (Saturation = 0)
+        val colorMatrix = ColorMatrix().apply {
+            setSaturation(0f)
+            // Step 2: Gamma-like shadow enhancement & contrast boost for low-light detail
+            val contrast = 1.45f
+            val brightness = 35f
+            val cm = floatArrayOf(
+                contrast, 0f, 0f, 0f, brightness,
+                0f, contrast, 0f, 0f, brightness,
+                0f, 0f, contrast, 0f, brightness,
+                0f, 0f, 0f, 1f, 0f
+            )
+            postConcat(ColorMatrix(cm))
+        }
+
+        paint.colorFilter = ColorMatrixColorFilter(colorMatrix)
+        canvas.drawBitmap(src, 0f, 0f, paint)
+        return dest
+    }
+
+    private fun analyzeMotion(yBuffer: ByteBuffer, yRowStride: Int, width: Int, height: Int, avgLuma: Float, bitmap: Bitmap, rotation: Int) {
+        val now = System.currentTimeMillis()
+        val gridWidth = 32
+        val gridHeight = 24
+        val totalCells = gridWidth * gridHeight
+        val currentLumaGrid = FloatArray(totalCells)
+
+        val cellW = width / gridWidth
+        val cellH = height / gridHeight
+
+        yBuffer.rewind()
+        for (gy in 0 until gridHeight) {
+            for (gx in 0 until gridWidth) {
+                val sampleX = gx * cellW + cellW / 2
+                val sampleY = gy * cellH + cellH / 2
+                val index = sampleY * yRowStride + sampleX
+                if (index < yBuffer.capacity()) {
+                    currentLumaGrid[gy * gridWidth + gx] = (yBuffer.get(index).toInt() and 0xFF).toFloat()
+                }
+            }
+        }
+
+        val prev = prevLumaMatrix
+        if (prev != null && prev.size == totalCells) {
+            var diffCells = 0
+            val thresholdDelta = (25.0f - motionSensitivity * 1.8f).coerceAtLeast(6.0f)
+
+            for (i in 0 until totalCells) {
+                val diff = Math.abs(currentLumaGrid[i] - prev[i])
+                if (diff > thresholdDelta) {
+                    diffCells++
+                }
+            }
+
+            val motionRatio = (diffCells.toFloat() / totalCells) * 100f
+            val triggerRatioThreshold = (6.0f - motionSensitivity * 0.4f).coerceAtLeast(1.0f)
+
+            if (motionRatio > triggerRatioThreshold) {
+                // Motion detected!
+                val cooldownMs = (motionCooldownSeconds * 1000L).coerceAtLeast(2000L)
+                if (now - lastMotionTime > cooldownMs) {
+                    lastMotionTime = now
+                    
+                    try {
+                        val scaled = Bitmap.createScaledBitmap(bitmap, 320, (320f * height / width).toInt(), true)
+                        val matrix = Matrix()
+                        if (rotation != 0) matrix.postRotate(rotation.toFloat())
+                        val rotated = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, matrix, true)
+                        
+                        val thumbStream = ByteArrayOutputStream()
+                        rotated.compress(Bitmap.CompressFormat.JPEG, 50, thumbStream)
+                        val thumbnailBytes = thumbStream.toByteArray()
+                        
+                        onMotionDetected?.invoke(motionRatio, thumbnailBytes, rotated)
+                    } catch (e: Exception) {
+                        Log.e("CameraManagerHelper", "Error generating thumbnail", e)
+                    }
+                }
+            }
+        }
+
+        prevLumaMatrix = currentLumaGrid
+        prevMatrixWidth = gridWidth
+        prevMatrixHeight = gridHeight
+    }
+
+    fun release() {
+        try {
+            cameraProvider?.unbindAll()
+            executor.shutdown()
+        } catch (e: Exception) {
+            Log.e("CameraManagerHelper", "Error releasing camera resources", e)
+        }
+    }
+}
