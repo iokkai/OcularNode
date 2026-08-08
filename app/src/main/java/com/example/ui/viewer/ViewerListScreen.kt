@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,6 +65,28 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.VideocamOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asImageBitmap
+import coil.imageLoader
+import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.SubcomposeAsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import kotlinx.coroutines.delay
+
 @Composable
 fun ViewerListScreen(
     viewModel: ViewerViewModel,
@@ -72,6 +95,11 @@ fun ViewerListScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val cameraList by viewModel.cameraList.collectAsState()
+    val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
+    val isVpnActive by viewModel.isVpnActive.collectAsState()
+    val tailscaleIp by viewModel.tailscaleIp.collectAsState()
+    val isTailscaleActive = isTailscaleConnected || isVpnActive
+
     var showAddDialog by remember { mutableStateOf(false) }
     var showQrScannerDialog by remember { mutableStateOf(false) }
 
@@ -80,32 +108,25 @@ fun ViewerListScreen(
     var remoteSettingsCamera by remember { mutableStateOf<CameraDevice?>(null) }
     var remoteStatusJson by remember { mutableStateOf<JSONObject?>(null) }
 
+    val settingsManager = remember { com.example.data.SettingsManager(context) }
+    val isLivePreviewAllEnabled = settingsManager.livePreviewInListEnabled
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshNetworkInfo()
+    }
+
     Scaffold(
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            FloatingActionButton(
+                onClick = {
+                    prefilledInfo = null
+                    showAddDialog = true
+                },
+                containerColor = Color(0xFF6750A4),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp)
             ) {
-                ExtendedFloatingActionButton(
-                    onClick = { showQrScannerDialog = true },
-                    icon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null) },
-                    text = { Text("掃描 QR 加入", fontWeight = FontWeight.Bold) },
-                    containerColor = Color(0xFF6750A4),
-                    contentColor = Color.White,
-                    shape = RoundedCornerShape(16.dp)
-                )
-
-                FloatingActionButton(
-                    onClick = {
-                        prefilledInfo = null
-                        showAddDialog = true
-                    },
-                    containerColor = Color(0xFFE8DEF8),
-                    contentColor = Color(0xFF1D192B),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Manual Add Camera")
-                }
+                Icon(Icons.Default.Add, contentDescription = "新增鏡頭")
             }
         },
         containerColor = Color(0xFFFDF8FF)
@@ -130,59 +151,115 @@ fun ViewerListScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "透過掃描鏡頭端 QR Code 或輸入 Tailscale/局域網 IP 加入",
+                        text = "透過掃描鏡頭端 QR Code 或輸入 Tailscale/區域網 IP 加入",
                         color = Color(0xFF49454F),
                         fontSize = 12.sp
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Quick Scan Action Card
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showQrScannerDialog = true }
-            ) {
+            // Tailscale Status Bar for Viewer (Green when connected, Red when disconnected)
+            if (isTailscaleActive) {
                 Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFE8F5E9))
+                        .border(1.dp, Color(0xFF81C784), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(12.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE8DEF8)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Color(0xFF6750A4))
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
+                                .background(Color(0xFF2E7D32))
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Text("掃描鏡頭端 QR Code 快速加入", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 14.sp)
-                            Text("開啟鏡頭端畫面並對準 QR Code 即可連線", color = Color(0xFF49454F), fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Tailscale VPN 已連線",
+                                    color = Color(0xFF1B5E20),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp
+                                )
+                                if (!tailscaleIp.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "($tailscaleIp)",
+                                        color = Color(0xFF2E7D32),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "VPN 服務連線中 • 可跨網段遠端監控",
+                                color = Color(0xFF388E3C),
+                                fontSize = 10.sp
+                            )
                         }
                     }
 
-                    Button(
-                        onClick = { showQrScannerDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.height(36.dp)
+                    TextButton(
+                        onClick = { com.example.util.NetworkUtils.openTailscaleApp(context) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
-                        Text("掃描", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("🚀 開啟 App", color = Color(0xFF1B5E20), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFFFEBEE))
+                        .border(1.dp, Color(0xFFE57373), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFD32F2F))
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Tailscale VPN 未連線",
+                                color = Color(0xFFC62828),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                            Text(
+                                text = "VPN 服務未開啟 • 僅限同 Wi-Fi 區域網觀看",
+                                color = Color(0xFFC62828),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+
+                    val isTailscaleInstalled = remember(context) { com.example.util.NetworkUtils.isTailscaleInstalled(context) }
+                    TextButton(
+                        onClick = { com.example.util.NetworkUtils.openTailscaleApp(context) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Text(if (isTailscaleInstalled) "🚀 開啟 Tailscale" else "📥 安裝 Tailscale", color = Color(0xFFC62828), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (cameraList.isEmpty()) {
                 Box(
@@ -228,10 +305,11 @@ fun ViewerListScreen(
                     }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     items(cameraList, key = { it.id }) { camera ->
                         CameraDeviceCard(
                             camera = camera,
+                            isLivePreviewAll = isLivePreviewAllEnabled,
                             onConnect = {
                                 viewModel.selectAndConnect(camera)
                                 onSelectCamera(camera)
@@ -336,53 +414,182 @@ fun ViewerListScreen(
 @Composable
 fun CameraDeviceCard(
     camera: CameraDevice,
+    isLivePreviewAll: Boolean,
     onConnect: () -> Unit,
     onRemoteSettings: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val context = LocalContext.current
+    var refreshKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // If live preview is enabled, auto refresh snapshot every 1.5s to simulate live stream preview
+    LaunchedEffect(isLivePreviewAll) {
+        if (isLivePreviewAll) {
+            while (true) {
+                delay(1500)
+                refreshKey = System.currentTimeMillis()
+            }
+        }
+    }
+
+    val snapshotUrl = "http://${camera.ipAddress}:${camera.port}/snapshot?t=$refreshKey"
+
+    var currentBitmap by remember(camera.id) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    var isLoading by remember(camera.id) { mutableStateOf(true) }
+
+    LaunchedEffect(snapshotUrl) {
+        val request = ImageRequest.Builder(context)
+            .data(snapshotUrl)
+            .allowHardware(false)
+            .memoryCachePolicy(CachePolicy.DISABLED)
+            .diskCachePolicy(CachePolicy.DISABLED)
+            .build()
+        val result = context.imageLoader.execute(request)
+        if (result is coil.request.SuccessResult) {
+            val drawable = result.drawable
+            if (drawable is android.graphics.drawable.BitmapDrawable) {
+                currentBitmap = drawable.bitmap.asImageBitmap()
+            }
+        }
+        isLoading = false
+    }
+
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onConnect() }
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Snapshot / Stream Preview Display Area
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+                    .background(Color(0xFF1E1B2E)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (currentBitmap != null) {
+                    Image(
+                        bitmap = currentBitmap!!,
+                        contentDescription = "Camera Snapshot Preview",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (isLoading) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF6750A4), modifier = Modifier.size(24.dp))
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF2D2A3E)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.VideocamOff, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(28.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("快照載入中 / 點擊進入即時畫面", color = Color.LightGray, fontSize = 11.sp)
+                        }
+                    }
+                }
+
+                // Overlay Controls & Badges
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp)
+                        .align(Alignment.TopCenter),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // LIVE / Snapshot Badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isLivePreviewAll) Color(0xCC2E7D32) else Color(0xCC000000))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isLivePreviewAll) Color.Green else Color.LightGray)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isLivePreviewAll) "LIVE 串流中" else "📸 快照預覽",
+                                color = Color.White,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Refresh Snapshot Manual Button
+                    IconButton(
+                        onClick = { refreshKey = System.currentTimeMillis() },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(Color(0xAA000000), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Refresh Snapshot",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Center Live Touch Hint Overlay
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFEADDFF)),
-                    contentAlignment = Alignment.Center
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xCC6750A4))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF21005D))
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column {
-                    Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text("${camera.ipAddress}:${camera.port}", color = Color(0xFF6750A4), fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("進入主畫面監控", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
-            Row {
-                IconButton(onClick = onRemoteSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Remote Settings", tint = Color(0xFF6750A4))
+            // Info & Action Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text("${camera.ipAddress}:${camera.port}", color = Color(0xFF6750A4), fontWeight = FontWeight.Medium, fontSize = 12.sp)
                 }
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF49454F))
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFB3261E))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    IconButton(onClick = onRemoteSettings, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Settings, contentDescription = "Remote Settings", tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF49454F), modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFB3261E), modifier = Modifier.size(18.dp))
+                    }
                 }
             }
         }

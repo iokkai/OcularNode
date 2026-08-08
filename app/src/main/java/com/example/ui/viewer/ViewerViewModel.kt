@@ -25,6 +25,32 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     val audioEngine = AudioEngine()
     val streamClient = CameraStreamClient(audioEngine)
 
+    private val _isTailscaleConnected = MutableStateFlow(false)
+    val isTailscaleConnected: StateFlow<Boolean> = _isTailscaleConnected.asStateFlow()
+
+    private val _isVpnActive = MutableStateFlow(false)
+    val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
+
+    private val _tailscaleIp = MutableStateFlow<String?>(null)
+    val tailscaleIp: StateFlow<String?> = _tailscaleIp.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            com.example.util.NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
+                _isTailscaleConnected.value = ipInfo.isTailscaleConnected
+                _isVpnActive.value = ipInfo.isVpnActive
+                _tailscaleIp.value = ipInfo.tailscaleIp
+            }
+        }
+    }
+
+    fun refreshNetworkInfo() {
+        val ipInfo = com.example.util.NetworkUtils.getIpAddresses(getApplication())
+        _isTailscaleConnected.value = ipInfo.isTailscaleConnected
+        _isVpnActive.value = ipInfo.isVpnActive
+        _tailscaleIp.value = ipInfo.tailscaleIp
+    }
+
     val cameraList: StateFlow<List<CameraDevice>> = cameraDao.getAllCameras()
         .stateIn(
             scope = viewModelScope,

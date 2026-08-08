@@ -101,6 +101,9 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val tailscaleIp by viewModel.tailscaleIp.collectAsState()
     val localIp by viewModel.localIp.collectAsState()
 
+    val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
+    val isVpnActive by viewModel.isVpnActive.collectAsState()
+
     var showResolutionDialog by remember { mutableStateOf(false) }
     var isAddressSectionExpanded by remember { mutableStateOf(true) }
 
@@ -289,51 +292,124 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                     "http://$activeLocal:${viewModel.settingsManager.serverPort}?name=$encodedCamName"
                                 }
 
-                                if (!activeTailscale.isNull_or_blank_custom()) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
+                                if (isTailscaleConnected || isVpnActive) {
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(Color(0xFFEADDFF))
+                                            .background(Color(0xFFE8F5E9))
+                                            .border(1.dp, Color(0xFF81C784), RoundedCornerShape(16.dp))
                                             .padding(14.dp)
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Wifi,
-                                            contentDescription = null,
-                                            tint = Color(0xFF21005D)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Tailscale IP (遠端內網)", color = Color(0xFF49454F), fontSize = 12.sp)
-                                            Text("http://$activeTailscale:${viewModel.settingsManager.serverPort}", color = Color(0xFF21005D), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(10.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF2E7D32))
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Tailscale VPN 已連線", color = Color(0xFF1B5E20), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            }
+
+                                            TextButton(
+                                                onClick = { viewModel.refreshNetworkInfo() },
+                                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1B5E20))
+                                            ) {
+                                                Text("🔄 重新整理", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
-                                        IconButton(onClick = {
-                                            copyToClipboard(context, "http://$activeTailscale:${viewModel.settingsManager.serverPort}")
-                                        }) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = Color(0xFF21005D))
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Wifi,
+                                                contentDescription = null,
+                                                tint = Color(0xFF1B5E20)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(" Tailscale IP (可遠端穿透 4G/5G)", color = Color(0xFF2E7D32), fontSize = 11.sp)
+                                                Text("http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}", color = Color(0xFF1B5E20), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                            }
+                                            IconButton(onClick = {
+                                                copyToClipboard(context, "http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}")
+                                            }) {
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = Color(0xFF1B5E20))
+                                            }
                                         }
                                     }
                                 } else {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(Color(0xFFF3EDF7))
+                                            .background(Color(0xFFFFEBEE))
+                                            .border(1.dp, Color(0xFFE57373), RoundedCornerShape(16.dp))
                                             .padding(14.dp)
                                     ) {
-                                        Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFF6750A4))
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("區域網路 IP (未偵測到 Tailscale)", color = Color(0xFF49454F), fontSize = 12.sp)
-                                            Text("http://$activeLocal:${viewModel.settingsManager.serverPort}", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(10.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFFD32F2F))
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Tailscale VPN 未連線 (僅使用區域網)", color = Color(0xFFC62828), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            }
+
+                                            val isTailscaleInstalled = remember(context) { com.example.util.NetworkUtils.isTailscaleInstalled(context) }
+                                            OutlinedButton(
+                                                onClick = { com.example.util.NetworkUtils.openTailscaleApp(context) },
+                                                shape = RoundedCornerShape(12.dp),
+                                                border = BorderStroke(1.dp, Color(0xFFE57373)),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC62828)),
+                                                modifier = Modifier.height(32.dp)
+                                            ) {
+                                                Text(if (isTailscaleInstalled) "🚀 開啟 Tailscale" else "📥 安裝 Tailscale", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
-                                        IconButton(onClick = {
-                                            copyToClipboard(context, "http://$activeLocal:${viewModel.settingsManager.serverPort}")
-                                        }) {
-                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = Color(0xFF49454F))
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFFE65100))
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("區域網內 IP (僅限相同 Wi-Fi 使用)", color = Color(0xFF5D4037), fontSize = 11.sp)
+                                                Text("http://$activeLocal:${viewModel.settingsManager.serverPort}", color = Color(0xFF3E2723), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                            }
+                                            IconButton(onClick = {
+                                                copyToClipboard(context, "http://$activeLocal:${viewModel.settingsManager.serverPort}")
+                                            }) {
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = Color(0xFF5D4037))
+                                            }
                                         }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            "💡 提示：開啟 Tailscale VPN 後，系統將自動偵測並切換至 100.x.x.x IP，即可隨時隨地遠端觀看。",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF8D6E63)
+                                        )
                                     }
                                 }
 

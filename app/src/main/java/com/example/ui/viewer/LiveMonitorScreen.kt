@@ -76,11 +76,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.CameraDevice
 
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.filled.ExpandMore
+
 @Composable
 fun LiveMonitorScreen(
     viewModel: ViewerViewModel,
     onBack: () -> Unit
 ) {
+    BackHandler {
+        onBack()
+    }
+
     val context = LocalContext.current
     val camera = viewModel.selectedCamera.collectAsState().value
     val frame by viewModel.streamClient.currentFrame.collectAsState()
@@ -100,6 +108,9 @@ fun LiveMonitorScreen(
     var zoomScale by remember { mutableStateOf(1f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
     var rotationAngle by remember { mutableStateOf(0f) }
+
+    // Control panel collapse/expand state to avoid blocking video stream
+    var isControlPanelExpanded by remember { mutableStateOf(false) }
 
     if (showRemoteSettingsDialog && camera != null) {
         RemoteSettingsDialog(
@@ -266,76 +277,43 @@ fun LiveMonitorScreen(
             }
         }
 
-        // Bottom Remote Control Panel
+        // Bottom Collapsible Remote Control Panel
         Card(
-            shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xF2FFFFFF)),
-            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xDC1E1B2E)),
+            border = BorderStroke(1.dp, Color(0x66CAC4D0)),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp)
                 .align(Alignment.BottomCenter)
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                // Two-Way Audio & Walkie-Talkie Intercom Row
-                Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Header Bar for Control Panel: Audio, Talk & Expand Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Quick Talk & Listen Buttons
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "即時對講與聲音監控",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF49454F)
-                        )
-                        if (isSpeaking || isListening) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isSpeaking) Color(0xFFB3261E) else Color(0xFF2E7D32))
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = if (isSpeaking && isListening) "雙向對講中" else if (isSpeaking) "發話中" else "收聽中",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSpeaking) Color(0xFFB3261E) else Color(0xFF2E7D32)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Listen Camera Audio Button
-                        Button(
+                        IconButton(
                             onClick = { viewModel.toggleAudioListening() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isListening) Color(0xFF2E7D32) else Color(0xFFE8DEF8),
-                                contentColor = if (isListening) Color.White else Color(0xFF1D192B)
-                            ),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier.height(44.dp)
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(if (isListening) Color(0xFF2E7D32) else Color(0x44FFFFFF), CircleShape)
                         ) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isListening) "收聽中" else "開啟現場聲音", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Icon(Icons.Default.VolumeUp, contentDescription = "Listen", tint = Color.White, modifier = Modifier.size(20.dp))
                         }
 
                         // Push-to-Talk Walkie-Talkie Button
                         Box(
                             modifier = Modifier
-                                .height(44.dp)
-                                .clip(RoundedCornerShape(20.dp))
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(19.dp))
                                 .background(if (isSpeaking) Color(0xFFB3261E) else Color(0xFF6750A4))
                                 .pointerInput(Unit) {
                                     detectTapGestures(
@@ -346,7 +324,7 @@ fun LiveMonitorScreen(
                                         }
                                     )
                                 }
-                                .padding(horizontal = 20.dp),
+                                .padding(horizontal = 14.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -354,88 +332,118 @@ fun LiveMonitorScreen(
                                     Icons.Default.Mic,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (isSpeaking) "🎙️ 發話中..." else "按住對講",
+                                    text = if (isSpeaking) "🎙️ 發話中" else "按住對講",
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
+                                    fontSize = 12.sp
                                 )
                             }
                         }
                     }
+
+                    // Panel Expand / Collapse Toggle
+                    TextButton(
+                        onClick = { isControlPanelExpanded = !isControlPanelExpanded },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (isControlPanelExpanded) "收合控制項" else "展開更多控制",
+                            color = Color(0xFFD0BCFF),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = if (isControlPanelExpanded) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+                            contentDescription = "Expand",
+                            tint = Color(0xFFD0BCFF),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Expanded Controls View
+                if (isControlPanelExpanded) {
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Hardware Remote Control Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    // Switch Camera
-                    IconButton(
-                        onClick = { viewModel.sendControlCommand("camera", "switch") },
-                        modifier = Modifier.background(Color(0xFFF3EDF7), CircleShape)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Switch Camera", tint = Color(0xFF1C1B1F))
-                    }
-
-                    // Torch
-                    IconButton(
-                        onClick = {
-                            torchOn = !torchOn
-                            viewModel.sendControlCommand("torch", if (torchOn) "on" else "off")
-                        },
-                        modifier = Modifier.background(if (torchOn) Color(0xFFEADDFF) else Color(0xFFF3EDF7), CircleShape)
-                    ) {
-                        Icon(Icons.Default.FlashOn, contentDescription = "Torch", tint = if (torchOn) Color(0xFF21005D) else Color(0xFF1C1B1F))
-                    }
-
-                    // Night Vision
-                    val isNightActive = nightMode.equals("on", ignoreCase = true) || nightMode.equals("auto", ignoreCase = true)
-                    IconButton(
-                        onClick = {
-                            val nextMode = if (nightMode == "on") "off" else "on"
-                            viewModel.sendControlCommand("night_vision", nextMode)
-                            Toast.makeText(context, if (nextMode == "on") "已開啟黑白夜視模式" else "已關閉夜視模式", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.background(if (isNightActive) Color(0xFFEADDFF) else Color(0xFFF3EDF7), CircleShape)
-                    ) {
-                        Icon(Icons.Default.Nightlight, contentDescription = "Night Vision", tint = if (isNightActive) Color(0xFF21005D) else Color(0xFF1C1B1F))
-                    }
-
-                    // Snapshot
-                    IconButton(
-                        onClick = {
-                            if (frame != null) {
-                                Toast.makeText(context, "已快照當前畫面", Toast.LENGTH_SHORT).show()
+                        // Switch Camera
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = { viewModel.sendControlCommand("camera", "switch") },
+                                modifier = Modifier.background(Color(0x33FFFFFF), CircleShape)
+                            ) {
+                                Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Switch Camera", tint = Color.White)
                             }
-                        },
-                        modifier = Modifier.background(Color(0xFFF3EDF7), CircleShape)
-                    ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = "Snapshot", tint = Color(0xFF1C1B1F))
-                    }
+                            Text("切換鏡頭", color = Color.White, fontSize = 10.sp)
+                        }
 
-                    // Alarm
-                    IconButton(
-                        onClick = {
-                            viewModel.sendControlCommand("alarm", "trigger")
-                            Toast.makeText(context, "已遠端發送警報蜂鳴", Toast.LENGTH_SHORT).show()
-                        },
-                        modifier = Modifier.background(Color(0xFFFCE8E6), CircleShape)
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = "Alarm", tint = Color(0xFFB3261E))
-                    }
+                        // Torch
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = {
+                                    torchOn = !torchOn
+                                    viewModel.sendControlCommand("torch", if (torchOn) "on" else "off")
+                                },
+                                modifier = Modifier.background(if (torchOn) Color(0xFFEADDFF) else Color(0x33FFFFFF), CircleShape)
+                            ) {
+                                Icon(Icons.Default.FlashOn, contentDescription = "Torch", tint = if (torchOn) Color(0xFF21005D) else Color.White)
+                            }
+                            Text("補光燈", color = Color.White, fontSize = 10.sp)
+                        }
 
-                    // Remote Settings & Quality
-                    IconButton(
-                        onClick = { showRemoteSettingsDialog = true },
-                        modifier = Modifier.background(Color(0xFFE8DEF8), CircleShape)
-                    ) {
-                        Icon(Icons.Default.Settings, contentDescription = "Quality & Remote Settings", tint = Color(0xFF6750A4))
+                        // Night Vision
+                        val isNightActive = nightMode.equals("on", ignoreCase = true) || nightMode.equals("auto", ignoreCase = true)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = {
+                                    val nextMode = if (nightMode == "on") "off" else "on"
+                                    viewModel.sendControlCommand("night_vision", nextMode)
+                                    Toast.makeText(context, if (nextMode == "on") "已開啟黑白夜視模式" else "已關閉夜視模式", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.background(if (isNightActive) Color(0xFFEADDFF) else Color(0x33FFFFFF), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Nightlight, contentDescription = "Night Vision", tint = if (isNightActive) Color(0xFF21005D) else Color.White)
+                            }
+                            Text("夜視", color = Color.White, fontSize = 10.sp)
+                        }
+
+                        // Snapshot
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = {
+                                    if (frame != null) {
+                                        Toast.makeText(context, "已快照當前畫面", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.background(Color(0x33FFFFFF), CircleShape)
+                            ) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = "Snapshot", tint = Color.White)
+                            }
+                            Text("快照", color = Color.White, fontSize = 10.sp)
+                        }
+
+                        // Alarm
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = {
+                                    viewModel.sendControlCommand("alarm", "trigger")
+                                    Toast.makeText(context, "已遠端發送警報蜂鳴", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.background(Color(0xAA8C1D18), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = "Alarm", tint = Color.White)
+                            }
+                            Text("警報", color = Color.White, fontSize = 10.sp)
+                        }
                     }
                 }
             }

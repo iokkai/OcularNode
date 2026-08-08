@@ -55,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -74,6 +75,11 @@ fun RemoteSettingsDialog(
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var showResPicker by remember { mutableStateOf(false) }
+
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     // Read current settings from JSON
     val deviceNameStr = cameraStatusJson?.optString("deviceName", cameraName) ?: cameraName
@@ -118,14 +124,15 @@ fun RemoteSettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = surfaceColor,
         title = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Tune, contentDescription = null, tint = Color(0xFF6750A4))
+                    Icon(Icons.Default.Tune, contentDescription = null, tint = primaryColor)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "⚙️ 鏡頭端遠端偏好設定",
-                        color = Color(0xFF1C1B1F),
+                        color = onSurfaceColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
@@ -134,7 +141,7 @@ fun RemoteSettingsDialog(
                 Text(
                     text = "正在控制: $deviceNameStr",
                     fontSize = 12.sp,
-                    color = Color(0xFF6750A4),
+                    color = primaryColor,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -146,15 +153,15 @@ fun RemoteSettingsDialog(
                 ScrollableTabRow(
                     selectedTabIndex = selectedTab,
                     edgePadding = 0.dp,
-                    containerColor = Color(0xFFF3EDF7),
-                    contentColor = Color(0xFF6750A4),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = primaryColor,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     tabTitles.forEachIndexed { index, title ->
                         Tab(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
-                            text = { Text(title, fontSize = 12.sp, fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal) }
+                            text = { Text(title, fontSize = 12.sp, fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal, color = if (selectedTab == index) primaryColor else onSurfaceVariantColor) }
                         )
                     }
                 }
@@ -171,7 +178,7 @@ fun RemoteSettingsDialog(
                     when (selectedTab) {
                         0 -> {
                             // TAB 1: Camera & Quality
-                            Text("裝置重命名", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                            Text("裝置重命名", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                 OutlinedTextField(
@@ -179,8 +186,8 @@ fun RemoteSettingsDialog(
                                     onValueChange = { editingName = it },
                                     singleLine = true,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedTextColor = Color(0xFF1C1B1F),
-                                        unfocusedTextColor = Color(0xFF1C1B1F)
+                                        focusedTextColor = onSurfaceColor,
+                                        unfocusedTextColor = onSurfaceColor
                                     ),
                                     modifier = Modifier.weight(1f)
                                 )
@@ -190,7 +197,7 @@ fun RemoteSettingsDialog(
                                         onSendCommand("device_name", editingName)
                                         Toast.makeText(context, "已更新鏡頭名稱: $editingName", Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White),
                                     shape = RoundedCornerShape(10.dp)
                                 ) {
                                     Text("變更", fontSize = 12.sp)
@@ -199,7 +206,7 @@ fun RemoteSettingsDialog(
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            Text("運作模式", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                            Text("運作模式", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 val isMon = currentOpMode == "monitor"
@@ -210,8 +217,8 @@ fun RemoteSettingsDialog(
                                     },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isMon) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                                        contentColor = if (isMon) Color.White else Color(0xFF1D192B)
+                                        containerColor = if (isMon) primaryColor else MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = if (isMon) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
                                     ),
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -224,8 +231,8 @@ fun RemoteSettingsDialog(
                                     },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (!isMon) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                                        contentColor = if (!isMon) Color.White else Color(0xFF1D192B)
+                                        containerColor = if (!isMon) primaryColor else MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = if (!isMon) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
                                     ),
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -257,8 +264,8 @@ fun RemoteSettingsDialog(
                                     },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isTorchOn) Color(0xFFE2A03F) else Color(0xFFE8DEF8),
-                                        contentColor = if (isTorchOn) Color.White else Color(0xFF1D192B)
+                                        containerColor = if (isTorchOn) Color(0xFFE2A03F) else MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = if (isTorchOn) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
                                     ),
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -277,15 +284,15 @@ fun RemoteSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("畫面解析度", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("降低解析度可顯著節省傳輸頻寬", fontSize = 11.sp, color = Color(0xFF79747E))
+                                    Text("畫面解析度", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("降低解析度可顯著節省傳輸頻寬", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 }
                                 OutlinedButton(
                                     onClick = { showResPicker = true },
                                     shape = RoundedCornerShape(10.dp),
-                                    border = BorderStroke(1.5.dp, Color(0xFF6750A4))
+                                    border = BorderStroke(1.5.dp, primaryColor)
                                 ) {
-                                    Text("📹 $currentRes ▾", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("📹 $currentRes ▾", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
                             }
 
@@ -294,8 +301,8 @@ fun RemoteSettingsDialog(
                             // Quality Slider
                             Column {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("JPEG 壓縮品質", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("${localQuality.toInt()}%", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("JPEG 壓縮品質", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("${localQuality.toInt()}%", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                                 Slider(
                                     value = localQuality,
@@ -306,14 +313,14 @@ fun RemoteSettingsDialog(
                                     },
                                     valueRange = 30f..90f,
                                     steps = 5,
-                                    colors = SliderDefaults.colors(thumbColor = Color(0xFF6750A4), activeTrackColor = Color(0xFF6750A4))
+                                    colors = SliderDefaults.colors(thumbColor = primaryColor, activeTrackColor = primaryColor)
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
 
                             // Night Vision
-                            Text("夜視模式", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                            Text("夜視模式", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 val modes = listOf("off" to "關閉", "on" to "黑白夜視", "auto" to "自動切換")
@@ -326,8 +333,8 @@ fun RemoteSettingsDialog(
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isSelected) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                                            contentColor = if (isSelected) Color.White else Color(0xFF1D192B)
+                                            containerColor = if (isSelected) primaryColor else MaterialTheme.colorScheme.secondaryContainer,
+                                            contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -340,8 +347,8 @@ fun RemoteSettingsDialog(
                                 Spacer(modifier = Modifier.height(10.dp))
                                 Column {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("自動夜視切換亮度閥值", fontSize = 12.sp, color = Color(0xFF49454F))
-                                        Text("${localNightLuma.toInt()} Luma", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("自動夜視切換亮度閥值", fontSize = 12.sp, color = onSurfaceVariantColor)
+                                        Text("${localNightLuma.toInt()} Luma", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
                                     Slider(
                                         value = localNightLuma,
@@ -351,7 +358,7 @@ fun RemoteSettingsDialog(
                                             Toast.makeText(context, "夜視亮度閥值已設為: ${localNightLuma.toInt()}", Toast.LENGTH_SHORT).show()
                                         },
                                         valueRange = 10f..100f,
-                                        colors = SliderDefaults.colors(thumbColor = Color(0xFF6750A4), activeTrackColor = Color(0xFF6750A4))
+                                        colors = SliderDefaults.colors(thumbColor = primaryColor, activeTrackColor = primaryColor)
                                     )
                                 }
                             }
@@ -365,8 +372,8 @@ fun RemoteSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column {
-                                    Text("啟用智慧動態偵測", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("鏡頭異動時自動記錄與告警", fontSize = 11.sp, color = Color(0xFF79747E))
+                                    Text("啟用智慧動態偵測", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("鏡頭異動時自動記錄與告警", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 }
                                 Switch(
                                     checked = isMotion,
@@ -374,7 +381,7 @@ fun RemoteSettingsDialog(
                                         onSendCommand("motion", if (checked) "on" else "off")
                                         Toast.makeText(context, if (checked) "已開啟遠端動態偵測" else "已關閉遠端動態偵測", Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF6750A4))
+                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = primaryColor)
                                 )
                             }
 
@@ -383,10 +390,10 @@ fun RemoteSettingsDialog(
                             // Motion Sensitivity
                             Column {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("動態偵測靈敏度", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text(String.format("%.1f", localSens), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("動態偵測靈敏度", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text(String.format("%.1f", localSens), color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
-                                Text("數值越高越敏感（1.0 = 微動忽略, 10.0 = 極度敏感）", fontSize = 11.sp, color = Color(0xFF79747E))
+                                Text("數值越高越敏感（1.0 = 微動忽略, 10.0 = 極度敏感）", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 Slider(
                                     value = localSens,
                                     onValueChange = { localSens = it },
@@ -395,7 +402,7 @@ fun RemoteSettingsDialog(
                                         Toast.makeText(context, "靈敏度設為: ${String.format("%.1f", localSens)}", Toast.LENGTH_SHORT).show()
                                     },
                                     valueRange = 1.0f..10.0f,
-                                    colors = SliderDefaults.colors(thumbColor = Color(0xFF6750A4), activeTrackColor = Color(0xFF6750A4))
+                                    colors = SliderDefaults.colors(thumbColor = primaryColor, activeTrackColor = primaryColor)
                                 )
                             }
 
@@ -404,10 +411,10 @@ fun RemoteSettingsDialog(
                             // Cooldown
                             Column {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("告警冷卻時間", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("${localCooldown.toInt()} 秒", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("告警冷卻時間", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("${localCooldown.toInt()} 秒", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
-                                Text("觸發告警後暫停再次告警的時間間隔", fontSize = 11.sp, color = Color(0xFF79747E))
+                                Text("觸發告警後暫停再次告警的時間間隔", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 Slider(
                                     value = localCooldown,
                                     onValueChange = { localCooldown = it },
@@ -416,7 +423,7 @@ fun RemoteSettingsDialog(
                                         Toast.makeText(context, "冷卻時間設為: ${localCooldown.toInt()} 秒", Toast.LENGTH_SHORT).show()
                                     },
                                     valueRange = 5f..120f,
-                                    colors = SliderDefaults.colors(thumbColor = Color(0xFF6750A4), activeTrackColor = Color(0xFF6750A4))
+                                    colors = SliderDefaults.colors(thumbColor = primaryColor, activeTrackColor = primaryColor)
                                 )
                             }
 
@@ -429,8 +436,8 @@ fun RemoteSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Google ML Kit AI 物體/寵物過濾", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("辨識寵物與人體，減少風吹樹影誤報", fontSize = 11.sp, color = Color(0xFF79747E))
+                                    Text("Google ML Kit AI 物體/寵物過濾", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("辨識寵物與人體，減少風吹樹影誤報", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 }
                                 Switch(
                                     checked = mlKitEnabled,
@@ -438,7 +445,7 @@ fun RemoteSettingsDialog(
                                         onSendCommand("mlkit_filter", if (checked) "on" else "off")
                                         Toast.makeText(context, if (checked) "已啟用 AI ML Kit 過濾" else "已關閉 AI 過濾", Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF6750A4))
+                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = primaryColor)
                                 )
                             }
 
@@ -451,8 +458,8 @@ fun RemoteSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("異動時鏡頭端發出響聲", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("偵測異動時鏡頭手機發出警告音", fontSize = 11.sp, color = Color(0xFF79747E))
+                                    Text("異動時鏡頭端發出響聲", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("偵測異動時鏡頭手機發出警告音", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 }
                                 Switch(
                                     checked = playLocalAlarm,
@@ -460,7 +467,7 @@ fun RemoteSettingsDialog(
                                         onSendCommand("play_alarm_setting", if (checked) "on" else "off")
                                         Toast.makeText(context, if (checked) "已開啟現場警報聲" else "已關閉現場警報聲", Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF6750A4))
+                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = primaryColor)
                                 )
                             }
 
@@ -490,8 +497,8 @@ fun RemoteSettingsDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("空間自動循環清理 (Loop Storage)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("空間或筆數超標時自動刪除最舊紀錄", fontSize = 11.sp, color = Color(0xFF79747E))
+                                    Text("空間自動循環清理 (Loop Storage)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("空間或筆數超標時自動刪除最舊紀錄", fontSize = 11.sp, color = onSurfaceVariantColor)
                                 }
                                 Switch(
                                     checked = autoCleanup,
@@ -499,7 +506,7 @@ fun RemoteSettingsDialog(
                                         onSendCommand("auto_cleanup", if (checked) "on" else "off")
                                         Toast.makeText(context, if (checked) "已開啟自動循環清理" else "已關閉自動循環清理", Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF6750A4))
+                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = primaryColor)
                                 )
                             }
 
@@ -508,8 +515,8 @@ fun RemoteSettingsDialog(
                             // Storage Limit GB
                             Column {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("儲存空間上限", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text(String.format("%.1f GB", localStorageGB), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("儲存空間上限", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text(String.format("%.1f GB", localStorageGB), color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                                 Slider(
                                     value = localStorageGB,
@@ -519,7 +526,7 @@ fun RemoteSettingsDialog(
                                         Toast.makeText(context, "儲存容量上限設為: ${String.format("%.1f GB", localStorageGB)}", Toast.LENGTH_SHORT).show()
                                     },
                                     valueRange = 0.5f..10.0f,
-                                    colors = SliderDefaults.colors(thumbColor = Color(0xFF6750A4), activeTrackColor = Color(0xFF6750A4))
+                                    colors = SliderDefaults.colors(thumbColor = primaryColor, activeTrackColor = primaryColor)
                                 )
                             }
 
@@ -528,8 +535,8 @@ fun RemoteSettingsDialog(
                             // Max Events Limit
                             Column {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("最高留存事件筆數", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                    Text("${localMaxEvents.toInt()} 筆", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("最高留存事件筆數", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
+                                    Text("${localMaxEvents.toInt()} 筆", color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                                 Slider(
                                     value = localMaxEvents,
@@ -540,7 +547,7 @@ fun RemoteSettingsDialog(
                                     },
                                     valueRange = 50f..500f,
                                     steps = 8,
-                                    colors = SliderDefaults.colors(thumbColor = Color(0xFF6750A4), activeTrackColor = Color(0xFF6750A4))
+                                    colors = SliderDefaults.colors(thumbColor = primaryColor, activeTrackColor = primaryColor)
                                 )
                             }
                         }
@@ -572,9 +579,9 @@ fun RemoteSettingsDialog(
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            Text("一鍵同步設定", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                            Text("一鍵同步設定", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = onSurfaceColor)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("將目前觀看端的 Telegram Bot Token 與 Chat ID 推送給這台鏡頭裝置：", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("將目前觀看端的 Telegram Bot Token 與 Chat ID 推送給這台鏡頭裝置：", fontSize = 11.sp, color = onSurfaceVariantColor)
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Button(
@@ -582,7 +589,7 @@ fun RemoteSettingsDialog(
                                     onSyncTelegram()
                                     Toast.makeText(context, "已將觀看端 Telegram 設定推送至該鏡頭", Toast.LENGTH_SHORT).show()
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                                colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = Color.White),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -597,7 +604,7 @@ fun RemoteSettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("完成關閉", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
+                Text("完成關閉", color = primaryColor, fontWeight = FontWeight.Bold)
             }
         }
     )

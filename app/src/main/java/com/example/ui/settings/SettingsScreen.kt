@@ -62,6 +62,7 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
     val cooldown by viewModel.cooldown.collectAsState()
     val playAlarm by viewModel.playAlarm.collectAsState()
     val autoCleanupEnabled by viewModel.autoCleanupEnabled.collectAsState()
+    val livePreviewInListEnabled by viewModel.livePreviewInListEnabled.collectAsState()
     val storageLimitGB by viewModel.storageLimitGB.collectAsState()
     val maxEventCount by viewModel.maxEventCount.collectAsState()
     val cleanupStatus by viewModel.cleanupStatus.collectAsState()
@@ -132,6 +133,45 @@ fun SettingsScreen(viewModel: SettingsViewModel) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("📺 觀看端", fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+
+        // Live Stream Preview Setting Card (觀看端全鏡頭即時預覽)
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF6750A4))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("觀看端全鏡頭即時預覽", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                if (livePreviewInListEnabled) "列表頁將持續輪詢刷新鏡頭最新畫面" else "預設使用靜態快照，節省網路流量與發熱",
+                                color = Color(0xFF49454F),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    Switch(
+                        checked = livePreviewInListEnabled,
+                        onCheckedChange = { viewModel.updateLivePreviewInListEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFF6750A4)
+                        )
+                    )
                 }
             }
         }

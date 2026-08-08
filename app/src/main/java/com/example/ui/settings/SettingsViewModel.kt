@@ -56,6 +56,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _maxEventCount = MutableStateFlow(settingsManager.maxEventCountLimit)
     val maxEventCount: StateFlow<Int> = _maxEventCount.asStateFlow()
 
+    private val _livePreviewInListEnabled = MutableStateFlow(settingsManager.livePreviewInListEnabled)
+    val livePreviewInListEnabled: StateFlow<Boolean> = _livePreviewInListEnabled.asStateFlow()
+
     private val _cleanupStatus = MutableStateFlow<String?>(null)
     val cleanupStatus: StateFlow<String?> = _cleanupStatus.asStateFlow()
 
@@ -166,6 +169,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateMaxEventCount(count: Int) {
         _maxEventCount.value = count
         settingsManager.maxEventCountLimit = count
+    }
+
+    fun updateLivePreviewInListEnabled(enabled: Boolean) {
+        _livePreviewInListEnabled.value = enabled
+        settingsManager.livePreviewInListEnabled = enabled
     }
 
     fun performManualCleanup() {

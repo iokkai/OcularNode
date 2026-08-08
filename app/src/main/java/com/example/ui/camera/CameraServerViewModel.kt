@@ -38,6 +38,26 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val _localIp = MutableStateFlow<String?>(null)
     val localIp: StateFlow<String?> = _localIp.asStateFlow()
 
+    private val _isTailscaleConnected = MutableStateFlow(false)
+    val isTailscaleConnected: StateFlow<Boolean> = _isTailscaleConnected.asStateFlow()
+
+    private val _isVpnActive = MutableStateFlow(false)
+    val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
+                _tailscaleIp.value = ipInfo.tailscaleIp
+                _localIp.value = ipInfo.localIp
+                _isTailscaleConnected.value = ipInfo.isTailscaleConnected
+                _isVpnActive.value = ipInfo.isVpnActive
+
+                val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+                _serverUrl.value = "http://$activeIp:${settingsManager.serverPort}"
+            }
+        }
+    }
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val localBinder = binder as CameraStreamService.LocalBinder
@@ -79,9 +99,11 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun refreshNetworkInfo() {
-        val ipInfo = NetworkUtils.getIpAddresses()
+        val ipInfo = NetworkUtils.getIpAddresses(getApplication())
         _tailscaleIp.value = ipInfo.tailscaleIp
         _localIp.value = ipInfo.localIp
+        _isTailscaleConnected.value = ipInfo.isTailscaleConnected
+        _isVpnActive.value = ipInfo.isVpnActive
 
         val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
         _serverUrl.value = "http://$activeIp:${settingsManager.serverPort}"

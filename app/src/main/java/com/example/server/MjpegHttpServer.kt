@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
@@ -108,6 +109,8 @@ class MjpegHttpServer(
         }
     }
 
+    private var lastFileSnapshotSaveTime = 0L
+
     fun updateFrame(bytes: ByteArray) {
         latestFrameBytes = bytes
         frameCount++
@@ -116,6 +119,16 @@ class MjpegHttpServer(
             currentFps = frameCount
             frameCount = 0
             fpsTimer = now
+        }
+
+        if (now - lastFileSnapshotSaveTime >= 1500) {
+            lastFileSnapshotSaveTime = now
+            threadPool.execute {
+                try {
+                    val cacheFile = File(context.cacheDir, "snapshot_temp.jpg")
+                    cacheFile.writeBytes(bytes)
+                } catch (_: Exception) {}
+            }
         }
 
         // Conflate & broadcast frame instantly to active MJPEG client sessions
@@ -127,6 +140,8 @@ class MjpegHttpServer(
     fun start(scope: CoroutineScope) {
         if (isRunning) return
         isRunning = true
+
+        startUdpDiscoveryResponder(scope)
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -141,6 +156,74 @@ class MjpegHttpServer(
                 if (isRunning) {
                     Log.e("MjpegHttpServer", "Server socket error", e)
                 }
+            }
+        }
+    }
+
+    private fun startUdpDiscoveryResponder(scope: CoroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            var udpSocket: java.net.DatagramSocket? = null
+            try {
+                udpSocket = java.net.DatagramSocket(null).apply {
+                    reuseAddress = true
+                    bind(java.net.InetSocketAddress(com.example.util.NodeDiscoveryManager.UDP_PORT))
+                    soTimeout = 2000
+                }
+
+                // Announce loop coroutine
+                launch {
+                    while (isRunning && isActive) {
+                        try {
+                            val ipInfo = NetworkUtils.getIpAddresses(context)
+                            val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+                            val announceMsg = "${com.example.util.NodeDiscoveryManager.ANNOUNCE_PREFIX}$deviceName|$port|$activeIp"
+                            val data = announceMsg.toByteArray()
+
+                            // Broadcast
+                            java.net.DatagramSocket().use { bSocket ->
+                                bSocket.broadcast = true
+                                val p1 = java.net.DatagramPacket(data, data.size, java.net.InetAddress.getByName("255.255.255.255"), com.example.util.NodeDiscoveryManager.UDP_PORT)
+                                bSocket.send(p1)
+
+                                if (ipInfo.isTailscaleConnected && ipInfo.tailscaleIp != null) {
+                                    try {
+                                        val p2 = java.net.DatagramPacket(data, data.size, java.net.InetAddress.getByName("100.127.255.255"), com.example.util.NodeDiscoveryManager.UDP_PORT)
+                                        bSocket.send(p2)
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                        } catch (_: Exception) {}
+                        delay(3000)
+                    }
+                }
+
+                // Listener loop
+                val buffer = ByteArray(2048)
+                while (isRunning && isActive) {
+                    try {
+                        val packet = java.net.DatagramPacket(buffer, buffer.size)
+                        udpSocket.receive(packet)
+                        val msg = String(packet.data, 0, packet.length).trim()
+
+                        if (msg == com.example.util.NodeDiscoveryManager.DISCOVERY_REQUEST) {
+                            val ipInfo = NetworkUtils.getIpAddresses(context)
+                            val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+                            val responseMsg = "${com.example.util.NodeDiscoveryManager.RESPONSE_PREFIX}$deviceName|$port|$activeIp"
+                            val respData = responseMsg.toByteArray()
+
+                            val respPacket = java.net.DatagramPacket(respData, respData.size, packet.address, packet.port)
+                            udpSocket.send(respPacket)
+                        }
+                    } catch (_: java.net.SocketTimeoutException) {
+                        // Loop check
+                    } catch (e: Exception) {
+                        delay(1000)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("MjpegHttpServer", "UDP Responder error: ${e.message}")
+            } finally {
+                udpSocket?.close()
             }
         }
     }
@@ -181,6 +264,33 @@ class MjpegHttpServer(
                     }
                     mjpegSessions.add(session)
                     session.start()
+                    return
+                }
+
+                path.startsWith("/snapshot") || path.startsWith("/frame") || path.startsWith("/image") || path.startsWith("/jpeg") -> {
+                    var bytes = latestFrameBytes
+                    if (bytes == null) {
+                        try {
+                            val cacheFile = File(context.cacheDir, "snapshot_temp.jpg")
+                            if (cacheFile.exists() && cacheFile.length() > 0) {
+                                bytes = cacheFile.readBytes()
+                            }
+                        } catch (_: Exception) {}
+                    }
+
+                    if (bytes != null) {
+                        output.write(("HTTP/1.1 200 OK\r\n" +
+                                "Access-Control-Allow-Origin: *\r\n" +
+                                "Content-Type: image/jpeg\r\n" +
+                                "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n" +
+                                "Content-Length: ${bytes.size}\r\n" +
+                                "Connection: close\r\n\r\n").toByteArray())
+                        output.write(bytes)
+                        output.flush()
+                    } else {
+                        sendJsonResponse(output, 503, "{\"error\":\"Frame not ready\"}")
+                    }
+                    socket.close()
                     return
                 }
 

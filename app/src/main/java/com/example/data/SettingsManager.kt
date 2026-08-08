@@ -78,6 +78,10 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_MAX_EVENT_COUNT, 200)
         set(value) = prefs.edit().putInt(KEY_MAX_EVENT_COUNT, value).apply()
 
+    var livePreviewInListEnabled: Boolean
+        get() = prefs.getBoolean(KEY_LIVE_PREVIEW_IN_LIST, false)
+        set(value) = prefs.edit().putBoolean(KEY_LIVE_PREVIEW_IN_LIST, value).apply()
+
     companion object {
         private const val KEY_DEVICE_ROLE_MODE = "device_role_mode"
         private const val KEY_PORT = "server_port"
@@ -97,5 +101,6 @@ class SettingsManager(context: Context) {
         private const val KEY_AUTO_CLEANUP_ENABLED = "auto_cleanup_enabled"
         private const val KEY_STORAGE_LIMIT_GB = "storage_limit_gb"
         private const val KEY_MAX_EVENT_COUNT = "max_event_count"
+        private const val KEY_LIVE_PREVIEW_IN_LIST = "live_preview_in_list"
     }
 }
