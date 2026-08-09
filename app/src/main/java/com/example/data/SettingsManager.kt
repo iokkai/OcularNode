@@ -54,7 +54,7 @@ class SettingsManager(context: Context) {
         get() = prefs.getString(KEY_DEFAULT_RESOLUTION, "720p") ?: "720p"
         set(value) = prefs.edit().putString(KEY_DEFAULT_RESOLUTION, value).apply()
 
-    var operatingMode: String // "monitor" (監看模式) or "detection" (自動偵測模式)
+    var operatingMode: String // "monitor" (監看模式) or "detection" (動態偵測模式)
         get() = prefs.getString(KEY_OPERATING_MODE, "monitor") ?: "monitor"
         set(value) = prefs.edit().putString(KEY_OPERATING_MODE, value).apply()
 
