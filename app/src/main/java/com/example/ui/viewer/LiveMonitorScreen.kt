@@ -116,9 +116,10 @@ fun LiveMonitorScreen(
         RemoteSettingsScreen(
             cameraName = camera.name,
             cameraStatusJson = cameraStatusJson,
-            onSendCommand = { cmd, valStr -> viewModel.sendControlCommand(cmd, valStr) },
+            onSendCommand = { cmd, valStr -> viewModel.sendControlCommandSuspend(cmd, valStr) },
             onSyncTelegram = { viewModel.syncTelegramToCurrentCamera() },
-            onNavigateBack = { showRemoteSettingsDialog = false }
+            onNavigateBack = { showRemoteSettingsDialog = false },
+            onFetchLogs = { viewModel.fetchRemoteLogs(camera) }
         )
         return
     }

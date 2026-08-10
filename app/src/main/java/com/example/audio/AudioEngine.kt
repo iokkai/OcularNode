@@ -114,7 +114,7 @@ class AudioEngine {
             }
 
             val attributes = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .setFlags(AudioAttributes.FLAG_LOW_LATENCY)
                 .build()
@@ -177,8 +177,14 @@ class AudioEngine {
         try {
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
             if (audioManager != null) {
-                audioManager.mode = if (enable) AudioManager.MODE_IN_COMMUNICATION else AudioManager.MODE_NORMAL
-                audioManager.isSpeakerphoneOn = enable
+                // If we use USAGE_MEDIA, we don't need to force MODE_IN_COMMUNICATION which degrades audio.
+                // We just let it play as normal media.
+                audioManager.mode = AudioManager.MODE_NORMAL
+                if (enable) {
+                    audioManager.isSpeakerphoneOn = true
+                } else {
+                    audioManager.isSpeakerphoneOn = false
+                }
             }
         } catch (e: Exception) {
             Log.w("AudioEngine", "Error setting speakerphone state", e)

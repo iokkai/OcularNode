@@ -103,11 +103,20 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    suspend fun sendControlCommandSuspend(command: String, value: String): Boolean {
+        val camera = _selectedCamera.value ?: return false
+        return streamClient.sendControlCommand(camera, command, value)
+    }
+
     fun sendControlCommand(command: String, value: String) {
         val camera = _selectedCamera.value ?: return
         viewModelScope.launch {
             streamClient.sendControlCommand(camera, command, value)
         }
+    }
+
+    suspend fun sendControlCommandToCameraSuspend(camera: CameraDevice, command: String, value: String): Boolean {
+        return streamClient.sendControlCommand(camera, command, value)
     }
 
     fun sendControlCommandToCamera(camera: CameraDevice, command: String, value: String) {
@@ -118,6 +127,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     suspend fun fetchCameraStatus(camera: CameraDevice): org.json.JSONObject? {
         return streamClient.fetchCameraStatus(camera)
+    }
+
+    suspend fun fetchRemoteLogs(camera: CameraDevice): List<String> {
+        return streamClient.fetchRemoteLogs(camera)
     }
 
     fun toggleAudioListening() {

@@ -243,6 +243,32 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         }
     }
 
+
+    suspend fun fetchRemoteLogs(cameraDevice: CameraDevice): List<String> = withContext(Dispatchers.IO) {
+        try {
+            val logUrl = "http://${cameraDevice.ipAddress}:${cameraDevice.port}/logs"
+            val request = Request.Builder().url(logUrl).get().build()
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful && response.body != null) {
+                val bodyStr = response.body!!.string()
+                val json = JSONObject(bodyStr)
+                response.close()
+                val logsArray = json.optJSONArray("logs")
+                val logsList = mutableListOf<String>()
+                if (logsArray != null) {
+                    for (i in 0 until logsArray.length()) {
+                        logsList.add(logsArray.getString(i))
+                    }
+                }
+                return@withContext logsList
+            }
+            response.close()
+            return@withContext emptyList()
+        } catch (e: Exception) {
+            return@withContext emptyList()
+        }
+    }
+
     private fun startHeartbeatLoop(cameraDevice: CameraDevice, scope: CoroutineScope) {
         heartbeatJob = scope.launch(Dispatchers.IO) {
             while (isActive) {

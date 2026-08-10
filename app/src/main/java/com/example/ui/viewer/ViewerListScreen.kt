@@ -122,7 +122,7 @@ fun ViewerListScreen(
             cameraName = camera.name,
             cameraStatusJson = remoteStatusJson,
             onSendCommand = { cmd, valStr ->
-                viewModel.sendControlCommandToCamera(camera, cmd, valStr)
+                viewModel.sendControlCommandToCameraSuspend(camera, cmd, valStr)
             },
             onSyncTelegram = {
                 val token = viewModel.settingsManager.telegramBotToken

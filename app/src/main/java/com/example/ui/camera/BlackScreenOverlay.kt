@@ -70,6 +70,7 @@ fun BlackScreenOverlay(
             }
             activity.window.attributes = params
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
             
             val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
             insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -85,6 +86,7 @@ fun BlackScreenOverlay(
                 }
                 activity.window.attributes = params
                 activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                activity.window.clearFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
 
                 val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())

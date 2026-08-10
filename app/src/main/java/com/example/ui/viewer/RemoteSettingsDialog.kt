@@ -72,6 +72,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.mutableStateMapOf
+import kotlinx.coroutines.launch
 import com.example.data.NotificationCategory
 import com.example.ui.camera.ResolutionSelectionDialog
 import org.json.JSONObject
@@ -81,13 +82,18 @@ import org.json.JSONObject
 fun RemoteSettingsScreen(
     cameraName: String,
     cameraStatusJson: JSONObject?,
-    onSendCommand: (String, String) -> Unit,
+    onSendCommand: suspend (String, String) -> Boolean,
     onSyncTelegram: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onFetchLogs: (suspend () -> List<String>)? = null
 ) {
     val context = LocalContext.current
     var selectedTab by remember { mutableIntStateOf(0) }
     var showResPicker by remember { mutableStateOf(false) }
+    var showRemoteLogs by remember { mutableStateOf(false) }
+    var remoteLogsList by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingLogs by remember { mutableStateOf(false) }
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     val surfaceBgColor = Color(0xFFFDF8FF)
     val textPrimaryColor = Color(0xFF1C1B1F)
@@ -128,6 +134,18 @@ fun RemoteSettingsScreen(
     var localMaxEvents by remember(maxEventCount) { mutableFloatStateOf(maxEventCount.toFloat()) }
     val systemLogEnabled = cameraStatusJson?.optBoolean("systemLogEnabled", true) ?: true
 
+    var localIsMotion by remember(isMotion) { mutableStateOf(isMotion) }
+    var localNightMode by remember(nightMode) { mutableStateOf(nightMode) }
+    var localOpMode by remember(currentOpMode) { mutableStateOf(currentOpMode) }
+    var localTorchOn by remember(isTorchOn) { mutableStateOf(isTorchOn) }
+    var localLensFacing by remember(lensFacing) { mutableStateOf(lensFacing) }
+    var localPlayLocalAlarm by remember(playLocalAlarm) { mutableStateOf(playLocalAlarm) }
+    var localMlKitEnabled by remember(mlKitEnabled) { mutableStateOf(mlKitEnabled) }
+    var localAutoCleanup by remember(autoCleanup) { mutableStateOf(autoCleanup) }
+    var localAutoStartOnBoot by remember(autoStartOnBoot) { mutableStateOf(autoStartOnBoot) }
+    var localPowerCutAlert by remember(powerCutAlertEnabled) { mutableStateOf(powerCutAlertEnabled) }
+    var localSystemLogEnabled by remember(systemLogEnabled) { mutableStateOf(systemLogEnabled) }
+
     val categoryStates = remember(cameraStatusJson) {
         val catJson = cameraStatusJson?.optJSONObject("categoryFilters")
         mutableStateMapOf<NotificationCategory, Boolean>().apply {
@@ -149,9 +167,15 @@ fun RemoteSettingsScreen(
         ResolutionSelectionDialog(
             currentResolution = currentRes,
             onSelect = { res ->
-                onSendCommand("resolution", res)
-                Toast.makeText(context, "已變更遠端解析度為 $res", Toast.LENGTH_SHORT).show()
-                showResPicker = false
+                coroutineScope.launch {
+                    val success = onSendCommand("resolution", res)
+                    if (success) {
+                        Toast.makeText(context, "已變更遠端解析度為 $res", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                    }
+                    showResPicker = false
+                }
             },
             onDismiss = { showResPicker = false }
         )
@@ -262,8 +286,17 @@ fun RemoteSettingsScreen(
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Button(
                                             onClick = {
-                                                onSendCommand("device_name", editingName)
-                                                Toast.makeText(context, "已更新鏡頭名稱: $editingName", Toast.LENGTH_SHORT).show()
+                                                if (editingName.isNotBlank()) {
+                                                    coroutineScope.launch {
+                                                        val success = onSendCommand("device_name", editingName)
+                                                        if (success) {
+                                                            Toast.makeText(context, "已更新鏡頭名稱: $editingName", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                            editingName = deviceNameStr
+                                                        }
+                                                    }
+                                                }
                                             },
                                             colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
                                             shape = RoundedCornerShape(10.dp)
@@ -280,8 +313,15 @@ fun RemoteSettingsScreen(
                                         val isMon = currentOpMode == "monitor"
                                         Button(
                                             onClick = {
-                                                onSendCommand("mode", "monitor")
-                                                Toast.makeText(context, "已設為監看模式", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("mode", "monitor")
+                                                    if (success) {
+                                                        localOpMode = "monitor"
+                                                        Toast.makeText(context, "已設為監看模式", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             colors = ButtonDefaults.buttonColors(
@@ -294,8 +334,15 @@ fun RemoteSettingsScreen(
                                         }
                                         Button(
                                             onClick = {
-                                                onSendCommand("mode", "detection")
-                                                Toast.makeText(context, "已設為動態偵測模式", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("mode", "detection")
+                                                    if (success) {
+                                                        localOpMode = "detection"
+                                                        Toast.makeText(context, "已設為動態偵測模式", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             colors = ButtonDefaults.buttonColors(
@@ -314,8 +361,15 @@ fun RemoteSettingsScreen(
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         OutlinedButton(
                                             onClick = {
-                                                onSendCommand("camera", "switch")
-                                                Toast.makeText(context, "已切換前後鏡頭", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("camera", "switch")
+                                                    if (success) {
+                                                        localLensFacing = if (localLensFacing == "back") "front" else "back"
+                                                        Toast.makeText(context, "已切換前後鏡頭", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             border = BorderStroke(1.dp, brandPrimaryColor),
@@ -328,8 +382,16 @@ fun RemoteSettingsScreen(
 
                                         Button(
                                             onClick = {
-                                                onSendCommand("torch", if (isTorchOn) "off" else "on")
-                                                Toast.makeText(context, if (isTorchOn) "已關閉閃光燈" else "已開啟閃光燈", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val targetState = !localTorchOn
+                                                    val success = onSendCommand("torch", if (targetState) "on" else "off")
+                                                    if (success) {
+                                                        localTorchOn = targetState
+                                                        Toast.makeText(context, if (isTorchOn) "已關閉閃光燈" else "已開啟閃光燈", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             colors = ButtonDefaults.buttonColors(
@@ -377,8 +439,15 @@ fun RemoteSettingsScreen(
                                             value = localQuality,
                                             onValueChange = { localQuality = it },
                                             onValueChangeFinished = {
-                                                onSendCommand("quality", "${localQuality.toInt()}")
-                                                Toast.makeText(context, "品質已設定為: ${localQuality.toInt()}%", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("quality", "${localQuality.toInt()}")
+                                                    if (success) {
+                                                        Toast.makeText(context, "品質已設定為: ${localQuality.toInt()}%", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        localQuality = currentQuality.toFloat()
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             valueRange = 30f..90f,
                                             steps = 5,
@@ -397,8 +466,15 @@ fun RemoteSettingsScreen(
                                             val isSelected = nightMode.equals(modeKey, ignoreCase = true)
                                             Button(
                                                 onClick = {
-                                                    onSendCommand("night_vision", modeKey)
-                                                    Toast.makeText(context, "夜視模式設為: $label", Toast.LENGTH_SHORT).show()
+                                                    coroutineScope.launch {
+                                                        val success = onSendCommand("night_vision", modeKey)
+                                                        if (success) {
+                                                            localNightMode = modeKey
+                                                            Toast.makeText(context, "夜視模式設為: $label", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
                                                 },
                                                 shape = RoundedCornerShape(10.dp),
                                                 colors = ButtonDefaults.buttonColors(
@@ -423,8 +499,15 @@ fun RemoteSettingsScreen(
                                                 value = localNightLuma,
                                                 onValueChange = { localNightLuma = it },
                                                 onValueChangeFinished = {
-                                                    onSendCommand("night_vision_luma", "${localNightLuma.toInt()}")
-                                                    Toast.makeText(context, "夜視亮度閥值已設為: ${localNightLuma.toInt()}", Toast.LENGTH_SHORT).show()
+                                                    coroutineScope.launch {
+                                                        val success = onSendCommand("night_vision_luma", "${localNightLuma.toInt()}")
+                                                        if (success) {
+                                                            Toast.makeText(context, "夜視亮度閥值已設為: ${localNightLuma.toInt()}", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            localNightLuma = nightLuma
+                                                            Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
                                                 },
                                                 valueRange = 10f..100f,
                                                 colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
@@ -454,10 +537,17 @@ fun RemoteSettingsScreen(
                                             Text("鏡頭異動時自動記錄與告警", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = isMotion,
+                                            checked = localIsMotion,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("motion", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已開啟遠端動態偵測" else "已關閉遠端動態偵測", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("motion", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localIsMotion = checked
+                                                        Toast.makeText(context, if (checked) "已開啟遠端動態偵測" else "已關閉遠端動態偵測", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -476,8 +566,15 @@ fun RemoteSettingsScreen(
                                             value = localSens,
                                             onValueChange = { localSens = it },
                                             onValueChangeFinished = {
-                                                onSendCommand("sensitivity", String.format("%.1f", localSens))
-                                                Toast.makeText(context, "觸發門檻設為: ${String.format("%.1f%%", localSens)}", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("sensitivity", String.format("%.1f", localSens))
+                                                    if (success) {
+                                                        Toast.makeText(context, "觸發門檻設為: ${String.format("%.1f%%", localSens)}", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        localSens = motionSensitivity
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             valueRange = 1.0f..100.0f,
                                             steps = 98,
@@ -498,8 +595,15 @@ fun RemoteSettingsScreen(
                                             value = localCooldown,
                                             onValueChange = { localCooldown = it },
                                             onValueChangeFinished = {
-                                                onSendCommand("cooldown", "${localCooldown.toInt()}")
-                                                Toast.makeText(context, "冷卻時間設為: ${localCooldown.toInt()} 秒", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("cooldown", "${localCooldown.toInt()}")
+                                                    if (success) {
+                                                        Toast.makeText(context, "冷卻時間設為: ${localCooldown.toInt()} 秒", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        localCooldown = motionCooldown.toFloat()
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             valueRange = 5f..120f,
                                             colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
@@ -519,10 +623,17 @@ fun RemoteSettingsScreen(
                                             Text("辨識寵物與人體，減少風吹樹影誤報", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = mlKitEnabled,
+                                            checked = localMlKitEnabled,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("mlkit_filter", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已啟用 AI ML Kit 過濾" else "已關閉 AI 過濾", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("mlkit_filter", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localMlKitEnabled = checked
+                                                        Toast.makeText(context, if (checked) "已啟用 AI ML Kit 過濾" else "已關閉 AI 過濾", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -541,10 +652,17 @@ fun RemoteSettingsScreen(
                                             Text("偵測異動時鏡頭手機發出警告音", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = playLocalAlarm,
+                                            checked = localPlayLocalAlarm,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("play_alarm_setting", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已開啟現場警報聲" else "已關閉現場警報聲", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("play_alarm_setting", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localPlayLocalAlarm = checked
+                                                        Toast.makeText(context, if (checked) "已開啟現場警報聲" else "已關閉現場警報聲", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -554,8 +672,14 @@ fun RemoteSettingsScreen(
 
                                     OutlinedButton(
                                         onClick = {
-                                            onSendCommand("alarm", "trigger")
-                                            Toast.makeText(context, "🚨 已發送測試警報指令至鏡頭端", Toast.LENGTH_SHORT).show()
+                                            coroutineScope.launch {
+                                                val success = onSendCommand("alarm", "trigger")
+                                                if (success) {
+                                                    Toast.makeText(context, "🚨 已發送測試警報指令至鏡頭端", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB3261E)),
@@ -643,12 +767,18 @@ fun RemoteSettingsScreen(
                                                 Switch(
                                                     checked = isEnabled,
                                                     onCheckedChange = { checked ->
-                                                        categoryStates[category] = checked
-                                                        val payload = JSONObject().apply {
-                                                            put("category", category.name)
-                                                            put("enabled", checked)
-                                                        }.toString()
-                                                        onSendCommand("cat_toggle", payload)
+                                                        coroutineScope.launch {
+                                                            val payload = JSONObject().apply {
+                                                                put("category", category.name)
+                                                                put("enabled", checked)
+                                                            }.toString()
+                                                            val success = onSendCommand("cat_toggle", payload)
+                                                            if (success) {
+                                                                categoryStates[category] = checked
+                                                            } else {
+                                                                Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
                                                     },
                                                     colors = SwitchDefaults.colors(
                                                         checkedThumbColor = Color.White,
@@ -661,12 +791,18 @@ fun RemoteSettingsScreen(
                                                 Switch(
                                                     checked = isRecordEnabled,
                                                     onCheckedChange = { checked ->
-                                                        categoryRecordStates[category] = checked
-                                                        val payload = JSONObject().apply {
-                                                            put("category", category.name)
-                                                            put("enabled", checked)
-                                                        }.toString()
-                                                        onSendCommand("cat_record_toggle", payload)
+                                                        coroutineScope.launch {
+                                                            val payload = JSONObject().apply {
+                                                                put("category", category.name)
+                                                                put("enabled", checked)
+                                                            }.toString()
+                                                            val success = onSendCommand("cat_record_toggle", payload)
+                                                            if (success) {
+                                                                categoryRecordStates[category] = checked
+                                                            } else {
+                                                                Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        }
                                                     },
                                                     colors = SwitchDefaults.colors(
                                                         checkedThumbColor = Color.White,
@@ -700,10 +836,17 @@ fun RemoteSettingsScreen(
                                             Text("空間或筆數超標時自動刪除最舊紀錄", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = autoCleanup,
+                                            checked = localAutoCleanup,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("auto_cleanup", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已開啟自動循環清理" else "已關閉自動循環清理", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("auto_cleanup", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localAutoCleanup = checked
+                                                        Toast.makeText(context, if (checked) "已開啟自動循環清理" else "已關閉自動循環清理", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -721,8 +864,15 @@ fun RemoteSettingsScreen(
                                             value = localStorageGB,
                                             onValueChange = { localStorageGB = it },
                                             onValueChangeFinished = {
-                                                onSendCommand("storage_limit_gb", String.format("%.1f", localStorageGB))
-                                                Toast.makeText(context, "儲存容量上限設為: ${String.format("%.1f GB", localStorageGB)}", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("storage_limit_gb", String.format("%.1f", localStorageGB))
+                                                    if (success) {
+                                                        Toast.makeText(context, "儲存容量上限設為: ${String.format("%.1f GB", localStorageGB)}", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        localStorageGB = storageLimitGB
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             valueRange = 0.5f..10.0f,
                                             colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
@@ -741,8 +891,15 @@ fun RemoteSettingsScreen(
                                             value = localMaxEvents,
                                             onValueChange = { localMaxEvents = it },
                                             onValueChangeFinished = {
-                                                onSendCommand("max_event_count", "${localMaxEvents.toInt()}")
-                                                Toast.makeText(context, "最高事件筆數設為: ${localMaxEvents.toInt()} 筆", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("max_event_count", "${localMaxEvents.toInt()}")
+                                                    if (success) {
+                                                        Toast.makeText(context, "最高事件筆數設為: ${localMaxEvents.toInt()} 筆", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        localMaxEvents = maxEventCount.toFloat()
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             valueRange = 50f..500f,
                                             steps = 8,
@@ -763,10 +920,17 @@ fun RemoteSettingsScreen(
                                             Text("手機重新開機後背景自動啟動「相機節點」", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = autoStartOnBoot,
+                                            checked = localAutoStartOnBoot,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("auto_start_boot", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已開啟開機自動啟動" else "已關閉開機自動啟動", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("auto_start_boot", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localAutoStartOnBoot = checked
+                                                        Toast.makeText(context, if (checked) "已開啟開機自動啟動" else "已關閉開機自動啟動", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -787,10 +951,17 @@ fun RemoteSettingsScreen(
                                             Text("開啟後會將運作狀態紀錄至記憶體供排解問題", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = systemLogEnabled,
+                                            checked = localSystemLogEnabled,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("system_log_enabled", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已開啟系統日誌" else "已關閉系統日誌", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("system_log_enabled", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localSystemLogEnabled = checked
+                                                        Toast.makeText(context, if (checked) "已開啟系統日誌" else "已關閉系統日誌", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -800,12 +971,16 @@ fun RemoteSettingsScreen(
                                     
                                     androidx.compose.material3.OutlinedButton(
                                         onClick = { 
-                                            // TODO: View remote logs... we could just open a new dialog or ignore for now,
-                                            // The user mainly asked for "系統日誌紀錄開關" and "查看系統日誌 (Log) 按鈕". 
-                                            // Viewing remote logs requires fetching from API, which might take more work, 
-                                            // but at least the button is there. Wait, is there a /logs endpoint? No.
-                                            // So we should add a toast saying "請至鏡頭端本機查看，或等待後續支援遠端日誌拉取" 
-                                            Toast.makeText(context, "請至鏡頭端本機查看，目前版本尚未支援遠端提取日誌", Toast.LENGTH_SHORT).show()
+                                            if (onFetchLogs != null) {
+                                                isLoadingLogs = true
+                                                showRemoteLogs = true
+                                                coroutineScope.launch {
+                                                    remoteLogsList = onFetchLogs()
+                                                    isLoadingLogs = false
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "暫不支援遠端提取日誌", Toast.LENGTH_SHORT).show()
+                                            }
                                         },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(24.dp),
@@ -825,10 +1000,17 @@ fun RemoteSettingsScreen(
                                             Text("拔除電源線或低電量時發送推播通知", fontSize = 11.sp, color = textSecondaryColor)
                                         }
                                         Switch(
-                                            checked = powerCutAlertEnabled,
+                                            checked = localPowerCutAlert,
                                             onCheckedChange = { checked ->
-                                                onSendCommand("power_cut_alert", if (checked) "on" else "off")
-                                                Toast.makeText(context, if (checked) "已開啟斷電/低電量警報" else "已關閉斷電/低電量警報", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("power_cut_alert", if (checked) "on" else "off")
+                                                    if (success) {
+                                                        localPowerCutAlert = checked
+                                                        Toast.makeText(context, if (checked) "已開啟斷電/低電量警報" else "已關閉斷電/低電量警報", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
                                             },
                                             colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                         )
@@ -902,7 +1084,7 @@ fun RemoteSettingsScreen(
 fun RemoteSettingsDialog(
     cameraName: String,
     cameraStatusJson: JSONObject?,
-    onSendCommand: (String, String) -> Unit,
+    onSendCommand: suspend (String, String) -> Boolean,
     onSyncTelegram: () -> Unit,
     onDismiss: () -> Unit
 ) {

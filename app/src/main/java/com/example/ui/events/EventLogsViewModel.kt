@@ -64,17 +64,63 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
             event.snapshotPath?.let { java.io.File(it).delete() }
             event.videoPath?.let { java.io.File(it).delete() }
             eventDao.deleteEventById(event.id)
+            
+            if (event.remoteId != null && event.cameraIp != "127.0.0.1") {
+                try {
+                    val cameraList = cameraDao.getCamerasListOnce()
+                    val camera = cameraList.find { it.ipAddress == event.cameraIp }
+                    if (camera != null) {
+                        val client = OkHttpClient.Builder()
+                            .connectTimeout(5, TimeUnit.SECONDS)
+                            .readTimeout(5, TimeUnit.SECONDS)
+                            .build()
+                        val url = "http://${camera.ipAddress}:${camera.port}/events/delete?id=${event.remoteId}"
+                        val request = Request.Builder().url(url).get().build()
+                        client.newCall(request).execute().close()
+                    }
+                } catch (e: Exception) {
+                    Log.e("EventLogsViewModel", "Failed to delete remote event: ${e.message}")
+                }
+            }
         }
     }
 
     fun clearAllEvents() {
         viewModelScope.launch(Dispatchers.IO) {
             val events = eventDao.getEventsListOnce()
+            
+            // Delete local files
             for (ev in events) {
                 ev.snapshotPath?.let { java.io.File(it).delete() }
                 ev.videoPath?.let { java.io.File(it).delete() }
             }
+            
+            // Find remote cameras that have events
+            val remoteIps = events.mapNotNull { if (it.remoteId != null && it.cameraIp != "127.0.0.1") it.cameraIp else null }.distinct()
+            
+            // Delete local DB records
             eventDao.clearAllEvents()
+            
+            // Delete remote events
+            if (remoteIps.isNotEmpty()) {
+                val cameraList = cameraDao.getCamerasListOnce()
+                for (ip in remoteIps) {
+                    val camera = cameraList.find { it.ipAddress == ip }
+                    if (camera != null) {
+                        try {
+                            val client = OkHttpClient.Builder()
+                                .connectTimeout(5, TimeUnit.SECONDS)
+                                .readTimeout(5, TimeUnit.SECONDS)
+                                .build()
+                            val url = "http://${camera.ipAddress}:${camera.port}/events/clear"
+                            val request = Request.Builder().url(url).get().build()
+                            client.newCall(request).execute().close()
+                        } catch (e: Exception) {
+                            Log.e("EventLogsViewModel", "Failed to clear remote events for $ip: ${e.message}")
+                        }
+                    }
+                }
+            }
         }
     }
 

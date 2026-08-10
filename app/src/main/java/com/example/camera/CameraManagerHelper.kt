@@ -73,6 +73,7 @@ class CameraManagerHelper(private val context: Context) {
     var isNightVisionActive: Boolean = false
         private set
     var dynamicFpsAdjustmentEnabled: Boolean = false
+    var dynamicScaleFactor = 1.0f
     var defaultJpegQuality: Int = 60
     private var lastProcessedFrameTime = 0L
     private var dynamicTargetFps = 15
@@ -106,6 +107,7 @@ class CameraManagerHelper(private val context: Context) {
     var onFrameReadyForRecording: ((ByteArray, Long) -> Unit)? = null
     var onMotionDetected: ((Float, ByteArray, Bitmap?) -> Unit)? = null // percentage, thumbnail JPEG, rotated Bitmap
     var onLumaMeasured: ((Float) -> Unit)? = null
+    var hasActiveConsumers: () -> Boolean = { true }
 
     private var currentLifecycleOwner: LifecycleOwner? = null
     private var currentPreviewSurface: Preview.SurfaceProvider? = null
@@ -331,23 +333,37 @@ class CameraManagerHelper(private val context: Context) {
                 else -> avgLuma < autoNightVisionThreshold
             }
 
+            // 1.5. If motion detection is enabled, we can run it on Y-buffer directly without Bitmap
+            if (isMotionDetectionEnabled) {
+                // Pass null for bitmap since analyzeMotion only uses yBuffer
+                analyzeMotion(imageProxy, yBuffer, yRowStride, width, height, avgLuma, null, rotationDegrees)
+            }
+
+            // If no one is watching and we are not recording, skip the heavy Bitmap/JPEG processing!
+            if (!hasActiveConsumers() && !isRecordingVideo) {
+                onFrameEncoded?.invoke(ByteArray(0))
+                imageProxy.close()
+                isProcessingFrame.set(false)
+                return
+            }
+
             // 2. Optimized conversion: use CameraX toBitmap() directly
             var rawJpegBytes: ByteArray
             var bitmap = imageProxy.toBitmap()
 
             if (bitmap != null) {
-                if (isMotionDetectionEnabled) {
-                    analyzeMotion(yBuffer, yRowStride, width, height, avgLuma, bitmap, rotationDegrees)
-                }
                 
-                // We must handle rotation! If rotated 90/270, the output width/height are swapped!
-                val rotatedWidth = if (rotationDegrees % 180 != 0) bitmap.height else bitmap.width
-                val rotatedHeight = if (rotationDegrees % 180 != 0) bitmap.width else bitmap.height
+                // toBitmap() already handles rotation in CameraX!
+                val baseWidth = bitmap.width
+                val baseHeight = bitmap.height
+
+                val scaledWidth = (baseWidth * dynamicScaleFactor).toInt().coerceAtLeast(1)
+                val scaledHeight = (baseHeight * dynamicScaleFactor).toInt().coerceAtLeast(1)
 
                 // 1. Initialize reusable bitmap
-                if (reusableBitmap == null || reusableBitmap!!.width != rotatedWidth || reusableBitmap!!.height != rotatedHeight) {
+                if (reusableBitmap == null || reusableBitmap!!.width != scaledWidth || reusableBitmap!!.height != scaledHeight) {
                     reusableBitmap?.recycle()
-                    reusableBitmap = Bitmap.createBitmap(rotatedWidth, rotatedHeight, Bitmap.Config.ARGB_8888)
+                    reusableBitmap = Bitmap.createBitmap(scaledWidth, scaledHeight, Bitmap.Config.ARGB_8888)
                     renderCanvas = Canvas(reusableBitmap!!)
                 }
                 
@@ -357,16 +373,13 @@ class CameraManagerHelper(private val context: Context) {
                 // 2. Clear / Draw proxyBitmap to targetBitmap with necessary transformations
                 canvas.save()
                 
-                // Translate to center, apply rotation, translate back
-                canvas.translate(targetBitmap.width / 2f, targetBitmap.height / 2f)
-                if (rotationDegrees != 0) {
-                    canvas.rotate(rotationDegrees.toFloat())
-                }
+                // Apply dynamic scaling
+                canvas.scale(dynamicScaleFactor, dynamicScaleFactor)
+                
                 if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
+                    canvas.translate(baseWidth.toFloat(), 0f)
                     canvas.scale(-1f, 1f) // Mirror front camera
                 }
-                // Translate back to top-left of the original image
-                canvas.translate(-bitmap.width / 2f, -bitmap.height / 2f)
 
                 if (isNightVisionActive) {
                     if (cachedNightVisionPaint == null) {
@@ -455,11 +468,13 @@ class CameraManagerHelper(private val context: Context) {
                     processTimesBuffer.clear()
                     
                     if (avgProcessTime > 80) { // Device struggling
-                        dynamicTargetFps = (dynamicTargetFps - 2).coerceAtLeast(5)
-                        jpegQuality = (jpegQuality - 10).coerceAtLeast(20)
+                        dynamicTargetFps = (dynamicTargetFps - 2).coerceAtLeast(10)
+                        jpegQuality = (jpegQuality - 10).coerceAtLeast(30)
+                        dynamicScaleFactor = (dynamicScaleFactor - 0.1f).coerceAtLeast(0.4f)
                     } else if (avgProcessTime < 40) { // Device has headroom
                         dynamicTargetFps = (dynamicTargetFps + 1).coerceAtMost(30)
                         jpegQuality = (jpegQuality + 5).coerceAtMost(defaultJpegQuality)
+                        dynamicScaleFactor = (dynamicScaleFactor + 0.1f).coerceAtMost(1.0f)
                     }
                 }
             }
@@ -554,7 +569,7 @@ class CameraManagerHelper(private val context: Context) {
         return dest
     }
 
-    private fun analyzeMotion(yBuffer: ByteBuffer, yRowStride: Int, width: Int, height: Int, avgLuma: Float, bitmap: Bitmap, rotation: Int) {
+    private fun analyzeMotion(imageProxy: androidx.camera.core.ImageProxy, yBuffer: ByteBuffer, yRowStride: Int, width: Int, height: Int, avgLuma: Float, bitmap: Bitmap?, rotation: Int) {
         val now = System.currentTimeMillis()
         val gridWidth = 32
         val gridHeight = 24
@@ -608,16 +623,21 @@ class CameraManagerHelper(private val context: Context) {
                     lastMotionTime = now
                     
                     try {
-                        val scaled = Bitmap.createScaledBitmap(bitmap, 320, (320f * height / width).toInt(), true)
-                        val matrix = Matrix()
-                        if (rotation != 0) matrix.postRotate(rotation.toFloat())
-                        val rotated = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, matrix, true)
-                        
-                        val thumbStream = ByteArrayOutputStream()
-                        rotated.compress(Bitmap.CompressFormat.JPEG, 50, thumbStream)
-                        val thumbnailBytes = thumbStream.toByteArray()
-                        
-                        onMotionDetected?.invoke(motionRatio, thumbnailBytes, rotated)
+                        var activeBitmap = bitmap ?: try { imageProxy.toBitmap() } catch(e: Exception) { null }
+                        if (activeBitmap != null) {
+                            val scaled = Bitmap.createScaledBitmap(activeBitmap, 320, (320f * height / width).toInt(), true)
+                            val matrix = Matrix()
+                            if (rotation != 0) matrix.postRotate(rotation.toFloat())
+                            val rotated = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, matrix, true)
+                            
+                            val thumbStream = ByteArrayOutputStream()
+                            rotated.compress(Bitmap.CompressFormat.JPEG, 50, thumbStream)
+                            val thumbnailBytes = thumbStream.toByteArray()
+                            
+                            onMotionDetected?.invoke(motionRatio, thumbnailBytes, rotated)
+                        } else {
+                            onMotionDetected?.invoke(motionRatio, ByteArray(0), null)
+                        }
                     } catch (e: Exception) {
                         Log.e("CameraManagerHelper", "Error generating thumbnail", e)
                     }

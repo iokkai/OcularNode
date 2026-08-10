@@ -190,6 +190,10 @@ class CameraStreamService : Service(), LifecycleOwner {
         cameraHelper.onLumaMeasured = { luma ->
             _measuredLuma.value = luma
         }
+        
+        cameraHelper.hasActiveConsumers = {
+            httpServer.connectedClientsCount.get() > 0 || settingsManager.eventVideoRecordingEnabled
+        }
 
         cameraHelper.onMotionDetected = { percentage, thumbnailBytes, frameBitmap ->
             onMotionTriggered(percentage, thumbnailBytes, frameBitmap)

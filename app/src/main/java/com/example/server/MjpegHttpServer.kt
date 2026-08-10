@@ -238,12 +238,24 @@ class MjpegHttpServer(
         }
     }
 
+    private fun readLineStr(input: InputStream): String? {
+        val baos = java.io.ByteArrayOutputStream()
+        var c = input.read()
+        if (c == -1) return null
+        while (c != -1 && c != '\n'.code) {
+            if (c != '\r'.code) {
+                baos.write(c)
+            }
+            c = input.read()
+        }
+        return baos.toString("UTF-8")
+    }
+
     private fun handleClient(socket: Socket, scope: CoroutineScope) {
         try {
             socket.soTimeout = 10000
             val input = socket.getInputStream()
-            val reader = BufferedReader(InputStreamReader(input))
-            val requestLine = reader.readLine() ?: return socket.close()
+            val requestLine = readLineStr(input) ?: return socket.close()
 
             val parts = requestLine.split(" ")
             if (parts.size < 2) return socket.close()
@@ -321,7 +333,7 @@ class MjpegHttpServer(
                     // Read headers to find Content-Length
                     var contentLength = 0
                     var headerLine: String?
-                    while (reader.readLine().also { headerLine = it } != null && headerLine!!.isNotBlank()) {
+                    while (readLineStr(input).also { headerLine = it } != null && headerLine!!.isNotBlank()) {
                         if (headerLine!!.lowercase().startsWith("content-length:")) {
                             contentLength = headerLine!!.substringAfter(":").trim().toIntOrNull() ?: 0
                         }
@@ -329,9 +341,14 @@ class MjpegHttpServer(
 
                     var body = ""
                     if (contentLength > 0) {
-                        val bodyChars = CharArray(contentLength)
-                        reader.read(bodyChars, 0, contentLength)
-                        body = String(bodyChars)
+                        val bodyBytes = ByteArray(contentLength)
+                        var totalRead = 0
+                        while (totalRead < contentLength) {
+                            val r = input.read(bodyBytes, totalRead, contentLength - totalRead)
+                            if (r == -1) break
+                            totalRead += r
+                        }
+                        body = String(bodyBytes, Charsets.UTF_8)
                     }
 
                     handleControlRequest(path, body)
@@ -339,23 +356,37 @@ class MjpegHttpServer(
                     socket.close()
                 }
 
+                
+                path.startsWith("/logs") -> {
+                    val logsList = com.example.util.AppLogger.logs.value
+                    val jsonArray = org.json.JSONArray(logsList)
+                    val json = org.json.JSONObject().apply {
+                        put("status", "ok")
+                        put("logs", jsonArray)
+                    }
+                    sendJsonResponse(output, 200, json.toString())
+                    socket.close()
+                }
+
                 path.startsWith("/audio") -> {
+                    // Skip remaining headers
+                    while (true) {
+                        val line = readLineStr(input)
+                        if (line.isNullOrEmpty()) break
+                    }
                     // Stream PCM Audio from Camera MIC to Viewer
                     socket.tcpNoDelay = true
                     output.write(("HTTP/1.1 200 OK\r\n" +
                             "Access-Control-Allow-Origin: *\r\n" +
                             "Content-Type: audio/pcm\r\n" +
-                            "Transfer-Encoding: chunked\r\n\r\n").toByteArray())
+                            "Connection: close\r\n\r\n").toByteArray())
                     output.flush()
 
                     audioEngine.startRecording(scope)
                     val collectorJob = scope.launch(Dispatchers.IO) {
-                        audioEngine.audioBufferFlow.collectLatest { chunk ->
+                        audioEngine.audioBufferFlow.collect { chunk ->
                             try {
-                                val chunkSizeHex = Integer.toHexString(chunk.size) + "\r\n"
-                                output.write(chunkSizeHex.toByteArray())
                                 output.write(chunk)
-                                output.write("\r\n".toByteArray())
                                 output.flush()
                             } catch (e: Exception) {
                                 try { socket.close() } catch (_: Exception) {}
@@ -366,6 +397,12 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/speak") -> {
+                    // Skip remaining headers
+                    while (true) {
+                        val line = readLineStr(input)
+                        if (line.isNullOrEmpty()) break
+                    }
+                    
                     // Receive PCM Audio stream from Viewer and output to Camera Speakerphone
                     socket.tcpNoDelay = true
                     output.write(("HTTP/1.1 200 OK\r\n" +
@@ -376,6 +413,7 @@ class MjpegHttpServer(
                     val buffer = ByteArray(640)
                     var read: Int
                     try {
+                        socket.soTimeout = 0 // No timeout for continuous streaming
                         while (input.read(buffer).also { read = it } != -1) {
                             if (read > 0) {
                                 audioEngine.playChunk(buffer, read)
@@ -393,10 +431,33 @@ class MjpegHttpServer(
                     val id = path.substringAfter("id=").substringBefore("&").toLongOrNull()
                     scope.launch(Dispatchers.IO) {
                         if (id != null) {
-                            AppDatabase.getDatabase(context).motionEventDao().deleteEventById(id)
+                            val eventDao = AppDatabase.getDatabase(context).motionEventDao()
+                            val events = eventDao.getEventsListOnce()
+                            val event = events.find { it.id == id }
+                            event?.snapshotPath?.let { java.io.File(it).delete() }
+                            event?.videoPath?.let { java.io.File(it).delete() }
+                            eventDao.deleteEventById(id)
                             sendJsonResponse(output, 200, "{\"status\":\"deleted\"}")
                         } else {
                             sendJsonResponse(output, 400, "{\"error\":\"Invalid ID\"}")
+                        }
+                        try { socket.close() } catch (_: Exception) {}
+                    }
+                    return
+                }
+
+                path == "/events/clear" -> {
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val events = AppDatabase.getDatabase(context).motionEventDao().getEventsListOnce()
+                            for (ev in events) {
+                                ev.snapshotPath?.let { java.io.File(it).delete() }
+                                ev.videoPath?.let { java.io.File(it).delete() }
+                            }
+                            AppDatabase.getDatabase(context).motionEventDao().clearAllEvents()
+                            sendJsonResponse(output, 200, "{\"status\":\"cleared\"}")
+                        } catch (e: Exception) {
+                            sendJsonResponse(output, 500, "{\"error\":\"Internal Server Error\"}")
                         }
                         try { socket.close() } catch (_: Exception) {}
                     }
