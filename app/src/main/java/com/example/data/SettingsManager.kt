@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 
 class SettingsManager(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("tailcam_settings", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = context.getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE)
 
     var deviceRoleMode: String // "UNSET", "CAMERA", "VIEWER"
         get() = prefs.getString(KEY_DEVICE_ROLE_MODE, "UNSET") ?: "UNSET"
@@ -30,6 +30,30 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_MOTION_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_MOTION_ENABLED, value).apply()
 
+    var motionScheduleEnabled: Boolean
+        get() = prefs.getBoolean(KEY_MOTION_SCHEDULE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_MOTION_SCHEDULE_ENABLED, value).apply()
+
+    var motionScheduleStartTime: String // "HH:mm" format
+        get() = prefs.getString(KEY_MOTION_SCHEDULE_START, "22:00") ?: "22:00"
+        set(value) = prefs.edit().putString(KEY_MOTION_SCHEDULE_START, value).apply()
+
+    var motionScheduleEndTime: String // "HH:mm" format
+        get() = prefs.getString(KEY_MOTION_SCHEDULE_END, "06:00") ?: "06:00"
+        set(value) = prefs.edit().putString(KEY_MOTION_SCHEDULE_END, value).apply()
+
+    var notificationScheduleEnabled: Boolean
+        get() = prefs.getBoolean(KEY_NOTIFICATION_SCHEDULE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_NOTIFICATION_SCHEDULE_ENABLED, value).apply()
+
+    var notificationScheduleStartTime: String // "HH:mm" format
+        get() = prefs.getString(KEY_NOTIFICATION_SCHEDULE_START, "22:00") ?: "22:00"
+        set(value) = prefs.edit().putString(KEY_NOTIFICATION_SCHEDULE_START, value).apply()
+
+    var notificationScheduleEndTime: String // "HH:mm" format
+        get() = prefs.getString(KEY_NOTIFICATION_SCHEDULE_END, "06:00") ?: "06:00"
+        set(value) = prefs.edit().putString(KEY_NOTIFICATION_SCHEDULE_END, value).apply()
+
     var motionSensitivity: Float // 1.0 (low sensitivity = high diff threshold) to 10.0 (high sensitivity)
         get() = prefs.getFloat(KEY_MOTION_SENSITIVITY, 5.0f)
         set(value) = prefs.edit().putFloat(KEY_MOTION_SENSITIVITY, value).apply()
@@ -54,7 +78,7 @@ class SettingsManager(context: Context) {
         get() = prefs.getString(KEY_DEFAULT_RESOLUTION, "720p") ?: "720p"
         set(value) = prefs.edit().putString(KEY_DEFAULT_RESOLUTION, value).apply()
 
-    var operatingMode: String // "monitor" (監看模式) or "detection" (動態偵測模式)
+    var operatingMode: String // "monitor" (監看模式) or "detection" (自動偵測模式)
         get() = prefs.getString(KEY_OPERATING_MODE, "monitor") ?: "monitor"
         set(value) = prefs.edit().putString(KEY_OPERATING_MODE, value).apply()
 
@@ -82,6 +106,27 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_LIVE_PREVIEW_IN_LIST, false)
         set(value) = prefs.edit().putBoolean(KEY_LIVE_PREVIEW_IN_LIST, value).apply()
 
+    var autoStartOnBoot: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_START_BOOT, true)
+        set(value) = prefs.edit().putBoolean(KEY_AUTO_START_BOOT, value).apply()
+
+    var powerCutAlertEnabled: Boolean
+        get() = prefs.getBoolean(KEY_POWER_CUT_ALERT, true)
+        set(value) = prefs.edit().putBoolean(KEY_POWER_CUT_ALERT, value).apply()
+
+
+    var eventVideoRecordingEnabled: Boolean
+        get() = prefs.getBoolean("pref_event_video_recording_enabled", true)
+        set(value) = prefs.edit().putBoolean("pref_event_video_recording_enabled", value).apply()
+
+    var systemLogEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SYSTEM_LOG_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_SYSTEM_LOG_ENABLED, value).apply()
+
+    var lowBatteryAlertThreshold: Int
+        get() = prefs.getInt(KEY_LOW_BATTERY_THRESHOLD, 60)
+        set(value) = prefs.edit().putInt(KEY_LOW_BATTERY_THRESHOLD, value).apply()
+
     companion object {
         private const val KEY_DEVICE_ROLE_MODE = "device_role_mode"
         private const val KEY_PORT = "server_port"
@@ -102,5 +147,15 @@ class SettingsManager(context: Context) {
         private const val KEY_STORAGE_LIMIT_GB = "storage_limit_gb"
         private const val KEY_MAX_EVENT_COUNT = "max_event_count"
         private const val KEY_LIVE_PREVIEW_IN_LIST = "live_preview_in_list"
+        private const val KEY_MOTION_SCHEDULE_ENABLED = "motion_schedule_enabled"
+        private const val KEY_MOTION_SCHEDULE_START = "motion_schedule_start"
+        private const val KEY_MOTION_SCHEDULE_END = "motion_schedule_end"
+        private const val KEY_NOTIFICATION_SCHEDULE_ENABLED = "notification_schedule_enabled"
+        private const val KEY_NOTIFICATION_SCHEDULE_START = "notification_schedule_start"
+        private const val KEY_NOTIFICATION_SCHEDULE_END = "notification_schedule_end"
+        private const val KEY_AUTO_START_BOOT = "auto_start_boot"
+        private const val KEY_POWER_CUT_ALERT = "power_cut_alert"
+        private const val KEY_LOW_BATTERY_THRESHOLD = "low_battery_threshold"
+        private const val KEY_SYSTEM_LOG_ENABLED = "system_log_enabled"
     }
 }

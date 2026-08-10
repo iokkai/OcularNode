@@ -93,13 +93,22 @@ object NetworkUtils {
             e.printStackTrace()
         }
 
+        val tsActive = if (context != null) TailscaleDetector.isTailscaleActive(context) else false
         val vpnActive = if (context != null) isVpnActive(context) else false
         val installed = if (context != null) isTailscaleInstalled(context) else false
+
+        val finalTailscaleIp = if (context != null) {
+            if (tsActive) tailscaleIp else null
+        } else {
+            tailscaleIp
+        }
+        val isConnected = if (context != null) tsActive else !tailscaleIp.isNullOrBlank()
+
         return IpInfo(
-            tailscaleIp = tailscaleIp,
+            tailscaleIp = finalTailscaleIp,
             localIp = localIp,
             allIps = allIps,
-            isTailscaleConnected = !tailscaleIp.isNullOrBlank(),
+            isTailscaleConnected = isConnected,
             isVpnActive = vpnActive,
             isTailscaleInstalled = installed
         )

@@ -29,6 +29,15 @@ interface MotionEventDao {
     @Query("DELETE FROM motion_events WHERE id IN (SELECT id FROM motion_events ORDER BY timestamp ASC LIMIT :count)")
     suspend fun deleteOldestEvents(count: Int)
 
+    @Query("SELECT * FROM motion_events ORDER BY timestamp ASC LIMIT :count")
+    suspend fun getOldestEvents(count: Int): List<MotionEvent>
+
+    @Query("UPDATE motion_events SET videoPath = :videoPath WHERE id = :id")
+    suspend fun updateVideoPath(id: Long, videoPath: String?)
+
+    @Query("UPDATE motion_events SET snapshotPath = :snapshotPath WHERE id = :id")
+    suspend fun updateSnapshotPath(id: Long, snapshotPath: String?)
+
     @Query("SELECT * FROM motion_events ORDER BY timestamp DESC")
     suspend fun getEventsListOnce(): List<MotionEvent>
 

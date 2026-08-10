@@ -104,6 +104,9 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
     val isVpnActive by viewModel.isVpnActive.collectAsState()
 
+    val isThermalThrottled by viewModel.isThermalThrottled.collectAsState()
+    val batteryTemp by viewModel.batteryTemp.collectAsState()
+
     var showResolutionDialog by remember { mutableStateOf(false) }
     var isAddressSectionExpanded by remember { mutableStateOf(true) }
 
@@ -258,8 +261,10 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 onClick = {
                                     if (isServiceRunning) {
                                         viewModel.stopStreamService()
+                                        isAddressSectionExpanded = true
                                     } else {
                                         viewModel.startStreamService()
+                                        isAddressSectionExpanded = false
                                     }
                                 },
                                 shape = RoundedCornerShape(20.dp),
@@ -274,6 +279,37 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(if (isServiceRunning) "停止串流" else "開啟串流")
+                            }
+                        }
+
+                        AnimatedVisibility(visible = isThermalThrottled) {
+                            Column {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color(0xFFFFF3E0))
+                                        .border(1.dp, Color(0xFFFF9800), RoundedCornerShape(16.dp))
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🔥", fontSize = 22.sp)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            "高溫降載機制啟動中 (${String.format(java.util.Locale.US, "%.1f", batteryTemp)}°C)",
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFE65100),
+                                            fontSize = 14.sp
+                                        )
+                                        Text(
+                                            "為避免手機過熱當機與電池膨脹，已自動暫停 ML Kit AI 分析與錄影，基礎串流與推播正常運作中。",
+                                            color = Color(0xFFF57C00),
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -292,7 +328,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                     "http://$activeLocal:${viewModel.settingsManager.serverPort}?name=$encodedCamName"
                                 }
 
-                                if (isTailscaleConnected || isVpnActive) {
+                                if (isTailscaleConnected) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -457,9 +493,9 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(Icons.Default.Computer, contentDescription = null, tint = Color(0xFF6750A4), modifier = Modifier.size(16.dp))
                                                     Spacer(modifier = Modifier.width(4.dp))
-                                                    Text("電腦 / 筆電監控", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                                                    Text("網頁監控", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
                                                 }
-                                                Text("開啟 Chrome 瀏覽器輸入此網址即可免安裝 APP 觀看。", fontSize = 11.sp, color = Color(0xFF49454F))
+                                                Text("開啟瀏覽器輸入此網址即可免安裝 APP 觀看。", fontSize = 11.sp, color = Color(0xFF49454F))
 
                                                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -546,7 +582,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                 ) {
                     Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF21005D))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("進入省電黑屏模式 (防烙印/持續背景運作)", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("進入省電模式 (持續背景運作)", fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -565,7 +601,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                         // Operating Mode Selection (監看模式 vs 自動偵測模式)
                         val operatingMode by viewModel.operatingMode.collectAsState()
                         Column {
-                            Text("運作模式設定:", color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            Text("運作模式設定", color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -615,7 +651,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text("解析度設定:", color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                Text("解析度設定", color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
                                 Text("拍攝與串流畫面解析度", color = Color(0xFF79747E), fontSize = 11.sp)
                             }
                             OutlinedButton(
@@ -635,8 +671,11 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("JPEG 壓縮品質:", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                                Text("${currentQuality}%", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
+                                Column {
+                                    Text("JPEG 壓縮品質", color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text("數值越高畫質越清晰，但流量也越大，建議設定為 50%", color = Color(0xFF79747E), fontSize = 11.sp)
+                                }
+                                Text("${currentQuality}%", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                             Slider(
                                 value = currentQuality.toFloat(),
@@ -653,27 +692,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        // Motion Detection Switch
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("智慧動態偵測:", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Switch(
-                                checked = isMotionEnabled,
-                                onCheckedChange = { viewModel.toggleMotionDetection(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = Color(0xFF6750A4),
-                                    uncheckedThumbColor = Color(0xFF49454F),
-                                    uncheckedTrackColor = Color(0xFFE8DEF8)
-                                )
-                            )
-                        }
-
-                        if (isMotionEnabled) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        if (operatingMode == "detection") {
+                            Spacer(modifier = Modifier.height(12.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -715,7 +735,7 @@ private fun String?.isNull_or_blank_custom(): Boolean {
 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText("TailCam URL", text)
+    val clip = ClipData.newPlainText("OcularNode URL", text)
     clipboard.setPrimaryClip(clip)
     Toast.makeText(context, "已複製串流網址: $text", Toast.LENGTH_SHORT).show()
 }

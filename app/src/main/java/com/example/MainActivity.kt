@@ -94,6 +94,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
 }
 
 @Composable
@@ -109,12 +114,31 @@ fun MainAppScreen(
     var viewingMonitorDevice by remember { mutableStateOf<CameraDevice?>(null) }
     val unreadCount by eventLogsViewModel.unreadCount.collectAsState()
 
-    // Sync currentTab when roleMode changes
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Listen for notification click with OPEN_TELEGRAM_SETUP intent
+    val activity = context as? MainActivity
+    LaunchedEffect(activity?.intent) {
+        if (activity?.intent?.getBooleanExtra("OPEN_TELEGRAM_SETUP", false) == true) {
+            currentTab = AppTab.SETTINGS
+            activity.intent?.removeExtra("OPEN_TELEGRAM_SETUP")
+        }
+    }
     LaunchedEffect(roleMode) {
         if (roleMode == "CAMERA" && currentTab == AppTab.VIEWER) {
             currentTab = AppTab.CAMERA
-        } else if (roleMode == "VIEWER" && currentTab == AppTab.CAMERA) {
-            currentTab = AppTab.VIEWER
+        } else if (roleMode == "VIEWER") {
+            if (currentTab == AppTab.CAMERA) {
+                currentTab = AppTab.VIEWER
+            }
+            try {
+                val serviceIntent = android.content.Intent(context, com.example.service.CameraStreamService::class.java)
+                context.stopService(serviceIntent)
+                val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                notificationManager?.cancel(1001)
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Error stopping service on VIEWER role sync", e)
+            }
         }
     }
 

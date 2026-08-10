@@ -61,12 +61,19 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun deleteEvent(event: MotionEvent) {
         viewModelScope.launch(Dispatchers.IO) {
+            event.snapshotPath?.let { java.io.File(it).delete() }
+            event.videoPath?.let { java.io.File(it).delete() }
             eventDao.deleteEventById(event.id)
         }
     }
 
     fun clearAllEvents() {
         viewModelScope.launch(Dispatchers.IO) {
+            val events = eventDao.getEventsListOnce()
+            for (ev in events) {
+                ev.snapshotPath?.let { java.io.File(it).delete() }
+                ev.videoPath?.let { java.io.File(it).delete() }
+            }
             eventDao.clearAllEvents()
         }
     }

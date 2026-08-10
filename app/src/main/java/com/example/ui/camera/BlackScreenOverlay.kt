@@ -170,14 +170,14 @@ fun BlackScreenOverlay(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "省電黑屏模式運作中",
+                        text = "省電模式運作中",
                         color = Color.DarkGray,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "連按兩下 (Double Tap) 解除黑屏",
+                        text = "連按兩下 (Double Tap) 解除省電模式",
                         color = Color.Gray,
                         fontSize = 14.sp
                     )

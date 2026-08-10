@@ -50,6 +50,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -345,17 +346,23 @@ fun EventCard(
 ) {
     val context = LocalContext.current
     val formattedTime = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault()).format(Date(event.timestamp))
+    val hasVideo = !event.videoPath.isNullOrEmpty() && File(event.videoPath).exists()
 
-    val thumbnailBitmap = remember(event.thumbnailBase64) {
-        event.thumbnailBase64?.let { base64Str ->
+    val thumbnailBitmap = remember(event.thumbnailBase64, event.snapshotPath) {
+        var bmp: Bitmap? = null
+        if (!event.snapshotPath.isNullOrEmpty()) {
             try {
-                val bytes = Base64.decode(base64Str, Base64.DEFAULT)
-                val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
-            } catch (e: Exception) {
-                null
-            }
+                bmp = BitmapFactory.decodeFile(event.snapshotPath)
+            } catch (_: Exception) {}
         }
+        if (bmp == null && event.thumbnailBase64 != null) {
+            try {
+                val bytes = Base64.decode(event.thumbnailBase64, Base64.DEFAULT)
+                val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
+                bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+            } catch (_: Exception) {}
+        }
+        bmp
     }
 
     Card(
@@ -370,7 +377,7 @@ fun EventCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Snapshot Thumbnail with click preview
+            // Snapshot Thumbnail with click preview & video badge
             Box(
                 modifier = Modifier
                     .size(96.dp, 72.dp)
@@ -388,6 +395,23 @@ fun EventCard(
                     )
                 } else {
                     Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Gray)
+                }
+
+                if (hasVideo) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xCC000000))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFFFFB4AB), modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text("錄影", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
 
@@ -442,22 +466,34 @@ fun EventCard(
                 }
             }
 
-            // Download Button
-            if (thumbnailBitmap != null) {
+            // Download Snapshot / Video Button
+            if (thumbnailBitmap != null || hasVideo) {
                 IconButton(onClick = {
                     try {
-                        val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                        val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
-                        val fos = FileOutputStream(file)
-                        thumbnailBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-                        fos.flush()
-                        fos.close()
-                        Toast.makeText(context, "📥 照片已下載並儲存至相簿！", Toast.LENGTH_SHORT).show()
+                        if (hasVideo) {
+                            val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+                            val videoFile = File(event.videoPath!!)
+                            val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
+                            videoFile.copyTo(targetFile, overwrite = true)
+                            Toast.makeText(context, "📥 錄影檔 (.mp4) 已下載至影片庫！", Toast.LENGTH_SHORT).show()
+                        } else if (thumbnailBitmap != null) {
+                            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                            val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
+                            val fos = FileOutputStream(file)
+                            thumbnailBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
+                            fos.flush()
+                            fos.close()
+                            Toast.makeText(context, "📥 照片已下載並儲存至相簿！", Toast.LENGTH_SHORT).show()
+                        }
                     } catch (e: Exception) {
                         Toast.makeText(context, "儲存失敗: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Icon(Icons.Default.Download, contentDescription = "Download Photo", tint = Color(0xFF6750A4))
+                    Icon(
+                        imageVector = if (hasVideo) Icons.Default.Videocam else Icons.Default.Download,
+                        contentDescription = "Download File",
+                        tint = Color(0xFF6750A4)
+                    )
                 }
             }
 
@@ -475,17 +511,24 @@ fun SnapshotPreviewDialog(
 ) {
     val context = LocalContext.current
     val formattedTime = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault()).format(Date(event.timestamp))
+    val hasVideo = !event.videoPath.isNullOrEmpty() && File(event.videoPath).exists()
+    var showVideoMode by remember { mutableStateOf(hasVideo) }
 
-    val bitmap = remember(event.thumbnailBase64) {
-        event.thumbnailBase64?.let { base64Str ->
+    val bitmap = remember(event.thumbnailBase64, event.snapshotPath) {
+        var bmp: Bitmap? = null
+        if (!event.snapshotPath.isNullOrEmpty()) {
             try {
-                val bytes = Base64.decode(base64Str, Base64.DEFAULT)
-                val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
-            } catch (e: Exception) {
-                null
-            }
+                bmp = BitmapFactory.decodeFile(event.snapshotPath)
+            } catch (_: Exception) {}
         }
+        if (bmp == null && event.thumbnailBase64 != null) {
+            try {
+                val bytes = Base64.decode(event.thumbnailBase64, Base64.DEFAULT)
+                val opts = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
+                bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+            } catch (_: Exception) {}
+        }
+        bmp
     }
 
     Dialog(
@@ -514,30 +557,82 @@ fun SnapshotPreviewDialog(
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                     }
 
-                    Text("動態偵測快照細節", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        text = if (showVideoMode) "🎥 事件動態錄影 (.mp4)" else "📷 動態偵測快照細節",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
 
-                    if (bitmap != null) {
-                        IconButton(onClick = {
-                            try {
+                    IconButton(onClick = {
+                        try {
+                            if (showVideoMode && hasVideo) {
+                                val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+                                val videoFile = File(event.videoPath!!)
+                                val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
+                                videoFile.copyTo(targetFile, overwrite = true)
+                                Toast.makeText(context, "📥 錄影檔 (.mp4) 已儲存至影片庫！", Toast.LENGTH_SHORT).show()
+                            } else if (bitmap != null) {
                                 val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                                 val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
                                 val fos = FileOutputStream(file)
                                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
                                 fos.flush()
                                 fos.close()
-                                Toast.makeText(context, "📥 照片已成功儲存至相簿！", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "下載失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "📥 快照圖片已儲存至相簿！", Toast.LENGTH_SHORT).show()
                             }
-                        }) {
-                            Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "下載失敗: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
+                    }) {
+                        Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Full Snapshot Display
+                // Toggle Bar (if video is available)
+                if (hasVideo) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF2B2930))
+                            .padding(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (!showVideoMode) Color(0xFFD0BCFF) else Color.Transparent)
+                                .clickable { showVideoMode = false }
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "📷 瞬間快照",
+                                color = if (!showVideoMode) Color(0xFF381E72) else Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (showVideoMode) Color(0xFFD0BCFF) else Color.Transparent)
+                                .clickable { showVideoMode = true }
+                                .padding(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "🎥 動態錄影",
+                                color = if (showVideoMode) Color(0xFF381E72) else Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Media Display Box (Image or VideoView)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -546,7 +641,23 @@ fun SnapshotPreviewDialog(
                         .background(Color(0xFF1C1B1F)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (bitmap != null) {
+                    if (showVideoMode && hasVideo) {
+                        AndroidView(
+                            factory = { ctx ->
+                                android.widget.VideoView(ctx).apply {
+                                    setVideoPath(event.videoPath)
+                                    val mediaController = android.widget.MediaController(ctx)
+                                    mediaController.setAnchorView(this)
+                                    setMediaController(mediaController)
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        start()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else if (bitmap != null) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
                             contentDescription = "Full Snapshot",
@@ -554,7 +665,7 @@ fun SnapshotPreviewDialog(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Text("無法載入快照圖片", color = Color.Gray)
+                        Text("無法載入媒體檔案", color = Color.Gray)
                     }
                 }
 
@@ -573,6 +684,15 @@ fun SnapshotPreviewDialog(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text("📊 動態異動比例: ${"%.1f".format(event.motionPercentage)}%", color = Color(0xFFE8DEF8), fontSize = 13.sp)
 
+                        if (event.snapshotPath != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("📁 快照檔案: ${event.snapshotPath}", color = Color.Gray, fontSize = 10.sp)
+                        }
+                        if (event.videoPath != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("🎬 錄影檔案: ${event.videoPath}", color = Color(0xFFD0BCFF), fontSize = 10.sp)
+                        }
+
                         if (event.aiSummary.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("🤖 AI 偵測分析: ${event.aiSummary}", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -580,7 +700,27 @@ fun SnapshotPreviewDialog(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (bitmap != null) {
+                        if (hasVideo) {
+                            Button(
+                                onClick = {
+                                    try {
+                                        val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
+                                        val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
+                                        File(event.videoPath!!).copyTo(targetFile, overwrite = true)
+                                        Toast.makeText(context, "📥 動態錄影 (.mp4) 已下載至影片庫！", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "儲存失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0BCFF), contentColor = Color(0xFF381E72)),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Videocam, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("下載並儲存完整動態錄影檔 (.mp4)", fontWeight = FontWeight.Bold)
+                            }
+                        } else if (bitmap != null) {
                             Button(
                                 onClick = {
                                     try {

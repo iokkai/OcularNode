@@ -113,13 +113,14 @@ fun LiveMonitorScreen(
     var isControlPanelExpanded by remember { mutableStateOf(false) }
 
     if (showRemoteSettingsDialog && camera != null) {
-        RemoteSettingsDialog(
+        RemoteSettingsScreen(
             cameraName = camera.name,
             cameraStatusJson = cameraStatusJson,
             onSendCommand = { cmd, valStr -> viewModel.sendControlCommand(cmd, valStr) },
             onSyncTelegram = { viewModel.syncTelegramToCurrentCamera() },
-            onDismiss = { showRemoteSettingsDialog = false }
+            onNavigateBack = { showRemoteSettingsDialog = false }
         )
+        return
     }
 
     if (camera == null) {

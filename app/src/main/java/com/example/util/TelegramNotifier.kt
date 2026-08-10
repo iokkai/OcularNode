@@ -31,7 +31,7 @@ object TelegramNotifier {
 
         try {
             val aiLine = if (aiSummary.isNotBlank()) "🤖 *ML Kit AI:* $aiSummary\n" else ""
-            val caption = "🚨 *【TailCam Guard 偵測警報】*\n" +
+            val caption = "🚨 *【動態偵測】*\n" +
                     "📱 裝置: *$deviceName*\n" +
                     "⚠️ 動態差異: *${"%.1f".format(motionPercentage)}%*\n" +
                     aiLine +
@@ -87,7 +87,7 @@ object TelegramNotifier {
         }
         try {
             val url = "https://api.telegram.org/bot$botToken/sendMessage"
-            val text = "✅ *TailCam Guard 測試成功！*\n連線設定正確，隨時準備接收動態監控警報通知。"
+            val text = "✅ *OcularNode 測試成功！*\n連線設定正確，隨時準備接收動態監控警報通知。"
             val jsonBody = """
                 {
                     "chat_id": "$chatId",
@@ -105,6 +105,40 @@ object TelegramNotifier {
             return@withContext Pair(isSuccess, msg)
         } catch (e: Exception) {
             return@withContext Pair(false, "網路連線失敗: ${e.localizedMessage}")
+        }
+    }
+
+    suspend fun sendSystemAlert(
+        botToken: String,
+        chatId: String,
+        deviceName: String,
+        alertTitle: String,
+        alertDetails: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (botToken.isBlank() || chatId.isBlank()) {
+            return@withContext false
+        }
+        try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+            val timeStr = sdf.format(java.util.Date())
+            val messageText = "$alertTitle\n📱 裝置: *$deviceName*\n⚠️ 狀況: *$alertDetails*\n⏰ 時間: $timeStr"
+
+            val url = "https://api.telegram.org/bot$botToken/sendMessage"
+            val jsonObj = org.json.JSONObject().apply {
+                put("chat_id", chatId)
+                put("text", messageText)
+                put("parse_mode", "Markdown")
+            }
+
+            val requestBody = jsonObj.toString().toRequestBody("application/json".toMediaType())
+            val request = Request.Builder().url(url).post(requestBody).build()
+            val response = client.newCall(request).execute()
+            val success = response.isSuccessful
+            response.close()
+            return@withContext success
+        } catch (e: Exception) {
+            Log.e("TelegramNotifier", "Error sending Telegram system alert", e)
+            return@withContext false
         }
     }
 }

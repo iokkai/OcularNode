@@ -15,5 +15,7 @@ data class MotionEvent(
     val isRead: Boolean = false,
     val telegramSentSuccess: Boolean = false,
     val aiSummary: String = "",
-    val aiFiltered: Boolean = false
+    val aiFiltered: Boolean = false,
+    val snapshotPath: String? = null,
+    val videoPath: String? = null
 )

@@ -44,6 +44,12 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val _isVpnActive = MutableStateFlow(false)
     val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
 
+    private val _isThermalThrottled = MutableStateFlow(false)
+    val isThermalThrottled: StateFlow<Boolean> = _isThermalThrottled.asStateFlow()
+
+    private val _batteryTemp = MutableStateFlow(0.0f)
+    val batteryTemp: StateFlow<Float> = _batteryTemp.asStateFlow()
+
     init {
         viewModelScope.launch {
             NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
@@ -61,11 +67,19 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val localBinder = binder as CameraStreamService.LocalBinder
-            cameraService = localBinder.getService()
+            val service = localBinder.getService()
+            cameraService = service
             isBound = true
             _isServiceRunning.value = true
             refreshNetworkInfo()
-            cameraService?.startServer()
+            service.startServer()
+
+            viewModelScope.launch {
+                service.isThermalThrottled.collect { _isThermalThrottled.value = it }
+            }
+            viewModelScope.launch {
+                service.batteryTemp.collect { _batteryTemp.value = it }
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -76,6 +90,10 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun startStreamService() {
+        if (settingsManager.deviceRoleMode == "VIEWER") {
+            android.util.Log.w("CameraServerViewModel", "Device is set to VIEWER mode, skipping startStreamService.")
+            return
+        }
         val context = getApplication<Application>()
         refreshNetworkInfo()
         val intent = Intent(context, CameraStreamService::class.java)
@@ -143,6 +161,13 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     fun setOperatingMode(mode: String) {
         settingsManager.operatingMode = mode
         _operatingMode.value = mode
+        
+        if (mode == "detection") {
+            toggleMotionDetection(true)
+        } else {
+            toggleMotionDetection(false)
+        }
+        
         cameraService?.updateOperatingMode(mode)
     }
 

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -98,7 +99,7 @@ fun ViewerListScreen(
     val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
     val isVpnActive by viewModel.isVpnActive.collectAsState()
     val tailscaleIp by viewModel.tailscaleIp.collectAsState()
-    val isTailscaleActive = isTailscaleConnected || isVpnActive
+    val isTailscaleActive = isTailscaleConnected
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showQrScannerDialog by remember { mutableStateOf(false) }
@@ -115,6 +116,31 @@ fun ViewerListScreen(
         viewModel.refreshNetworkInfo()
     }
 
+    if (remoteSettingsCamera != null) {
+        val camera = remoteSettingsCamera!!
+        RemoteSettingsScreen(
+            cameraName = camera.name,
+            cameraStatusJson = remoteStatusJson,
+            onSendCommand = { cmd, valStr ->
+                viewModel.sendControlCommandToCamera(camera, cmd, valStr)
+            },
+            onSyncTelegram = {
+                val token = viewModel.settingsManager.telegramBotToken
+                val chatId = viewModel.settingsManager.telegramChatId
+                val json = org.json.JSONObject().apply {
+                    put("token", token)
+                    put("chatId", chatId)
+                }.toString()
+                viewModel.sendControlCommandToCamera(camera, "telegram_config", json)
+            },
+            onNavigateBack = {
+                remoteSettingsCamera = null
+                remoteStatusJson = null
+            }
+        )
+        return
+    }
+
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
@@ -129,13 +155,14 @@ fun ViewerListScreen(
                 Icon(Icons.Default.Add, contentDescription = "新增鏡頭")
             }
         },
-        containerColor = Color(0xFFFDF8FF)
+        containerColor = Color(0xFFFDF8FF),
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -338,7 +365,6 @@ fun ViewerListScreen(
                     showQrScannerDialog = false
                     prefilledInfo = scanned
                     showAddDialog = true
-                    Toast.makeText(context, "📷 成功讀取 QR Code！請確認資訊後儲存", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -362,7 +388,7 @@ fun ViewerListScreen(
                     viewModel.addCamera(name, ip, port)
                     showAddDialog = false
                     prefilledInfo = null
-                    Toast.makeText(context, "✅ 已成功加入鏡頭: $name", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "已成功加入鏡頭: $name", Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -382,29 +408,6 @@ fun ViewerListScreen(
                 onSave = { name, ip, port ->
                     viewModel.updateCamera(camera.copy(name = name, ipAddress = ip, port = port))
                     editingCamera = null
-                }
-            )
-        }
-        // Remote Camera Settings Dialog
-        remoteSettingsCamera?.let { camera ->
-            RemoteSettingsDialog(
-                cameraName = camera.name,
-                cameraStatusJson = remoteStatusJson,
-                onSendCommand = { cmd, valStr ->
-                    viewModel.sendControlCommandToCamera(camera, cmd, valStr)
-                },
-                onSyncTelegram = {
-                    val token = viewModel.settingsManager.telegramBotToken
-                    val chatId = viewModel.settingsManager.telegramChatId
-                    val json = org.json.JSONObject().apply {
-                        put("token", token)
-                        put("chatId", chatId)
-                    }.toString()
-                    viewModel.sendControlCommandToCamera(camera, "telegram_config", json)
-                },
-                onDismiss = {
-                    remoteSettingsCamera = null
-                    remoteStatusJson = null
                 }
             )
         }
@@ -437,6 +440,43 @@ fun CameraDeviceCard(
 
     var currentBitmap by remember(camera.id) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     var isLoading by remember(camera.id) { mutableStateOf(true) }
+
+    var cpuUsage by remember { mutableStateOf(0) }
+    var memoryUsage by remember { mutableStateOf(0) }
+    var memoryUsedMB by remember { mutableStateOf(0) }
+    var pingMs by remember { mutableStateOf(0) }
+    var isOnlineStatus by remember { mutableStateOf(true) }
+
+    LaunchedEffect(camera.id) {
+        while (true) {
+            val startTime = System.currentTimeMillis()
+            try {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    val url = java.net.URL("http://${camera.ipAddress}:${camera.port}/status")
+                    val conn = url.openConnection() as java.net.HttpURLConnection
+                    conn.connectTimeout = 2000
+                    conn.readTimeout = 2000
+                    if (conn.responseCode == 200) {
+                        pingMs = (System.currentTimeMillis() - startTime).toInt()
+                        isOnlineStatus = true
+                        val text = conn.inputStream.bufferedReader().readText()
+                        val json = org.json.JSONObject(text)
+                        cpuUsage = json.optInt("cpuUsage", 30)
+                        memoryUsage = json.optInt("memoryUsage", 45)
+                        memoryUsedMB = json.optInt("memoryUsedMB", 0)
+                    } else {
+                        isOnlineStatus = false
+                        pingMs = 999
+                    }
+                    conn.disconnect()
+                }
+            } catch (e: Exception) {
+                isOnlineStatus = false
+                pingMs = 999
+            }
+            delay(3000)
+        }
+    }
 
     LaunchedEffect(snapshotUrl) {
         val request = ImageRequest.Builder(context)
@@ -576,8 +616,48 @@ fun CameraDeviceCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(if (isOnlineStatus) Color(0xFF4CAF50) else Color(0xFF9E9E9E))
+                        )
+                        Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(if (isOnlineStatus) "Online" else "Offline", color = if (isOnlineStatus) Color(0xFF4CAF50) else Color(0xFF9E9E9E), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                     Text("${camera.ipAddress}:${camera.port}", color = Color(0xFF6750A4), fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val isCpuHigh = cpuUsage > 80
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("CPU: $cpuUsage%", fontSize = 11.sp, color = if (isCpuHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
+                            if (isCpuHigh) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(Icons.Default.Warning, contentDescription = "CPU過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                            }
+                        }
+                        val isMemHigh = memoryUsage > 85
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val memText = if (memoryUsedMB > 0) "記憶體: $memoryUsage% (${memoryUsedMB}MB)" else "記憶體: $memoryUsage%"
+                            Text(memText, fontSize = 11.sp, color = if (isMemHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
+                            if (isMemHigh) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(Icons.Default.Warning, contentDescription = "記憶體過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                            }
+                        }
+                        val isPingHigh = pingMs > 250 || !isOnlineStatus
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Ping: ${if (isOnlineStatus) "${pingMs}ms" else "逾時"}", fontSize = 11.sp, color = if (isPingHigh) Color(0xFFB3261E) else Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                            if (isPingHigh) {
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(Icons.Default.Warning, contentDescription = "連線品質差警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {

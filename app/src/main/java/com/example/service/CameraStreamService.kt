@@ -5,11 +5,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.media.AudioManager
 import android.media.ToneGenerator
+import android.os.BatteryManager
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -24,16 +27,20 @@ import com.example.audio.AudioEngine
 import com.example.camera.CameraManagerHelper
 import com.example.data.AppDatabase
 import com.example.data.MotionEvent
+import com.example.data.NotificationCategory
+import com.example.data.SettingsDataStore
 import com.example.data.SettingsManager
 import com.example.server.MjpegHttpServer
 import com.example.util.NetworkUtils
 import com.example.util.TelegramNotifier
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class CameraStreamService : Service(), LifecycleOwner {
@@ -47,12 +54,21 @@ class CameraStreamService : Service(), LifecycleOwner {
     private val serviceJob = SupervisorJob()
     val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
+    private var recordingTimerJob: Job? = null
+    private var eventVideoRecorder: com.example.camera.EventVideoRecorder? = null
+    private var batteryReceiver: BroadcastReceiver? = null
+    private var lastIsCharging: Boolean? = null
+    private var hasSentLowBatteryAlert: Boolean = false
+
     lateinit var cameraHelper: CameraManagerHelper
         private set
     lateinit var httpServer: MjpegHttpServer
         private set
     lateinit var audioEngine: AudioEngine
         private set
+    
+    private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
+
     lateinit var settingsManager: SettingsManager
         private set
     private lateinit var database: AppDatabase
@@ -62,6 +78,12 @@ class CameraStreamService : Service(), LifecycleOwner {
 
     private val _measuredLuma = MutableStateFlow(100f)
     val measuredLuma: StateFlow<Float> = _measuredLuma.asStateFlow()
+
+    private val _isThermalThrottled = MutableStateFlow(false)
+    val isThermalThrottled: StateFlow<Boolean> = _isThermalThrottled.asStateFlow()
+
+    private val _batteryTemp = MutableStateFlow(0.0f)
+    val batteryTemp: StateFlow<Float> = _batteryTemp.asStateFlow()
 
     inner class LocalBinder : Binder() {
         fun getService(): CameraStreamService = this@CameraStreamService
@@ -78,6 +100,12 @@ class CameraStreamService : Service(), LifecycleOwner {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
         settingsManager = SettingsManager(this)
+        if (settingsManager.deviceRoleMode == "VIEWER") {
+            Log.i("CameraStreamService", "Device is set to VIEWER mode, stopping CameraStreamService.")
+            stopSelf()
+            return
+        }
+
         database = AppDatabase.getDatabase(this)
         audioEngine = AudioEngine()
         cameraHelper = CameraManagerHelper(this)
@@ -91,6 +119,18 @@ class CameraStreamService : Service(), LifecycleOwner {
         cameraHelper.motionSensitivity = settingsManager.motionSensitivity
         cameraHelper.motionCooldownSeconds = settingsManager.motionCooldownSeconds
 
+        prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "motion_sensitivity") {
+                cameraHelper.motionSensitivity = settingsManager.motionSensitivity
+            } else if (key == "motion_cooldown") {
+                cameraHelper.motionCooldownSeconds = settingsManager.motionCooldownSeconds
+            } else if (key == "motion_enabled") {
+                cameraHelper.isMotionDetectionEnabled = settingsManager.motionDetectionEnabled
+            }
+        }
+        getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(prefsListener)
+
+
         // Configure MJPEG HTTP Server
         httpServer = MjpegHttpServer(this, settingsManager.serverPort, audioEngine).apply {
             deviceName = settingsManager.cameraDeviceName
@@ -102,6 +142,8 @@ class CameraStreamService : Service(), LifecycleOwner {
             isNightVisionActiveGetter = { cameraHelper.isNightVisionActive }
             isMotionEnabledGetter = { cameraHelper.isMotionDetectionEnabled }
             operatingModeGetter = { settingsManager.operatingMode }
+            isThermalThrottledGetter = { _isThermalThrottled.value }
+            batteryTempGetter = { _batteryTemp.value }
 
             onActiveClientsChanged = { count ->
                 onClientsChanged(count)
@@ -115,6 +157,26 @@ class CameraStreamService : Service(), LifecycleOwner {
         // Apply mode configuration
         updateOperatingMode(settingsManager.operatingMode)
 
+
+        val mediaDir = java.io.File(getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES), "OcularNode")
+        if (!mediaDir.exists()) mediaDir.mkdirs()
+        
+        eventVideoRecorder = com.example.camera.EventVideoRecorder(
+            outputDir = mediaDir,
+            width = 1280,
+            height = 720,
+            fps = 15,
+            preRecordSeconds = 5,
+            basePostRecordSeconds = 10,
+            maxRecordSeconds = 180
+        )
+        
+        cameraHelper.onFrameReadyForRecording = { jpegBytes, timestampUs ->
+            if (settingsManager.eventVideoRecordingEnabled && !_isThermalThrottled.value) {
+                eventVideoRecorder?.pushFrame(jpegBytes, timestampUs)
+            }
+        }
+        
         cameraHelper.onFrameEncoded = { jpegBytes ->
             httpServer.updateFrame(jpegBytes)
         }
@@ -127,14 +189,196 @@ class CameraStreamService : Service(), LifecycleOwner {
             onMotionTriggered(percentage, thumbnailBytes, frameBitmap)
         }
 
+        startScheduleChecker()
         acquireWakeLock()
+        registerPowerBatteryMonitor()
         startForegroundServiceNotification()
+    }
+
+    private fun registerPowerBatteryMonitor() {
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+            addAction(Intent.ACTION_BATTERY_CHANGED)
+        }
+
+        batteryReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val action = intent?.action ?: return
+
+                val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                val batteryPct = if (level >= 0 && scale > 0) (level * 100 / scale.toFloat()).toInt() else -1
+
+                // Battery Temperature Monitoring & Thermal Throttling
+                val tempTenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)
+                if (tempTenths > 0) {
+                    val tempCelsius = tempTenths / 10.0f
+                    _batteryTemp.value = tempCelsius
+
+                    val highTempThreshold = 45.0f
+                    val recoveryTempThreshold = 42.0f
+
+                    if (tempCelsius >= highTempThreshold && !_isThermalThrottled.value) {
+                        _isThermalThrottled.value = true
+                        Log.w("CameraStreamService", "🔥 Thermal Throttling ACTIVATED! Battery Temp: ${tempCelsius}°C >= ${highTempThreshold}°C")
+
+                        // Immediately stop active video recording to cool down
+                        synchronized(this@CameraStreamService) {
+                            recordingTimerJob?.cancel()
+                            if (cameraHelper.isRecordingVideo) {
+                                cameraHelper.stopRecording()
+                                Log.i("CameraStreamService", "Thermal Throttling: Active video recording stopped.")
+                            }
+                        }
+
+                        // Send alert via Telegram
+                        serviceScope.launch(Dispatchers.IO) {
+                            TelegramNotifier.sendSystemAlert(
+                                botToken = settingsManager.telegramBotToken,
+                                chatId = settingsManager.telegramChatId,
+                                deviceName = settingsManager.cameraDeviceName,
+                                alertTitle = "🔥 *【高溫降載機制啟動】*",
+                                alertDetails = "裝置電池溫度達到 ${String.format(java.util.Locale.US, "%.1f", tempCelsius)}°C (≥ ${highTempThreshold}°C)！\n為防範手機過熱當機與電池膨脹，系統已自動暫停高耗能【ML Kit AI 分析】與【短片錄影】。\n基礎 Web 串流與 Telegram 文字推播警報仍持續正常運作中。"
+                            )
+                        }
+                    } else if (tempCelsius <= recoveryTempThreshold && _isThermalThrottled.value) {
+                        _isThermalThrottled.value = false
+                        Log.i("CameraStreamService", "🧊 Thermal Throttling DEACTIVATED! Battery Temp: ${tempCelsius}°C <= ${recoveryTempThreshold}°C")
+
+                        // Send recovery alert via Telegram
+                        serviceScope.launch(Dispatchers.IO) {
+                            TelegramNotifier.sendSystemAlert(
+                                botToken = settingsManager.telegramBotToken,
+                                chatId = settingsManager.telegramChatId,
+                                deviceName = settingsManager.cameraDeviceName,
+                                alertTitle = "🧊 *【高溫降載機制解除】*",
+                                alertDetails = "裝置電池溫度已回落至 ${String.format(java.util.Locale.US, "%.1f", tempCelsius)}°C (≤ ${recoveryTempThreshold}°C)。\nML Kit AI 分析與短片錄影功能已自動恢復正常運作！"
+                            )
+                        }
+                    }
+                }
+
+                if (!settingsManager.powerCutAlertEnabled) return
+
+                // Power disconnected (充電中 -> 放電中)
+                if ((action == Intent.ACTION_POWER_DISCONNECTED || (lastIsCharging == true && !isCharging))) {
+                    if (lastIsCharging != false) {
+                        lastIsCharging = false
+                        Log.w("CameraStreamService", "Power disconnected! Battery: $batteryPct%")
+                        serviceScope.launch(Dispatchers.IO) {
+                            TelegramNotifier.sendSystemAlert(
+                                botToken = settingsManager.telegramBotToken,
+                                chatId = settingsManager.telegramChatId,
+                                deviceName = settingsManager.cameraDeviceName,
+                                alertTitle = "🚨 *【外部電源異常斷電警報】*",
+                                alertDetails = "偵測到由「充電中」轉為「放電中」！家中可能發生停電或變壓器鬆脫。當前剩餘電量: ${batteryPct}%"
+                            )
+                        }
+                    }
+                }
+
+                // Power connected (放電中 -> 充電中)
+                if (action == Intent.ACTION_POWER_CONNECTED || (lastIsCharging == false && isCharging)) {
+                    if (lastIsCharging != true) {
+                        lastIsCharging = true
+                        hasSentLowBatteryAlert = false
+                        Log.i("CameraStreamService", "Power connected! Battery: $batteryPct%")
+                        serviceScope.launch(Dispatchers.IO) {
+                            TelegramNotifier.sendSystemAlert(
+                                botToken = settingsManager.telegramBotToken,
+                                chatId = settingsManager.telegramChatId,
+                                deviceName = settingsManager.cameraDeviceName,
+                                alertTitle = "🔌 *【外部電源已恢復連接】*",
+                                alertDetails = "設備已重新恢復外接電源供電，正在進行充電。當前電量: ${batteryPct}%"
+                            )
+                        }
+                    }
+                }
+
+                // Low Battery check (< 60%)
+                if (batteryPct in 1..settingsManager.lowBatteryAlertThreshold && !isCharging && !hasSentLowBatteryAlert) {
+                    hasSentLowBatteryAlert = true
+                    Log.w("CameraStreamService", "Low battery threshold hit! Battery: $batteryPct%")
+                    serviceScope.launch(Dispatchers.IO) {
+                        TelegramNotifier.sendSystemAlert(
+                            botToken = settingsManager.telegramBotToken,
+                            chatId = settingsManager.telegramChatId,
+                            deviceName = settingsManager.cameraDeviceName,
+                            alertTitle = "🪫 *【低電量預警通知】*",
+                            alertDetails = "設備電量已降至 ${batteryPct}% (低於 ${settingsManager.lowBatteryAlertThreshold}%)！若持續未供電，設備可能即將關機。"
+                        )
+                    }
+                }
+
+                if (batteryPct > settingsManager.lowBatteryAlertThreshold + 5 || isCharging) {
+                    hasSentLowBatteryAlert = false
+                }
+
+                lastIsCharging = isCharging
+            }
+        }
+
+        try {
+            registerReceiver(batteryReceiver, filter)
+        } catch (e: Exception) {
+            Log.e("CameraStreamService", "Failed to register battery receiver", e)
+        }
+    }
+
+    private fun startScheduleChecker() {
+        serviceScope.launch {
+            while (true) {
+                if (settingsManager.motionScheduleEnabled) {
+                    val isTime = isCurrentTimeInSchedule(
+                        settingsManager.motionScheduleStartTime,
+                        settingsManager.motionScheduleEndTime
+                    )
+                    // Auto-enable/disable motion detection based on schedule
+                    if (cameraHelper.isMotionDetectionEnabled != isTime) {
+                        cameraHelper.isMotionDetectionEnabled = isTime
+                        settingsManager.motionDetectionEnabled = isTime
+                        Log.i("CameraStreamService", "Schedule changed motion detection to: $isTime")
+                    }
+                }
+                kotlinx.coroutines.delay(60000L) // check every minute
+            }
+        }
+    }
+
+    private fun isCurrentTimeInSchedule(start: String, end: String): Boolean {
+        try {
+            val now = java.util.Calendar.getInstance()
+            val currentH = now.get(java.util.Calendar.HOUR_OF_DAY)
+            val currentM = now.get(java.util.Calendar.MINUTE)
+            val currentTotalM = currentH * 60 + currentM
+
+            val startParts = start.split(":")
+            val startH = startParts.getOrNull(0)?.toIntOrNull() ?: 22
+            val startM = startParts.getOrNull(1)?.toIntOrNull() ?: 0
+            val startTotalM = startH * 60 + startM
+
+            val endParts = end.split(":")
+            val endH = endParts.getOrNull(0)?.toIntOrNull() ?: 6
+            val endM = endParts.getOrNull(1)?.toIntOrNull() ?: 0
+            val endTotalM = endH * 60 + endM
+
+            return if (startTotalM < endTotalM) {
+                currentTotalM in startTotalM..endTotalM
+            } else {
+                currentTotalM >= startTotalM || currentTotalM <= endTotalM
+            }
+        } catch (e: Exception) {
+            return false
+        }
     }
 
     fun startServer() {
         cameraHelper.startCamera(this)
         httpServer.start(serviceScope)
-        val ipInfo = NetworkUtils.getIpAddresses()
+        val ipInfo = NetworkUtils.getIpAddresses(this)
         val ipDisplay = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
         _serviceStatus.value = "Streaming on http://$ipDisplay:${settingsManager.serverPort}"
     }
@@ -143,13 +387,15 @@ class CameraStreamService : Service(), LifecycleOwner {
         settingsManager.operatingMode = mode
         if (mode == "monitor") {
             // Monitor mode: Disable motion detection alarm feature
+            settingsManager.motionDetectionEnabled = false
             cameraHelper.isMotionDetectionEnabled = false
             if (::httpServer.isInitialized && httpServer.connectedClientsCount.get() == 0) {
                 cameraHelper.setTorch(false)
             }
         } else {
-            // Auto detection mode: Enable motion detection based on setting
-            cameraHelper.isMotionDetectionEnabled = settingsManager.motionDetectionEnabled
+            // Auto detection mode: Enable motion detection
+            settingsManager.motionDetectionEnabled = true
+            cameraHelper.isMotionDetectionEnabled = true
         }
     }
 
@@ -258,38 +504,141 @@ class CameraStreamService : Service(), LifecycleOwner {
                         Log.e("CameraStreamService", "Error parsing telegram_config JSON", e)
                     }
                 }
+                "notification_schedule" -> {
+                    val enable = value.lowercase() == "true" || value == "on"
+                    settingsManager.notificationScheduleEnabled = enable
+                }
+                "notification_schedule_start" -> {
+                    if (value.isNotBlank()) settingsManager.notificationScheduleStartTime = value
+                }
+                "auto_start_boot" -> {
+                    val enable = value.lowercase() == "true" || value == "on"
+                    settingsManager.autoStartOnBoot = enable
+                    Log.i("CameraStreamService", "Remote updated autoStartOnBoot to $enable")
+                }
+                "power_cut_alert" -> {
+                    val enable = value.lowercase() == "true" || value == "on"
+                    settingsManager.powerCutAlertEnabled = enable
+                    Log.i("CameraStreamService", "Remote updated powerCutAlertEnabled to $enable")
+                }
+                "notification_schedule_end" -> {
+                    if (value.isNotBlank()) settingsManager.notificationScheduleEndTime = value
+                }
+                "system_log_enabled" -> {
+                    val enable = value.lowercase() == "true" || value == "on"
+                    settingsManager.systemLogEnabled = enable
+                    com.example.util.AppLogger.isEnabled = enable
+                }
+                "cat_record_toggle" -> {
+                    try {
+                        val json = org.json.JSONObject(value)
+                        val catName = json.optString("category", "")
+                        val enabled = json.optBoolean("enabled", true)
+                        val category = NotificationCategory.values().find { it.name == catName }
+                        if (category != null) {
+                            serviceScope.launch(Dispatchers.IO) {
+                                SettingsDataStore(this@CameraStreamService).setCategoryRecordingEnabled(category, enabled)
+                            }
+                        }
+                    } catch (e: Exception) {}
+                }
+                "category_toggle", "cat_toggle" -> {
+                    try {
+                        val json = org.json.JSONObject(value)
+                        val catName = json.optString("category", "")
+                        val enabled = json.optBoolean("enabled", true)
+                        val category = NotificationCategory.values().find { it.name == catName }
+                        if (category != null) {
+                            serviceScope.launch(Dispatchers.IO) {
+                                SettingsDataStore(this@CameraStreamService).setCategoryEnabled(category, enabled)
+                            }
+                            Log.i("CameraStreamService", "Remote updated category ${category.name} to $enabled")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("CameraStreamService", "Error parsing category_toggle JSON", e)
+                    }
+                }
+                else -> {
+                    if (command.startsWith("cat_")) {
+                        val catName = command.removePrefix("cat_")
+                        val category = NotificationCategory.values().find { it.name == catName }
+                        val enable = value.lowercase() == "true" || value == "on"
+                        if (category != null) {
+                            serviceScope.launch(Dispatchers.IO) {
+                                SettingsDataStore(this@CameraStreamService).setCategoryEnabled(category, enable)
+                            }
+                            Log.i("CameraStreamService", "Remote updated category ${category.name} to $enable")
+                        }
+                    }
+                }
             }
         }
     }
 
     private fun onMotionTriggered(percentage: Float, thumbnailBytes: ByteArray, frameBitmap: Bitmap?) {
         serviceScope.launch(Dispatchers.IO) {
+            val timestamp = System.currentTimeMillis()
+            val mediaDir = java.io.File(getExternalFilesDir(null), "media").apply { mkdirs() }
+
+            val dataStore = com.example.data.SettingsDataStore(this@CameraStreamService)
+            val enabledCategories = mutableSetOf<com.example.data.NotificationCategory>()
+            val enabledRecordingCategories = mutableSetOf<com.example.data.NotificationCategory>()
+            for (category in com.example.data.NotificationCategory.values()) {
+                if (dataStore.getCategoryEnabled(category).first()) {
+                    enabledCategories.add(category)
+                }
+                if (dataStore.getCategoryRecordingEnabled(category).first()) {
+                    enabledRecordingCategories.add(category)
+                }
+            }
+
             // Stage 2: Google ML Kit Object Detection / Image Labeling Analysis
             var aiSummary = ""
             var shouldSuppressNotification = false
+            var shouldTriggerRecording = true
 
-            if (settingsManager.mlKitFilterEnabled && frameBitmap != null) {
-                val mlResult = com.example.util.MlKitFilterHelper.analyzeFrame(frameBitmap)
+            if (_isThermalThrottled.value) {
+                aiSummary = "🔥 [高溫降載中] AI 分析已自動暫停"
+                Log.w("CameraStreamService", "Thermal Throttling Active: Paused ML Kit AI analysis to prevent device overheating.")
+            } else if (settingsManager.mlKitFilterEnabled && frameBitmap != null) {
+                val mlResult = com.example.util.MlKitFilterHelper.analyzeFrame(this@CameraStreamService, frameBitmap, enabledCategories, enabledRecordingCategories)
                 aiSummary = mlResult.summaryText
                 shouldSuppressNotification = mlResult.shouldSuppressNotification
+                shouldTriggerRecording = mlResult.shouldTriggerRecording
             }
 
-            // Loop Storage Management: purge oldest events if storage limit exceeded or event count > limit
+            // Save Instant Snapshot File
+            var snapshotPath: String? = null
+            if (thumbnailBytes.isNotEmpty()) {
+                try {
+                    val snapshotFile = java.io.File(mediaDir, "snapshot_${timestamp}.jpg")
+                    snapshotFile.writeBytes(thumbnailBytes)
+                    snapshotPath = snapshotFile.absolutePath
+                } catch (e: Exception) {
+                    Log.e("CameraStreamService", "Error saving snapshot file", e)
+                }
+            }
+
+            // Loop Storage Management & Quota Cleanup (FIFO)
             if (settingsManager.autoStorageCleanupEnabled) {
                 try {
                     val currentCount = database.motionEventDao().getEventCount()
                     val maxCount = settingsManager.maxEventCountLimit
-                    val statFs = android.os.StatFs(filesDir.absolutePath)
-                    val freeMB = statFs.availableBytes / (1024 * 1024)
+                    val mediaFiles = mediaDir.listFiles() ?: emptyArray()
+                    val mediaTotalMB = mediaFiles.sumOf { it.length() } / (1024 * 1024)
                     val limitMB = (settingsManager.storageLimitGB * 1024).toLong()
 
-                    // Estimate database size
-                    val dbFile = getDatabasePath("pet_monitor_db")
-                    val dbSizeMB = if (dbFile.exists()) dbFile.length() / (1024 * 1024) else 0L
+                    val statFs = android.os.StatFs(filesDir.absolutePath)
+                    val freeMB = statFs.availableBytes / (1024 * 1024)
 
-                    if (currentCount >= maxCount || dbSizeMB > limitMB || freeMB < 150) {
-                        val purgeCount = (currentCount * 0.15).toInt().coerceAtLeast(10)
-                        Log.i("CameraStreamService", "Loop storage active (count=$currentCount/$maxCount, dbSizeMB=$dbSizeMB/$limitMB, freeMB=$freeMB). Purging oldest $purgeCount events.")
+                    if (currentCount >= maxCount || mediaTotalMB > limitMB || freeMB < 1000) { // Keep min 1GB free
+                        val purgeCount = (currentCount * 0.2).toInt().coerceAtLeast(5)
+                        Log.i("CameraStreamService", "Quota cleanup active (count=$currentCount, mediaMB=$mediaTotalMB, freeMB=$freeMB). Purging $purgeCount oldest events & media.")
+                        val oldestEvents = database.motionEventDao().getOldestEvents(purgeCount)
+                        for (oldEv in oldestEvents) {
+                            oldEv.snapshotPath?.let { path -> java.io.File(path).delete() }
+                            oldEv.videoPath?.let { path -> java.io.File(path).delete() }
+                        }
                         database.motionEventDao().deleteOldestEvents(purgeCount)
                     }
                 } catch (e: Exception) {
@@ -302,21 +651,87 @@ class CameraStreamService : Service(), LifecycleOwner {
             } else null
 
             val event = MotionEvent(
-                timestamp = System.currentTimeMillis(),
+                timestamp = timestamp,
                 cameraName = settingsManager.cameraDeviceName,
-                cameraIp = NetworkUtils.getIpAddresses().tailscaleIp ?: NetworkUtils.getIpAddresses().localIp ?: "Unknown",
+                cameraIp = NetworkUtils.getIpAddresses(this@CameraStreamService).tailscaleIp ?: NetworkUtils.getIpAddresses(this@CameraStreamService).localIp ?: "Unknown",
                 motionPercentage = percentage,
                 thumbnailBase64 = thumbBase64,
                 isRead = false,
                 telegramSentSuccess = false,
                 aiSummary = aiSummary,
-                aiFiltered = shouldSuppressNotification
+                aiFiltered = shouldSuppressNotification,
+                snapshotPath = snapshotPath,
+                videoPath = null
             )
             val eventId = database.motionEventDao().insertEvent(event)
+
+            // Video Recording Debounce & Prolonging Logic
+            if (!shouldTriggerRecording) {
+                Log.i("CameraStreamService", "ML Kit Filter: Recording suppressed based on category settings or human-only rule.")
+            } else if (_isThermalThrottled.value) {
+                Log.w("CameraStreamService", "Thermal Throttling Active: Video recording paused to prevent device overheating.")
+            } else if (settingsManager.eventVideoRecordingEnabled) {
+                Log.i("CameraStreamService", "Triggering EventVideoRecorder dynamically")
+                eventVideoRecorder?.triggerRecording { savedFile ->
+                    val success = savedFile != null
+                    serviceScope.launch(Dispatchers.IO) {
+                        if (success && savedFile != null) {
+                            Log.i("CameraStreamService", "Event video recording saved to ${savedFile.absolutePath} for event $eventId")
+                            database.motionEventDao().updateVideoPath(eventId, savedFile.absolutePath)
+                        } else {
+                            Log.e("CameraStreamService", "Event video recording failed for event $eventId")
+                        }
+                    }
+                }
+            } else {
+                synchronized(this@CameraStreamService) {
+                    if (cameraHelper.isRecordingVideo) {
+                        // Re-motion detected during recording -> Prolong timer
+                        Log.i("CameraStreamService", "Motion re-detected! Resetting 20s recording timer.")
+                        recordingTimerJob?.cancel()
+                        recordingTimerJob = serviceScope.launch(Dispatchers.IO) {
+                            kotlinx.coroutines.delay(20000L) // 20s
+                            Log.i("CameraStreamService", "20s motion inactivity reached. Stopping video recording.")
+                            cameraHelper.stopRecording()
+                        }
+                    } else {
+                        // Start new video recording
+                        val videoFile = java.io.File(mediaDir, "video_${timestamp}.mp4")
+                        cameraHelper.startRecording(videoFile) { success, videoPath ->
+                            serviceScope.launch(Dispatchers.IO) {
+                                if (success && videoPath != null) {
+                                    Log.i("CameraStreamService", "Video recording saved to $videoPath for event $eventId")
+                                    database.motionEventDao().updateVideoPath(eventId, videoPath)
+                                } else {
+                                    Log.e("CameraStreamService", "Video recording failed for event $eventId")
+                                }
+                            }
+                        }
+
+                        recordingTimerJob?.cancel()
+                        recordingTimerJob = serviceScope.launch(Dispatchers.IO) {
+                            kotlinx.coroutines.delay(20000L) // 20s
+                            Log.i("CameraStreamService", "20s motion inactivity reached. Stopping video recording.")
+                            cameraHelper.stopRecording()
+                        }
+                    }
+                }
+            }
 
             if (shouldSuppressNotification) {
                 Log.i("CameraStreamService", "ML Kit Filter: Human detected (owner at home). Notification & Alarm suppressed.")
                 return@launch
+            }
+
+            if (settingsManager.notificationScheduleEnabled) {
+                val isTimeForNotification = isCurrentTimeInSchedule(
+                    settingsManager.notificationScheduleStartTime,
+                    settingsManager.notificationScheduleEndTime
+                )
+                if (!isTimeForNotification) {
+                    Log.i("CameraStreamService", "Notification Schedule: Outside window (${settingsManager.notificationScheduleStartTime} ~ ${settingsManager.notificationScheduleEndTime}). Notification & Alarm suppressed.")
+                    return@launch
+                }
             }
 
             if (settingsManager.playLocalAlarmOnMotion) {
@@ -353,7 +768,7 @@ class CameraStreamService : Service(), LifecycleOwner {
     private fun acquireWakeLock() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TailCamGuard::CameraStreamWakeLock").apply {
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OcularNode::CameraStreamWakeLock").apply {
                 acquire(10 * 60 * 60 * 1000L)
             }
         } catch (e: Exception) {
@@ -362,8 +777,14 @@ class CameraStreamService : Service(), LifecycleOwner {
     }
 
     private fun startForegroundServiceNotification() {
-        val channelId = "tailcam_stream_channel"
-        val channelName = "TailCam 串流服務"
+        if (settingsManager.deviceRoleMode == "VIEWER") {
+            Log.i("CameraStreamService", "Role mode is VIEWER, skipping startForegroundServiceNotification.")
+            stopSelf()
+            return
+        }
+
+        val channelId = "OcularNode_stream_channel"
+        val channelName = "OcularNode 串流服務"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
@@ -379,14 +800,56 @@ class CameraStreamService : Service(), LifecycleOwner {
         )
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("TailCam 監控服務中")
+            .setContentTitle("OcularNode 監控服務中")
             .setContentText("MJPEG 伺服器與動態偵測運作中 (內網 Tailscale 連線)")
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()
 
-        startForeground(1001, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var type = 0
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    type = type or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                }
+                type = type or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+
+                val hasCameraPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.CAMERA
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                if (hasCameraPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    type = type or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+                }
+
+                val hasMicPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    this,
+                    android.Manifest.permission.RECORD_AUDIO
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                if (hasMicPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    type = type or android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                }
+
+                androidx.core.app.ServiceCompat.startForeground(
+                    this,
+                    1001,
+                    notification,
+                    type
+                )
+            } else {
+                startForeground(1001, notification)
+            }
+        } catch (e: Exception) {
+            Log.e("CameraStreamService", "Failed to start foreground notification with types", e)
+            try {
+                startForeground(1001, notification)
+            } catch (e2: Exception) {
+                Log.e("CameraStreamService", "Fallback startForeground failed", e2)
+            }
+        }
     }
 
     override fun onDestroy() {
@@ -404,10 +867,18 @@ class CameraStreamService : Service(), LifecycleOwner {
         notificationManager?.cancel(1001)
 
         httpServer.stop()
+        eventVideoRecorder?.release()
         cameraHelper.release()
         audioEngine.release()
         wakeLock?.let {
             if (it.isHeld) it.release()
+        }
+        batteryReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) {}
+        }
+        
+        prefsListener?.let {
+            getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(it)
         }
         serviceJob.cancel()
         super.onDestroy()
