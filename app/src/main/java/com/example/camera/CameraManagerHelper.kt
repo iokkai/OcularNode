@@ -14,6 +14,7 @@ import android.graphics.Rect
 import android.graphics.YuvImage
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
+import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import androidx.camera.core.Camera
@@ -71,6 +72,11 @@ class CameraManagerHelper(private val context: Context) {
     var nightVisionMode: String = "auto" // "off", "on", "auto"
     var isNightVisionActive: Boolean = false
         private set
+    var dynamicFpsAdjustmentEnabled: Boolean = false
+    var defaultJpegQuality: Int = 60
+    private var lastProcessedFrameTime = 0L
+    private var dynamicTargetFps = 15
+    private var processTimesBuffer = mutableListOf<Long>()
     var isMotionDetectionEnabled: Boolean = false
     var motionSensitivity: Float = 5.0f // 1..10
     var motionCooldownSeconds: Int = 30 // seconds
@@ -283,10 +289,20 @@ class CameraManagerHelper(private val context: Context) {
     }
 
     private fun processImageProxy(imageProxy: ImageProxy) {
+        val now = SystemClock.elapsedRealtime()
+        if (dynamicFpsAdjustmentEnabled) {
+            val minInterval = 1000L / dynamicTargetFps
+            if (now - lastProcessedFrameTime < minInterval) {
+                imageProxy.close()
+                return
+            }
+        }
+
         if (!isProcessingFrame.compareAndSet(false, true)) {
             imageProxy.close()
             return
         }
+        lastProcessedFrameTime = SystemClock.elapsedRealtime()
 
         try {
             val rotationDegrees = imageProxy.imageInfo.rotationDegrees
@@ -430,6 +446,23 @@ class CameraManagerHelper(private val context: Context) {
             }
 
             onFrameEncoded?.invoke(rawJpegBytes)
+
+            if (dynamicFpsAdjustmentEnabled) {
+                val processTime = SystemClock.elapsedRealtime() - now
+                processTimesBuffer.add(processTime)
+                if (processTimesBuffer.size >= 10) {
+                    val avgProcessTime = processTimesBuffer.average().toLong()
+                    processTimesBuffer.clear()
+                    
+                    if (avgProcessTime > 80) { // Device struggling
+                        dynamicTargetFps = (dynamicTargetFps - 2).coerceAtLeast(5)
+                        jpegQuality = (jpegQuality - 10).coerceAtLeast(20)
+                    } else if (avgProcessTime < 40) { // Device has headroom
+                        dynamicTargetFps = (dynamicTargetFps + 1).coerceAtMost(30)
+                        jpegQuality = (jpegQuality + 5).coerceAtMost(defaultJpegQuality)
+                    }
+                }
+            }
 
         } catch (e: Exception) {
             Log.e("CameraManagerHelper", "Error processing frame", e)

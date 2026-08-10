@@ -18,9 +18,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Power
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -39,6 +39,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,7 +57,7 @@ fun BlackScreenOverlay(
     var showHint by remember { mutableStateOf(false) }
     var currentTime by remember { mutableStateOf("") }
 
-    // Update screen brightness on enter/exit
+    // Update screen brightness on enter/exit (we apply this to the Activity window)
     DisposableEffect(isBlackScreenActive) {
         val activity = context as? Activity
         val originalLayoutParams = activity?.window?.attributes
@@ -65,10 +68,6 @@ fun BlackScreenOverlay(
             params.screenBrightness = 0.01f // Minimum brightness 1%
             activity.window.attributes = params
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-
-            val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-            insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
 
         onDispose {
@@ -77,9 +76,6 @@ fun BlackScreenOverlay(
                 params.screenBrightness = originalBrightness
                 activity.window.attributes = params
                 activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                
-                val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
         }
     }
@@ -94,9 +90,9 @@ fun BlackScreenOverlay(
 
     if (!isBlackScreenActive) return
 
-    androidx.compose.ui.window.Dialog(
+    Dialog(
         onDismissRequest = { /* Handle dismiss explicitly */ },
-        properties = androidx.compose.ui.window.DialogProperties(
+        properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
             dismissOnBackPress = false,
@@ -105,26 +101,25 @@ fun BlackScreenOverlay(
     ) {
         val view = androidx.compose.ui.platform.LocalView.current
         DisposableEffect(Unit) {
-            val dialogWindow = (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
-            val activityWindow = (context as? Activity)?.window
-            val windows = listOfNotNull(dialogWindow, activityWindow)
-
-            windows.forEach { window ->
-                window.setLayout(
+            val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+            
+            if (dialogWindow != null) {
+                dialogWindow.setLayout(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     WindowManager.LayoutParams.MATCH_PARENT
                 )
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    window.attributes.layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    val params = dialogWindow.attributes
+                    params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    dialogWindow.attributes = params
                 }
-                window.statusBarColor = android.graphics.Color.BLACK
-                window.navigationBarColor = android.graphics.Color.BLACK
+                
+                // Set window background to fully black
+                dialogWindow.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
 
-                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                val insetsController = WindowCompat.getInsetsController(dialogWindow, dialogWindow.decorView)
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                insetsController.systemBarsBehavior =
-                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
 
             onDispose {}
@@ -153,10 +148,39 @@ fun BlackScreenOverlay(
                 }
             }
 
+            // Simple Digital Clock
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = currentTime,
+                    color = Color.White.copy(alpha = 0.3f), // Dim clock to prevent screen burn-in
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Light
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Videocam,
+                        contentDescription = "Live",
+                        tint = Color.Red.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "LIVE • Battery $batteryPct%",
+                        color = Color.White.copy(alpha = 0.3f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             AnimatedVisibility(
                 visible = showHint,
                 enter = fadeIn(),
-                exit = fadeOut()
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp)
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -165,26 +189,20 @@ fun BlackScreenOverlay(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = "Power Saving Lock",
-                        tint = Color.DarkGray,
+                        tint = Color.White.copy(alpha = 0.5f),
                         modifier = Modifier.size(48.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "省電模式運作中",
-                        color = Color.DarkGray,
+                        color = Color.White.copy(alpha = 0.7f),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "連按兩下 (Double Tap) 解除省電模式",
-                        color = Color.Gray,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "$currentTime  •  電量 $batteryPct%",
-                        color = Color.DarkGray,
+                        color = Color.White.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
                 }

@@ -118,6 +118,8 @@ class CameraStreamService : Service(), LifecycleOwner {
         cameraHelper.isMotionDetectionEnabled = settingsManager.motionDetectionEnabled
         cameraHelper.motionSensitivity = settingsManager.motionSensitivity
         cameraHelper.motionCooldownSeconds = settingsManager.motionCooldownSeconds
+        cameraHelper.dynamicFpsAdjustmentEnabled = settingsManager.dynamicFpsAdjustmentEnabled
+        cameraHelper.defaultJpegQuality = settingsManager.defaultQuality
 
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "motion_sensitivity") {
@@ -126,6 +128,10 @@ class CameraStreamService : Service(), LifecycleOwner {
                 cameraHelper.motionCooldownSeconds = settingsManager.motionCooldownSeconds
             } else if (key == "motion_enabled") {
                 cameraHelper.isMotionDetectionEnabled = settingsManager.motionDetectionEnabled
+            } else if (key == "dynamic_fps_enabled") {
+                cameraHelper.dynamicFpsAdjustmentEnabled = settingsManager.dynamicFpsAdjustmentEnabled
+            } else if (key == "default_quality") {
+                cameraHelper.defaultJpegQuality = settingsManager.defaultQuality
             }
         }
         getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(prefsListener)

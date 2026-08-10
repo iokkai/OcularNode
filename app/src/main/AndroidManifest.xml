@@ -26,6 +26,7 @@
     </queries>
 
     <application
+        android:resizeableActivity="true"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -68,6 +69,7 @@
             </intent-filter>
         </receiver>
             
+        <meta-data android:name="android.max_aspect" android:value="2.4" />
     </application>
 
 </manifest>

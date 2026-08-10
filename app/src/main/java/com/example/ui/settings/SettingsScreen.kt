@@ -130,6 +130,7 @@ fun SettingsScreen(
     val autoStartOnBoot by viewModel.autoStartOnBoot.collectAsState()
     val powerCutAlertEnabled by viewModel.powerCutAlertEnabled.collectAsState()
     val systemLogEnabled by viewModel.systemLogEnabled.collectAsState()
+    val dynamicFpsAdjustmentEnabled by viewModel.dynamicFpsAdjustmentEnabled.collectAsState()
     val storageLimitGB by viewModel.storageLimitGB.collectAsState()
     val maxEventCount by viewModel.maxEventCount.collectAsState()
     val cleanupStatus by viewModel.cleanupStatus.collectAsState()
@@ -392,6 +393,28 @@ fun SettingsScreen(
                         Switch(
                             checked = eventVideoRecordingEnabled,
                             onCheckedChange = { viewModel.updateEventVideoRecordingEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4),
+                                uncheckedThumbColor = Color(0xFF49454F),
+                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("動態傳輸畫質最佳化 (Dynamic FPS)", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
+                            Text("根據設備效能監測自動降低碼率或幀率以穩定傳輸，避免舊機型過熱或卡頓", fontSize = 12.sp, color = Color.Gray)
+                        }
+                        Switch(
+                            checked = dynamicFpsAdjustmentEnabled,
+                            onCheckedChange = { viewModel.updateDynamicFpsAdjustmentEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = Color(0xFF6750A4),

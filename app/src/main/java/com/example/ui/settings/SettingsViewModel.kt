@@ -88,6 +88,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _systemLogEnabled = MutableStateFlow(settingsManager.systemLogEnabled)
     val systemLogEnabled: StateFlow<Boolean> = _systemLogEnabled.asStateFlow()
 
+    private val _dynamicFpsAdjustmentEnabled = MutableStateFlow(settingsManager.dynamicFpsAdjustmentEnabled)
+    val dynamicFpsAdjustmentEnabled: StateFlow<Boolean> = _dynamicFpsAdjustmentEnabled.asStateFlow()
+
     private val _powerCutAlertEnabled = MutableStateFlow(settingsManager.powerCutAlertEnabled)
     val powerCutAlertEnabled: StateFlow<Boolean> = _powerCutAlertEnabled.asStateFlow()
 
@@ -292,6 +295,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         settingsManager.systemLogEnabled = enabled
         _systemLogEnabled.value = enabled
         com.example.util.AppLogger.isEnabled = enabled
+    }
+
+    fun updateDynamicFpsAdjustmentEnabled(enabled: Boolean) {
+        settingsManager.dynamicFpsAdjustmentEnabled = enabled
+        _dynamicFpsAdjustmentEnabled.value = enabled
     }
 
     fun testTelegram() {

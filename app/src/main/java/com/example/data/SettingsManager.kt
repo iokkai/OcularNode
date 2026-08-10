@@ -123,6 +123,10 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_SYSTEM_LOG_ENABLED, true)
         set(value) = prefs.edit().putBoolean(KEY_SYSTEM_LOG_ENABLED, value).apply()
 
+    var dynamicFpsAdjustmentEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DYNAMIC_FPS_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_FPS_ENABLED, value).apply()
+
     var lowBatteryAlertThreshold: Int
         get() = prefs.getInt(KEY_LOW_BATTERY_THRESHOLD, 60)
         set(value) = prefs.edit().putInt(KEY_LOW_BATTERY_THRESHOLD, value).apply()
@@ -157,5 +161,6 @@ class SettingsManager(context: Context) {
         private const val KEY_POWER_CUT_ALERT = "power_cut_alert"
         private const val KEY_LOW_BATTERY_THRESHOLD = "low_battery_threshold"
         private const val KEY_SYSTEM_LOG_ENABLED = "system_log_enabled"
+        private const val KEY_DYNAMIC_FPS_ENABLED = "dynamic_fps_enabled"
     }
 }
