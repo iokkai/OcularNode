@@ -37,6 +37,14 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
     private var audioListenJob: Job? = null
     private var audioSpeakJob: Job? = null
 
+    @Volatile private var streamCall: okhttp3.Call? = null
+    @Volatile private var heartbeatCall: okhttp3.Call? = null
+
+    private var currentCameraDevice: CameraDevice? = null
+    private var currentScope: CoroutineScope? = null
+    private var currentBotToken: String = ""
+    private var currentChatId: String = ""
+
     // State
     private val _currentFrame = MutableStateFlow<Bitmap?>(null)
     val currentFrame: StateFlow<Bitmap?> = _currentFrame.asStateFlow()
@@ -63,7 +71,12 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
     val isSpeakingAudio: StateFlow<Boolean> = _isSpeakingAudio.asStateFlow()
 
     fun connect(cameraDevice: CameraDevice, scope: CoroutineScope, botToken: String = "", chatId: String = "") {
-        disconnect()
+        this.currentCameraDevice = cameraDevice
+        this.currentScope = scope
+        this.currentBotToken = botToken
+        this.currentChatId = chatId
+
+        disconnectCallAndJobsOnly()
 
         _isConnecting.value = true
         _statusMessage.value = "Connecting to ${cameraDevice.name} (${cameraDevice.ipAddress})..."
@@ -77,6 +90,37 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                 syncTelegramConfig(cameraDevice, botToken, chatId)
             }
         }
+    }
+
+    fun onResume() {
+        val device = currentCameraDevice ?: return
+        val scope = currentScope ?: return
+        Log.d("CameraStreamClient", "onResume: Reconnecting camera stream immediately...")
+        connect(device, scope, currentBotToken, currentChatId)
+    }
+
+    fun onPause() {
+        Log.d("CameraStreamClient", "onPause: Pausing active stream calls...")
+        stopListeningAudio()
+        stopSpeakingAudio()
+        disconnectCallAndJobsOnly()
+        _isConnected.value = false
+        _isConnecting.value = false
+        _statusMessage.value = "Paused"
+    }
+
+    private fun disconnectCallAndJobsOnly() {
+        stopListeningAudio()
+        stopSpeakingAudio()
+        try { streamCall?.cancel() } catch (_: Exception) {}
+        streamCall = null
+        streamJob?.cancel()
+        streamJob = null
+
+        try { heartbeatCall?.cancel() } catch (_: Exception) {}
+        heartbeatCall = null
+        heartbeatJob?.cancel()
+        heartbeatJob = null
     }
 
     suspend fun syncTelegramConfig(cameraDevice: CameraDevice, botToken: String, chatId: String): Boolean {
@@ -98,7 +142,9 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                         .url(cameraDevice.getMjpegUrl())
                         .build()
 
-                    val response = client.newCall(request).execute()
+                    val call = client.newCall(request)
+                    streamCall = call
+                    val response = call.execute()
                     if (!response.isSuccessful || response.body == null) {
                         response.close()
                         throw Exception("HTTP error code: ${response.code}")
@@ -122,6 +168,8 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
 
                     delay(retryDelayMs)
                     retryDelayMs = (retryDelayMs * 2).coerceAtMost(30000L) // Exponential backoff max 30s
+                } finally {
+                    streamCall = null
                 }
             }
         }
@@ -274,7 +322,9 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
             while (isActive) {
                 try {
                     val request = Request.Builder().url(cameraDevice.getStatusUrl()).get().build()
-                    val response = client.newCall(request).execute()
+                    val call = client.newCall(request)
+                    heartbeatCall = call
+                    val response = call.execute()
                     if (response.isSuccessful && response.body != null) {
                         val bodyStr = response.body!!.string()
                         val json = JSONObject(bodyStr)
@@ -283,6 +333,8 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                     response.close()
                 } catch (e: Exception) {
                     _cameraStatusJson.value = null
+                } finally {
+                    heartbeatCall = null
                 }
                 delay(3000L) // Poll status every 3s
             }
@@ -308,6 +360,44 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         } catch (e: Exception) {
             Log.e("CameraStreamClient", "Error sending control command", e)
             return@withContext false
+        }
+    }
+
+    suspend fun postRemoteConfig(cameraDevice: CameraDevice, configJsonStr: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val requestBody = configJsonStr.toRequestBody("application/json".toMediaType())
+            val request = Request.Builder()
+                .url("http://${cameraDevice.ipAddress}:${cameraDevice.port}/config")
+                .post(requestBody)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val success = response.isSuccessful
+            response.close()
+            return@withContext success
+        } catch (e: Exception) {
+            Log.e("CameraStreamClient", "Error posting remote config", e)
+            return@withContext false
+        }
+    }
+
+    suspend fun fetchRemoteConfig(cameraDevice: CameraDevice): JSONObject? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("http://${cameraDevice.ipAddress}:${cameraDevice.port}/config")
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful && response.body != null) {
+                val str = response.body!!.string()
+                response.close()
+                return@withContext JSONObject(str)
+            }
+            response.close()
+            return@withContext null
+        } catch (e: Exception) {
+            Log.e("CameraStreamClient", "Error fetching remote config", e)
+            return@withContext null
         }
     }
 
@@ -411,15 +501,14 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
     }
 
     fun disconnect() {
-        stopListeningAudio()
-        stopSpeakingAudio()
-        streamJob?.cancel()
-        streamJob = null
-        heartbeatJob?.cancel()
-        heartbeatJob = null
+        disconnectCallAndJobsOnly()
         _isConnected.value = false
         _isConnecting.value = false
         _currentFrame.value = null
         _statusMessage.value = "Disconnected"
+        currentCameraDevice = null
+        currentScope = null
+        currentBotToken = ""
+        currentChatId = ""
     }
 }

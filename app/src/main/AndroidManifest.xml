@@ -41,6 +41,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
@@ -55,6 +56,12 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync|connectedDevice|camera|microphone" />
+
+        <service
+            android:name=".service.TelegramPairingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <receiver
             android:name=".receiver.BootAndPowerReceiver"

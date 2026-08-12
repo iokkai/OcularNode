@@ -163,6 +163,7 @@ fun TelegramSetupScreen(
                         botName = state.botName,
                         botUsername = state.botUsername,
                         remainingSeconds = state.remainingSeconds,
+                        isLoadingBotInfo = state.isLoadingBotInfo,
                         onCancel = { viewModel.resetToStep1() },
                         onCopyPin = {
                             clipboardManager.setText(AnnotatedString(state.pin))
@@ -310,6 +311,7 @@ private fun Step2ListeningContent(
     botName: String,
     botUsername: String,
     remainingSeconds: Int,
+    isLoadingBotInfo: Boolean,
     onCancel: () -> Unit,
     onCopyPin: () -> Unit
 ) {
@@ -347,7 +349,36 @@ private fun Step2ListeningContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (botName.isNotEmpty()) {
+            if (isLoadingBotInfo) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF0F7FF),
+                    border = BorderStroke(1.dp, Color(0xFFD0E4FF)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color(0xFF0061A4),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "載入機器人資訊中...",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF0061A4)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+            } else if (botName.isNotEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = Color(0xFFF0F7FF),
@@ -489,7 +520,7 @@ private fun Step2ListeningContent(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "方式一：個人接收",
+                            text = "個人接收",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = Color(0xFF6750A4)
@@ -526,7 +557,7 @@ private fun Step2ListeningContent(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "方式二：群組接收",
+                            text = "群組接收",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = Color(0xFF0061A4)
@@ -541,35 +572,6 @@ private fun Step2ListeningContent(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 背景通知溫馨提示卡片
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFEDE7F6),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = null,
-                        tint = Color(0xFF6750A4),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "切換至 Telegram 時，App 將在背景持續配對並發送進度通知。",
-                        fontSize = 12.sp,
-                        color = Color(0xFF512DA8),
-                        lineHeight = 16.sp
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedButton(

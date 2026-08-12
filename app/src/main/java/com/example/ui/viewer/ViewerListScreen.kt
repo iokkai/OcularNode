@@ -124,6 +124,9 @@ fun ViewerListScreen(
             onSendCommand = { cmd, valStr ->
                 viewModel.sendControlCommandToCameraSuspend(camera, cmd, valStr)
             },
+            onSaveBatchConfig = { jsonStr ->
+                viewModel.saveRemoteConfig(camera, jsonStr)
+            },
             onSyncTelegram = {
                 val token = viewModel.settingsManager.telegramBotToken
                 val chatId = viewModel.settingsManager.telegramChatId
@@ -178,7 +181,7 @@ fun ViewerListScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "透過掃描鏡頭端 QR Code 或輸入 Tailscale/區域網 IP 加入",
+                        text = "掃描鏡頭端 QR Code 或輸入 IP 加入",
                         color = Color(0xFF49454F),
                         fontSize = 12.sp
                     )
@@ -208,23 +211,12 @@ fun ViewerListScreen(
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Tailscale VPN 已連線",
-                                    color = Color(0xFF1B5E20),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                                if (!tailscaleIp.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "($tailscaleIp)",
-                                        color = Color(0xFF2E7D32),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
+                            Text(
+                                text = "Tailscale VPN 已連線",
+                                color = Color(0xFF1B5E20),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
                             Text(
                                 text = "VPN 服務連線中 • 可跨網段遠端監控",
                                 color = Color(0xFF388E3C),
@@ -238,7 +230,7 @@ fun ViewerListScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
-                        Text("🚀 開啟 App", color = Color(0xFF1B5E20), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("🚀", color = Color(0xFF1B5E20), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             } else {
@@ -268,7 +260,7 @@ fun ViewerListScreen(
                                 fontSize = 13.sp
                             )
                             Text(
-                                text = "VPN 服務未開啟 • 僅限同 Wi-Fi 區域網觀看",
+                                text = "VPN 服務未開啟 • 僅限同 Wi-Fi 觀看",
                                 color = Color(0xFFC62828),
                                 fontSize = 10.sp
                             )
@@ -474,7 +466,7 @@ fun CameraDeviceCard(
                 isOnlineStatus = false
                 pingMs = 999
             }
-            delay(3000)
+            delay(10000)
         }
     }
 

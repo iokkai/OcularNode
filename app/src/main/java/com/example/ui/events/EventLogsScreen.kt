@@ -101,6 +101,8 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
 
     val context = LocalContext.current
 
+    val isCameraRole = viewModel.settingsManager.deviceRoleMode == "CAMERA"
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -113,28 +115,15 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "動態偵測歷史紀錄",
+                        text = "動態偵測紀錄",
                         color = Color(0xFF1C1B1F),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(Color(0xFFE8DEF8))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "${events.size} 筆",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6750A4)
-                        )
-                    }
 
                     if (viewModel.settingsManager.autoStorageCleanupEnabled) {
                         Spacer(modifier = Modifier.width(6.dp))
@@ -160,17 +149,29 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                 )
             }
 
-            if (events.isNotEmpty()) {
-                IconButton(onClick = { showClearConfirmDialog = true }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Clear All", tint = Color(0xFFB3261E))
+            if (isCameraRole || events.isNotEmpty()) {
+                IconButton(
+                    onClick = {
+                        if (events.isEmpty()) {
+                            Toast.makeText(context, "目前尚無任何紀錄", Toast.LENGTH_SHORT).show()
+                        } else {
+                            showClearConfirmDialog = true
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "全部刪除",
+                        tint = if (events.isNotEmpty()) Color(0xFFB3261E) else Color(0xFF9E9E9E)
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Remote Camera Sync Bar (If remote cameras exist)
-        if (cameraDevices.isNotEmpty()) {
+        // Remote Camera Sync Bar (Only shown in Viewer mode when remote cameras exist)
+        if (!isCameraRole && cameraDevices.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
@@ -251,23 +252,23 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
             }
             item {
                 FilterChip(
+                    selected = selectedFilter == "PET",
+                    onClick = { selectedFilter = "PET" },
+                    label = { Text("🐶 寵物偵測", fontSize = 12.sp) }
+                )
+            }
+            item {
+                FilterChip(
                     selected = selectedFilter == "ALERT",
                     onClick = { selectedFilter = "ALERT" },
-                    label = { Text("🚨 警報事件", fontSize = 12.sp) }
+                    label = { Text("🚨 通知類別", fontSize = 12.sp) }
                 )
             }
             item {
                 FilterChip(
                     selected = selectedFilter == "AI_FILTER",
                     onClick = { selectedFilter = "AI_FILTER" },
-                    label = { Text("🤖 AI 攔截 (主人)", fontSize = 12.sp) }
-                )
-            }
-            item {
-                FilterChip(
-                    selected = selectedFilter == "PET",
-                    onClick = { selectedFilter = "PET" },
-                    label = { Text("🐶 寵物偵測", fontSize = 12.sp) }
+                    label = { Text("已過濾", fontSize = 12.sp) }
                 )
             }
         }
@@ -420,7 +421,7 @@ fun EventCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "🚨 動態觸發 (${"%.1f".format(event.motionPercentage)}%)",
+                        text = "畫面變化${"%.1f".format(event.motionPercentage)}%",
                         color = Color(0xFF1C1B1F),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -440,7 +441,7 @@ fun EventCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "🤖 " + event.aiSummary,
+                            text = event.aiSummary,
                             fontSize = 11.sp,
                             color = if (event.aiFiltered) Color(0xFF1D192B) else Color(0xFF31111D),
                             fontWeight = FontWeight.Bold
@@ -458,7 +459,7 @@ fun EventCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (event.aiFiltered) "AI 攔截推播 (主人)" else if (event.telegramSentSuccess) "Telegram 已發送" else "未連線/失敗",
+                        text = if (event.aiFiltered) "AI 攔截" else if (event.telegramSentSuccess) "Telegram 已發送" else "未連線/失敗",
                         color = if (event.aiFiltered) Color(0xFF6750A4) else if (event.telegramSentSuccess) Color(0xFF2E7D32) else Color(0xFF49454F),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium

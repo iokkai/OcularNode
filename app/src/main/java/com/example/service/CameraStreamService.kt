@@ -115,6 +115,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         cameraHelper.currentResolutionString = settingsManager.defaultResolution
         cameraHelper.nightVisionMode = settingsManager.nightVisionMode
         cameraHelper.autoNightVisionThreshold = settingsManager.autoNightVisionThreshold
+        cameraHelper.autoNightVisionHysteresis = settingsManager.autoNightVisionHysteresis
         cameraHelper.isMotionDetectionEnabled = settingsManager.motionDetectionEnabled
         cameraHelper.motionSensitivity = settingsManager.motionSensitivity
         cameraHelper.motionCooldownSeconds = settingsManager.motionCooldownSeconds
@@ -132,6 +133,8 @@ class CameraStreamService : Service(), LifecycleOwner {
                 cameraHelper.dynamicFpsAdjustmentEnabled = settingsManager.dynamicFpsAdjustmentEnabled
             } else if (key == "default_quality") {
                 cameraHelper.defaultJpegQuality = settingsManager.defaultQuality
+            } else if (key == "night_vision_hysteresis") {
+                cameraHelper.autoNightVisionHysteresis = settingsManager.autoNightVisionHysteresis
             }
         }
         getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(prefsListener)
@@ -157,6 +160,10 @@ class CameraStreamService : Service(), LifecycleOwner {
 
             onControlCommand = { cmd, valStr ->
                 handleRemoteControl(cmd, valStr)
+            }
+
+            onBatchConfigUpdated = { configJsonStr ->
+                handleBatchConfigUpdate(configJsonStr)
             }
         }
 
@@ -192,7 +199,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         }
         
         cameraHelper.hasActiveConsumers = {
-            httpServer.connectedClientsCount.get() > 0 || settingsManager.eventVideoRecordingEnabled
+            (::httpServer.isInitialized && httpServer.isRunning) || settingsManager.eventVideoRecordingEnabled
         }
 
         cameraHelper.onMotionDetected = { percentage, thumbnailBytes, frameBitmap ->
@@ -465,6 +472,11 @@ class CameraStreamService : Service(), LifecycleOwner {
                     cameraHelper.autoNightVisionThreshold = luma
                     settingsManager.autoNightVisionThreshold = luma
                 }
+                "night_vision_hysteresis" -> {
+                    val hyst = value.toFloatOrNull() ?: 8.0f
+                    cameraHelper.autoNightVisionHysteresis = hyst
+                    settingsManager.autoNightVisionHysteresis = hyst
+                }
                 "play_alarm_setting", "play_local_alarm" -> {
                     val enable = value.lowercase() == "true" || value == "on"
                     settingsManager.playLocalAlarmOnMotion = enable
@@ -581,6 +593,160 @@ class CameraStreamService : Service(), LifecycleOwner {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun handleBatchConfigUpdate(jsonStr: String) {
+        serviceScope.launch(Dispatchers.Main) {
+            try {
+                val json = org.json.JSONObject(jsonStr)
+
+                // 1. device section
+                if (json.has("device")) {
+                    val deviceObj = json.optJSONObject("device")
+                    if (deviceObj != null) {
+                        val name = deviceObj.optString("deviceName", "")
+                        if (name.isNotBlank()) {
+                            settingsManager.cameraDeviceName = name.trim()
+                            if (::httpServer.isInitialized) httpServer.deviceName = name.trim()
+                        }
+                        val opMode = deviceObj.optString("operatingMode", "")
+                        if (opMode.isNotBlank()) {
+                            updateOperatingMode(opMode)
+                        }
+                    }
+                } else if (json.has("deviceName")) {
+                    val name = json.optString("deviceName", "")
+                    if (name.isNotBlank()) {
+                        settingsManager.cameraDeviceName = name.trim()
+                        if (::httpServer.isInitialized) httpServer.deviceName = name.trim()
+                    }
+                }
+
+                // 2. camera section
+                if (json.has("camera")) {
+                    val camObj = json.optJSONObject("camera")
+                    if (camObj != null) {
+                        val res = camObj.optString("resolution", "")
+                        if (res.isNotBlank() && res != cameraHelper.currentResolutionString) {
+                            settingsManager.defaultResolution = res
+                            cameraHelper.setResolution(res, this@CameraStreamService)
+                        }
+                        val quality = camObj.optInt("quality", -1)
+                        if (quality in 10..100) {
+                            settingsManager.defaultQuality = quality
+                            cameraHelper.jpegQuality = quality
+                        }
+                        val nvMode = camObj.optString("nightVisionMode", "")
+                        if (nvMode.isNotBlank()) {
+                            settingsManager.nightVisionMode = nvMode
+                            cameraHelper.nightVisionMode = nvMode
+                        }
+                        if (camObj.has("isTorchOn")) {
+                            val torch = camObj.optBoolean("isTorchOn", false)
+                            cameraHelper.setTorch(torch)
+                        }
+                        val lens = camObj.optString("lensFacing", "")
+                        if (lens.isNotBlank()) {
+                            val targetLens = if (lens.lowercase() == "front") androidx.camera.core.CameraSelector.LENS_FACING_FRONT else androidx.camera.core.CameraSelector.LENS_FACING_BACK
+                            if (targetLens != cameraHelper.lensFacing) {
+                                cameraHelper.switchCamera(this@CameraStreamService)
+                            }
+                        }
+                    }
+                }
+
+                // 3. motionDetection section
+                if (json.has("motionDetection")) {
+                    val mdObj = json.optJSONObject("motionDetection")
+                    if (mdObj != null) {
+                        if (mdObj.has("enabled")) {
+                            val enabled = mdObj.optBoolean("enabled", true)
+                            settingsManager.motionDetectionEnabled = enabled
+                            cameraHelper.isMotionDetectionEnabled = enabled
+                        }
+                        if (mdObj.has("sensitivity")) {
+                            val sens = mdObj.optDouble("sensitivity", 5.0).toFloat()
+                            settingsManager.motionSensitivity = sens
+                            cameraHelper.motionSensitivity = sens
+                        }
+                        if (mdObj.has("cooldownSeconds")) {
+                            val cd = mdObj.optInt("cooldownSeconds", 30)
+                            settingsManager.motionCooldownSeconds = cd
+                            cameraHelper.motionCooldownSeconds = cd
+                        }
+                        if (mdObj.has("categories")) {
+                            val catObj = mdObj.optJSONObject("categories")
+                            if (catObj != null) {
+                                val dataStore = SettingsDataStore(this@CameraStreamService)
+                                serviceScope.launch(Dispatchers.IO) {
+                                    for (cat in NotificationCategory.values()) {
+                                        if (catObj.has(cat.name)) {
+                                            val catEnable = catObj.optBoolean(cat.name, true)
+                                            dataStore.setCategoryEnabled(cat, catEnable)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. recording section
+                if (json.has("recording")) {
+                    val recObj = json.optJSONObject("recording")
+                    if (recObj != null) {
+                        if (recObj.has("eventRecordingEnabled")) {
+                            val enabled = recObj.optBoolean("eventRecordingEnabled", true)
+                            settingsManager.eventVideoRecordingEnabled = enabled
+                        }
+                        if (recObj.has("maxStorageGb")) {
+                            val gb = recObj.optDouble("maxStorageGb", 2.0).toFloat()
+                            settingsManager.storageLimitGB = gb
+                        }
+                        if (recObj.has("categoryRecording")) {
+                            val catRecObj = recObj.optJSONObject("categoryRecording")
+                            if (catRecObj != null) {
+                                val dataStore = SettingsDataStore(this@CameraStreamService)
+                                serviceScope.launch(Dispatchers.IO) {
+                                    for (cat in NotificationCategory.values()) {
+                                        if (catRecObj.has(cat.name)) {
+                                            val catRecEnable = catRecObj.optBoolean(cat.name, true)
+                                            dataStore.setCategoryRecordingEnabled(cat, catRecEnable)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 5. notifications section
+                if (json.has("notifications")) {
+                    val notifObj = json.optJSONObject("notifications")
+                    if (notifObj != null) {
+                        if (notifObj.has("powerCutAlertEnabled")) {
+                            settingsManager.powerCutAlertEnabled = notifObj.optBoolean("powerCutAlertEnabled", true)
+                        }
+                        if (notifObj.has("systemLogEnabled")) {
+                            settingsManager.systemLogEnabled = notifObj.optBoolean("systemLogEnabled", true)
+                        }
+                        if (notifObj.has("telegram")) {
+                            val tgObj = notifObj.optJSONObject("telegram")
+                            if (tgObj != null) {
+                                val token = tgObj.optString("botToken", "")
+                                val chatId = tgObj.optString("chatId", "")
+                                if (token.isNotBlank()) settingsManager.telegramBotToken = token
+                                if (chatId.isNotBlank()) settingsManager.telegramChatId = chatId
+                            }
+                        }
+                    }
+                }
+
+                Log.i("CameraStreamService", "Batch configuration applied successfully")
+            } catch (e: Exception) {
+                Log.e("CameraStreamService", "Error applying batch configuration", e)
             }
         }
     }

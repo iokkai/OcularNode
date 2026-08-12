@@ -43,7 +43,8 @@ class MjpegHttpServer(
 ) {
 
     private var serverSocket: ServerSocket? = null
-    private var isRunning = false
+    @Volatile
+    var isRunning = false
     private val threadPool = Executors.newCachedThreadPool()
     private val mjpegSessions = CopyOnWriteArrayList<MjpegClientSession>()
     val connectedClientsCount = AtomicInteger(0)
@@ -57,6 +58,7 @@ class MjpegHttpServer(
 
     // Controller Handlers
     var onControlCommand: ((String, String) -> Unit)? = null
+    var onBatchConfigUpdated: ((String) -> Unit)? = null
     var deviceName: String = "OcularNode Device"
     var lensFacingGetter: () -> String = { "back" }
     var torchStateGetter: () -> Boolean = { false }
@@ -119,6 +121,7 @@ class MjpegHttpServer(
     private var lastFileSnapshotSaveTime = 0L
 
     fun updateFrame(bytes: ByteArray) {
+        if (bytes.isEmpty()) return
         latestFrameBytes = bytes
         frameCount++
         val now = System.currentTimeMillis()
@@ -256,17 +259,81 @@ class MjpegHttpServer(
             socket.soTimeout = 10000
             val input = socket.getInputStream()
             val requestLine = readLineStr(input) ?: return socket.close()
-
             val parts = requestLine.split(" ")
             if (parts.size < 2) return socket.close()
-
             val method = parts[0].uppercase()
-            val path = parts[1]
-
+            val rawPath = parts[1]
+            val path = rawPath.substringBefore("?")
+            val cleanPath = path.lowercase().trimEnd('/')
             val output = socket.getOutputStream()
-
+            // Handle OPTIONS CORS preflight
+            if (method == "OPTIONS") {
+                val response = "HTTP/1.1 200 OK\r\n" +
+                        "Access-Control-Allow-Origin: *\r\n" +
+                        "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n" +
+                        "Access-Control-Allow-Headers: *\r\n" +
+                        "Access-Control-Max-Age: 86400\r\n" +
+                        "Content-Length: 0\r\n" +
+                        "Connection: close\r\n\r\n"
+                output.write(response.toByteArray(Charsets.UTF_8))
+                output.flush()
+                socket.close()
+                return
+            }
+            if (cleanPath == "/favicon.ico") {
+                output.write("HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n".toByteArray())
+                output.flush()
+                socket.close()
+                return
+            }
+            val isWebHome = cleanPath.isEmpty() || cleanPath == "/" || cleanPath == "/index" || cleanPath == "/index.html" || cleanPath == "/web" || cleanPath == "/dashboard"
             when {
-                path.startsWith("/mjpeg") || path.startsWith("/video") || path.startsWith("/stream") -> {
+                isWebHome -> {
+                    sendHtmlResponse(output, 200, getWebDashboardHtml())
+                    socket.close()
+                    return
+                }
+
+                path.startsWith("/status") -> {
+                    sendJsonResponse(output, 200, getStatusJson())
+                    socket.close()
+                    return
+                }
+
+                path.startsWith("/config") -> {
+                    if (method == "POST") {
+                        var contentLength = 0
+                        var headerLine: String?
+                        while (readLineStr(input).also { headerLine = it } != null && headerLine!!.isNotBlank()) {
+                            if (headerLine!!.lowercase().startsWith("content-length:")) {
+                                contentLength = headerLine!!.substringAfter(":").trim().toIntOrNull() ?: 0
+                            }
+                        }
+                        var body = ""
+                        if (contentLength > 0) {
+                            val buf = ByteArray(contentLength)
+                            var totalRead = 0
+                            while (totalRead < contentLength) {
+                                val read = input.read(buf, totalRead, contentLength - totalRead)
+                                if (read == -1) break
+                                totalRead += read
+                            }
+                            body = String(buf, 0, totalRead, Charsets.UTF_8)
+                        }
+                        if (body.isNotBlank()) {
+                            onBatchConfigUpdated?.invoke(body)
+                            sendJsonResponse(output, 200, "{\"status\":\"ok\",\"message\":\"Configuration updated successfully\"}")
+                        } else {
+                            sendJsonResponse(output, 400, "{\"status\":\"error\",\"message\":\"Empty config body\"}")
+                        }
+                    } else {
+                        sendJsonResponse(output, 200, getConfigJson())
+                    }
+                    socket.close()
+                    return
+                }
+
+                path.startsWith("/mjpeg") || path.startsWith("/stream") || path.startsWith("/live") -> {
                     // MJPEG Stream Session with Frame Conflation
                     val count = connectedClientsCount.incrementAndGet()
                     onActiveClientsChanged?.invoke(count)
@@ -291,7 +358,7 @@ class MjpegHttpServer(
 
                 path.startsWith("/snapshot") || path.startsWith("/frame") || path.startsWith("/image") || path.startsWith("/jpeg") -> {
                     var bytes = latestFrameBytes
-                    if (bytes == null) {
+                    if (bytes == null || bytes.isEmpty()) {
                         try {
                             val cacheFile = File(context.cacheDir, "snapshot_temp.jpg")
                             if (cacheFile.exists() && cacheFile.length() > 0) {
@@ -300,37 +367,23 @@ class MjpegHttpServer(
                         } catch (_: Exception) {}
                     }
 
-                    if (bytes != null) {
+                    if (bytes != null && bytes.isNotEmpty()) {
                         output.write(("HTTP/1.1 200 OK\r\n" +
                                 "Access-Control-Allow-Origin: *\r\n" +
+                                "Cache-Control: no-store, no-cache, must-revalidate\r\n" +
                                 "Content-Type: image/jpeg\r\n" +
-                                "Cache-Control: no-store, no-cache, must-revalidate, max-age=0\r\n" +
                                 "Content-Length: ${bytes.size}\r\n" +
                                 "Connection: close\r\n\r\n").toByteArray())
                         output.write(bytes)
                         output.flush()
                     } else {
-                        sendJsonResponse(output, 503, "{\"error\":\"Frame not ready\"}")
+                        sendJsonResponse(output, 503, "{\"error\":\"Camera frame not available\"}")
                     }
                     socket.close()
                     return
                 }
 
-                path == "/" || path.startsWith("/web") || path.startsWith("/index") -> {
-                    // Web Browser Interface
-                    val html = getWebDashboardHtml()
-                    sendHtmlResponse(output, 200, html)
-                    socket.close()
-                }
-
-                path.startsWith("/status") -> {
-                    val statusJson = getStatusJson()
-                    sendJsonResponse(output, 200, statusJson)
-                    socket.close()
-                }
-
                 path.startsWith("/control") -> {
-                    // Read headers to find Content-Length
                     var contentLength = 0
                     var headerLine: String?
                     while (readLineStr(input).also { headerLine = it } != null && headerLine!!.isNotBlank()) {
@@ -338,9 +391,8 @@ class MjpegHttpServer(
                             contentLength = headerLine!!.substringAfter(":").trim().toIntOrNull() ?: 0
                         }
                     }
-
                     var body = ""
-                    if (contentLength > 0) {
+                    if (contentLength > 0 && contentLength < 1048576) {
                         val bodyBytes = ByteArray(contentLength)
                         var totalRead = 0
                         while (totalRead < contentLength) {
@@ -354,9 +406,9 @@ class MjpegHttpServer(
                     handleControlRequest(path, body)
                     sendJsonResponse(output, 200, "{\"status\":\"ok\"}")
                     socket.close()
+                    return
                 }
 
-                
                 path.startsWith("/logs") -> {
                     val logsList = com.example.util.AppLogger.logs.value
                     val jsonArray = org.json.JSONArray(logsList)
@@ -366,18 +418,19 @@ class MjpegHttpServer(
                     }
                     sendJsonResponse(output, 200, json.toString())
                     socket.close()
+                    return
                 }
 
                 path.startsWith("/audio") -> {
-                    // Skip remaining headers
+                    // Drain remaining request headers
                     while (true) {
                         val line = readLineStr(input)
                         if (line.isNullOrEmpty()) break
                     }
-                    // Stream PCM Audio from Camera MIC to Viewer
                     socket.tcpNoDelay = true
                     output.write(("HTTP/1.1 200 OK\r\n" +
                             "Access-Control-Allow-Origin: *\r\n" +
+                            "Access-Control-Allow-Methods: GET, OPTIONS\r\n" +
                             "Content-Type: audio/pcm\r\n" +
                             "Connection: close\r\n\r\n").toByteArray())
                     output.flush()
@@ -397,13 +450,11 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/speak") -> {
-                    // Skip remaining headers
                     while (true) {
                         val line = readLineStr(input)
                         if (line.isNullOrEmpty()) break
                     }
-                    
-                    // Receive PCM Audio stream from Viewer and output to Camera Speakerphone
+
                     socket.tcpNoDelay = true
                     output.write(("HTTP/1.1 200 OK\r\n" +
                             "Access-Control-Allow-Origin: *\r\n\r\n").toByteArray())
@@ -413,7 +464,7 @@ class MjpegHttpServer(
                     val buffer = ByteArray(640)
                     var read: Int
                     try {
-                        socket.soTimeout = 0 // No timeout for continuous streaming
+                        socket.soTimeout = 0
                         while (input.read(buffer).also { read = it } != -1) {
                             if (read > 0) {
                                 audioEngine.playChunk(buffer, read)
@@ -451,8 +502,21 @@ class MjpegHttpServer(
                         try {
                             val events = AppDatabase.getDatabase(context).motionEventDao().getEventsListOnce()
                             for (ev in events) {
-                                ev.snapshotPath?.let { java.io.File(it).delete() }
-                                ev.videoPath?.let { java.io.File(it).delete() }
+                                ev.snapshotPath?.let { try { java.io.File(it).delete() } catch (_: Exception) {} }
+                                ev.videoPath?.let { try { java.io.File(it).delete() } catch (_: Exception) {} }
+                            }
+                            val mediaDirs = listOfNotNull(
+                                context.getExternalFilesDir(null)?.let { java.io.File(it, "media") },
+                                context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.let { java.io.File(it, "OcularNode") }
+                            )
+                            for (dir in mediaDirs) {
+                                if (dir.exists() && dir.isDirectory) {
+                                    dir.listFiles()?.forEach { file ->
+                                        if (file.isFile) {
+                                            try { file.delete() } catch (_: Exception) {}
+                                        }
+                                    }
+                                }
                             }
                             AppDatabase.getDatabase(context).motionEventDao().clearAllEvents()
                             sendJsonResponse(output, 200, "{\"status\":\"cleared\"}")
@@ -506,7 +570,6 @@ class MjpegHttpServer(
                                 if (videoFile != null && videoFile.exists()) {
                                     val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
                                     val fileName = "PetMonitor_Video_${event.id}_${sdf.format(Date(event.timestamp))}.mp4"
-
                                     val header = "HTTP/1.1 200 OK\r\n" +
                                             "Access-Control-Allow-Origin: *\r\n" +
                                             "Content-Type: video/mp4\r\n" +
@@ -542,7 +605,6 @@ class MjpegHttpServer(
                                     val imageBytes = android.util.Base64.decode(event.thumbnailBase64, android.util.Base64.DEFAULT)
                                     val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
                                     val fileName = "PetMonitor_Event_${event.id}_${sdf.format(Date(event.timestamp))}.jpg"
-
                                     val header = "HTTP/1.1 200 OK\r\n" +
                                             "Access-Control-Allow-Origin: *\r\n" +
                                             "Content-Type: image/jpeg\r\n" +
@@ -571,13 +633,10 @@ class MjpegHttpServer(
                     socket.close()
                 }
             }
-
         } catch (e: Exception) {
             try { socket.close() } catch (_: Exception) {}
         }
-    }
-
-    private fun handleControlRequest(path: String, body: String) {
+    }private fun handleControlRequest(path: String, body: String) {
         try {
             var command = ""
             var value = ""
@@ -610,7 +669,6 @@ class MjpegHttpServer(
         val ipInfo = NetworkUtils.getIpAddresses(context)
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         val batteryPct = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-
         val runtime = Runtime.getRuntime()
         val totalMem = runtime.totalMemory()
         val freeMem = runtime.freeMemory()
@@ -618,7 +676,6 @@ class MjpegHttpServer(
         val maxMem = runtime.maxMemory()
         val memoryPct = if (maxMem > 0) ((usedMem * 100) / maxMem).toInt() else 35
         val cpuPct = (20 + (Math.sin(System.currentTimeMillis() / 3000.0) * 18).toInt() + (Math.random() * 8).toInt()).coerceIn(5, 95)
-
         var freeGB = "0.0"
         var totalGB = "0.0"
         try {
@@ -659,6 +716,7 @@ class MjpegHttpServer(
             put("motionSensitivity", settingsManager.motionSensitivity)
             put("motionCooldown", settingsManager.motionCooldownSeconds)
             put("nightVisionLuma", settingsManager.autoNightVisionThreshold)
+            put("nightVisionHysteresis", settingsManager.autoNightVisionHysteresis)
             put("playLocalAlarmOnMotion", settingsManager.playLocalAlarmOnMotion)
             put("mlKitFilterEnabled", settingsManager.mlKitFilterEnabled)
             put("autoStorageCleanupEnabled", settingsManager.autoStorageCleanupEnabled)
@@ -666,626 +724,890 @@ class MjpegHttpServer(
             put("maxEventCountLimit", settingsManager.maxEventCountLimit)
             put("autoStartOnBoot", settingsManager.autoStartOnBoot)
             put("powerCutAlertEnabled", settingsManager.powerCutAlertEnabled)
-
             put("systemLogEnabled", settingsManager.systemLogEnabled)
-            val categoryStore = SettingsDataStore(context)
-            val catObj = JSONObject()
-            val catRecordObj = JSONObject()
-            for (cat in NotificationCategory.values()) {
-                val (notifyEnabled, recordEnabled) = runBlocking {
-                    val n = runCatching { categoryStore.getCategoryEnabled(cat).first() }.getOrDefault(true)
-                    val r = runCatching { categoryStore.getCategoryRecordingEnabled(cat).first() }.getOrDefault(true)
-                    Pair(n, r)
+
+            val catJson = JSONObject()
+            val catRecordJson = JSONObject()
+            val dataStore = SettingsDataStore(context)
+            try {
+                runBlocking {
+                    for (cat in NotificationCategory.values()) {
+                        catJson.put(cat.name, dataStore.getCategoryEnabled(cat).first())
+                        catRecordJson.put(cat.name, dataStore.getCategoryRecordingEnabled(cat).first())
+                    }
                 }
-                catObj.put(cat.name, notifyEnabled)
-                catRecordObj.put(cat.name, recordEnabled)
-            }
-            put("categoryFilters", catObj)
-            put("categoryRecordingFilters", catRecordObj)
+            } catch (_: Exception) {}
+            put("categoryFilters", catJson)
+            put("categoryRecordingFilters", catRecordJson)
         }
         return json.toString()
     }
 
-    private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String) {
+    fun getConfigJson(): String {
+        val dataStore = SettingsDataStore(context)
+        val catFilters = JSONObject()
+        val catRecFilters = JSONObject()
+        try {
+            runBlocking {
+                for (cat in NotificationCategory.values()) {
+                    catFilters.put(cat.name, dataStore.getCategoryEnabled(cat).first())
+                    catRecFilters.put(cat.name, dataStore.getCategoryRecordingEnabled(cat).first())
+                }
+            }
+        } catch (_: Exception) {}
+
+        val json = JSONObject().apply {
+            put("device", JSONObject().apply {
+                put("deviceName", deviceName)
+                put("operatingMode", operatingModeGetter())
+                put("httpPort", port)
+            })
+            put("camera", JSONObject().apply {
+                put("lensFacing", lensFacingGetter())
+                put("resolution", resolutionGetter())
+                put("quality", qualityGetter())
+                put("fpsLimit", 30)
+                put("nightVisionMode", nightVisionModeGetter())
+                put("isTorchOn", torchStateGetter())
+            })
+            put("motionDetection", JSONObject().apply {
+                put("enabled", isMotionEnabledGetter())
+                put("sensitivity", settingsManager.motionSensitivity)
+                put("cooldownSeconds", settingsManager.motionCooldownSeconds)
+                put("categories", catFilters)
+            })
+            put("recording", JSONObject().apply {
+                put("eventRecordingEnabled", settingsManager.eventVideoRecordingEnabled)
+                put("maxStorageGb", settingsManager.storageLimitGB)
+                put("retentionDays", 7)
+                put("recordAudio", true)
+                put("categoryRecording", catRecFilters)
+            })
+            put("notifications", JSONObject().apply {
+                put("powerCutAlertEnabled", settingsManager.powerCutAlertEnabled)
+                put("systemLogEnabled", settingsManager.systemLogEnabled)
+                put("telegram", JSONObject().apply {
+                    put("enabled", settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank())
+                    put("botToken", settingsManager.telegramBotToken)
+                    put("chatId", settingsManager.telegramChatId)
+                    put("sendSnapshot", true)
+                })
+            })
+        }
+        return json.toString()
+    }
+private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String) {
         val statusText = if (statusCode == 200) "OK" else "Not Found"
+        val bytes = json.toByteArray(Charsets.UTF_8)
         val response = "HTTP/1.1 $statusCode $statusText\r\n" +
                 "Access-Control-Allow-Origin: *\r\n" +
+                "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n" +
+                "Access-Control-Allow-Headers: *\r\n" +
                 "Content-Type: application/json; charset=utf-8\r\n" +
-                "Content-Length: ${json.toByteArray().size}\r\n" +
-                "Connection: close\r\n\r\n" + json
-        output.write(response.toByteArray())
+                "Content-Length: ${bytes.size}\r\n" +
+                "Connection: close\r\n\r\n"
+        output.write(response.toByteArray(Charsets.UTF_8))
+        output.write(bytes)
         output.flush()
     }
 
     private fun sendHtmlResponse(output: OutputStream, statusCode: Int, html: String) {
         val statusText = if (statusCode == 200) "OK" else "Not Found"
+        val bytes = html.toByteArray(Charsets.UTF_8)
         val response = "HTTP/1.1 $statusCode $statusText\r\n" +
                 "Access-Control-Allow-Origin: *\r\n" +
+                "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n" +
+                "Access-Control-Allow-Headers: *\r\n" +
                 "Content-Type: text/html; charset=utf-8\r\n" +
-                "Content-Length: ${html.toByteArray().size}\r\n" +
-                "Connection: close\r\n\r\n" + html
-        output.write(response.toByteArray())
+                "Content-Length: ${bytes.size}\r\n" +
+                "Connection: close\r\n\r\n"
+        output.write(response.toByteArray(Charsets.UTF_8))
+        output.write(bytes)
         output.flush()
     }
 
     private fun getWebDashboardHtml(): String {
-        return """
-            <!DOCTYPE html>
-            <html lang="zh-TW">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>OcularNode 網頁監控端</title>
-                <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-                <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-                <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
-                <script src="https://unpkg.com/recharts@2.10.4/umd/Recharts.js" crossorigin></script>
-                <style>
-                    :root {
-                        --primary: #6750A4;
-                        --primary-bg: #EADDFF;
-                        --bg: #0F172A;
-                        --card-bg: #1E293B;
-                        --text: #F8FAFC;
-                        --subtext: #94A3B8;
-                        --accent-red: #EF4444;
-                        --accent-green: #22C55E;
-                    }
-                    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-                    body { background-color: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-                    header { width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-                    h1 { font-size: 1.5rem; color: #E2E8F0; display: flex; align-items: center; gap: 8px; }
-                    .badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
-                    .live-tag { background: var(--accent-green); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
-                    
-                    .main-container { width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr; gap: 20px; }
-                    @media (min-width: 768px) { .main-container { grid-template-columns: 3fr 2fr; } }
-                    
-                    .video-card { background: #000; border-radius: 16px; overflow: hidden; position: relative; border: 1px solid #334155; display: flex; justify-content: center; align-items: center; min-height: 360px; }
-                    .video-feed { width: 100%; height: auto; max-height: 520px; object-fit: contain; display: block; }
-                    
-                    .panel-card { background: var(--card-bg); border-radius: 16px; padding: 14px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
-                    .panel-title { font-size: 0.95rem; font-weight: bold; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 2px; color: #CBD5E1; }
-                    
-                    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-                    .stat-box { background: #0F172A; padding: 6px 10px; border-radius: 8px; border: 1px solid #334155; }
-                    .stat-label { font-size: 0.7rem; color: var(--subtext); margin-bottom: 0px; }
-                    .stat-val { font-size: 0.95rem; font-weight: bold; color: #F1F5F9; }
-                    
-                    .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px; }
-                    .btn { background: #334155; color: white; border: none; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
-                    .btn:hover { background: #475569; }
-                    .btn-primary { background: var(--primary); }
-                    .btn-primary:hover { background: #7C65C1; }
-                    .btn-danger { background: var(--accent-red); }
-                    .btn-danger:hover { background: #DC2626; }
-                </style>
-            </head>
-            <body>
-                <header>
-                    <h1>📷 <span id="dev-name">OcularNode 鏡頭</span></h1>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <span class="badge" id="res-badge">720p</span>
-                        <span class="live-tag">● LIVE <span id="fps-val">--</span> FPS</span>
-                    </div>
-                </header>
+        return """<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OcularNode 網頁監控端</title>
+    <style>
+        :root {
+            --primary: #6750A4;
+            --primary-bg: #EADDFF;
+            --bg: #0F172A;
+            --card-bg: #1E293B;
+            --text: #F8FAFC;
+            --subtext: #94A3B8;
+            --accent-red: #EF4444;
+            --accent-green: #22C55E;
+            --accent-blue: #3B82F6;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); padding: 16px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        header { width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+        h1 { font-size: 1.4rem; color: #E2E8F0; display: flex; align-items: center; gap: 8px; }
+        .badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+        .live-tag { background: var(--accent-green); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
+        
+        .main-container { width: 100%; max-width: 900px; display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 768px) { .main-container { grid-template-columns: 3fr 2fr; } }
+        
+        .video-card { background: #000; border-radius: 16px; overflow: hidden; position: relative; border: 1px solid #334155; display: flex; justify-content: center; align-items: center; min-height: 360px; }
+        .video-feed { width: 100%; height: auto; max-height: 520px; object-fit: contain; display: block; }
+        
+        .panel-card { background: var(--card-bg); border-radius: 16px; padding: 14px; border: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+        .panel-title { font-size: 0.95rem; font-weight: bold; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-bottom: 2px; color: #CBD5E1; display: flex; justify-content: space-between; align-items: center; }
+        
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .stat-box { background: #0F172A; padding: 6px 10px; border-radius: 8px; border: 1px solid #334155; }
+        .stat-label { font-size: 0.7rem; color: var(--subtext); margin-bottom: 0px; }
+        .stat-val { font-size: 0.95rem; font-weight: bold; color: #F1F5F9; }
+        
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px; }
+        .btn { background: #334155; color: white; border: none; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 4px; text-decoration: none; }
+        .btn:hover { background: #475569; }
+        .btn-primary { background: var(--primary); }
+        .btn-primary:hover { background: #7E67C1; }
+        .btn-danger { background: var(--accent-red); }
+        .btn-danger:hover { background: #DC2626; }
+        .btn-success { background: var(--accent-green); }
+        .btn-success:hover { background: #16A34A; }
+        
+        canvas { width: 100%; height: 160px; display: block; border-radius: 8px; background: #0F172A; border: 1px solid #334155; }
 
-                <div class="main-container">
-                    <div class="video-card">
-                        <!-- Top-Left Zoom Overlay -->
-                        <div style="position: absolute; top: 12px; left: 12px; z-index: 10; display: flex; gap: 6px; background: rgba(15, 23, 42, 0.75); padding: 4px 8px; border-radius: 12px; backdrop-filter: blur(4px);">
-                            <button class="btn" style="padding: 6px 10px; font-size: 0.85rem;" onclick="zoom(-0.25)">➖</button>
-                            <span id="zoom-badge" style="color: white; font-weight: bold; font-size: 0.85rem; align-self: center; cursor: pointer;" onclick="resetZoom()">1.0x</span>
-                            <button class="btn" style="padding: 6px 10px; font-size: 0.85rem;" onclick="zoom(0.25)">➕</button>
-                        </div>
+        /* Modal styling */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 16px; backdrop-filter: blur(4px); }
+        .modal-content { background: var(--card-bg); border-radius: 16px; border: 1px solid #475569; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 12px; }
+        .modal-header h2 { font-size: 1.2rem; color: #F1F5F9; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-label { font-size: 0.85rem; color: #CBD5E1; font-weight: bold; }
+        .form-control { background: #0F172A; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; }
+        .checkbox-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; background: #0F172A; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #E2E8F0; }
+        .checkbox-item input { width: 16px; height: 16px; accent-color: var(--primary); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><span class="badge">OcularNode</span> <span id="dev-name">載入中...</span></h1>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="live-tag" id="stream-status-tag">● 連線中</span>
+            <span style="font-size: 0.85rem; color: var(--subtext);" id="fps-val">-- FPS</span>
+            <button class="btn btn-primary" style="margin-left: 8px;" onclick="openConfigModal()">⚙️ 系統組態設定</button>
+        </div>
+    </header>
 
-                        <!-- Top-Right Rotate Overlay -->
-                        <div style="position: absolute; top: 12px; right: 12px; z-index: 10; display: flex; gap: 6px; background: rgba(15, 23, 42, 0.75); padding: 4px 8px; border-radius: 12px; backdrop-filter: blur(4px);">
-                            <button class="btn" style="padding: 6px 10px; font-size: 0.85rem;" onclick="rotate(-90)" title="逆時鐘旋轉 90°">↺ 逆時鐘</button>
-                            <button class="btn" style="padding: 6px 10px; font-size: 0.85rem;" onclick="rotate(90)" title="順時鐘旋轉 90°">↻ 順時鐘</button>
-                        </div>
+    <div class="main-container">
+        <!-- Video Stream Player -->
+        <div class="video-card">
+            <img id="stream" src="/mjpeg" class="video-feed" alt="即時串流畫面" onerror="onStreamError()">
+            <div style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
+                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">720p</span>
+                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="zoom-badge">1.0x</span>
+            </div>
+            <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 6px;">
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="reloadStream()">🔄 重載</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="zoom(0.25)">🔍+</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="zoom(-0.25)">🔍-</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="resetZoom()">↺ 重置</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotate(90)">🔄 旋轉</button>
+            </div>
+        </div>
 
-                        <img id="stream" src="/mjpeg" class="video-feed" alt="Live Camera Stream">
-                    </div>
+        <!-- Controls Side Panel (Direct Real-time Commands) -->
+        <div class="panel-card">
+            <div class="panel-title">📊 狀態概觀</div>
+            <div class="stat-grid">
+                <div class="stat-box"><div class="stat-label">工作模式</div><div class="stat-val" id="mode-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">電池狀態</div><div class="stat-val" id="battery-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">線上觀看數</div><div class="stat-val" id="clients-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">夜視狀態</div><div class="stat-val" id="night-val">--</div></div>
+            </div>
 
-                    <div class="panel-card">
-                        <div class="panel-title">⚡ 鏡頭即時狀態</div>
-                        <div class="stat-grid">
-                            <div class="stat-box">
-                                <div class="stat-label">電量</div>
-                                <div class="stat-val" id="battery-val">-- %</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">連線人數</div>
-                                <div class="stat-val" id="clients-val">--</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">運作模式</div>
-                                <div class="stat-val" id="mode-val">--</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">夜視狀態</div>
-                                <div class="stat-val" id="night-val">--</div>
-                            </div>
-                        </div>
+            <div class="panel-title" style="margin-top: 6px;">⚙️ 工作模式切換 (即時)</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <button class="btn" id="btn-mode-monitor" onclick="sendCommand('mode', 'monitor')">👁️ 監看模式</button>
+                <button class="btn" id="btn-mode-detection" onclick="sendCommand('mode', 'detection')">🚨 動態偵測</button>
+            </div>
 
-                        <div class="panel-title" style="margin-top:10px;">⚙️ 運作模式控制</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <button class="btn" id="btn-mode-monitor" onclick="sendCommand('mode', 'monitor')">👁️ 監看模式</button>
-                            <button class="btn" id="btn-mode-detection" onclick="sendCommand('mode', 'detection')">🚨 動態偵測</button>
-                        </div>
+            <div class="panel-title" style="margin-top: 6px;">🎮 即時硬體控制</div>
+            <div class="btn-grid">
+                <button class="btn" onclick="sendCommand('camera', 'switch')">🔄 前後鏡頭</button>
+                <button class="btn" onclick="sendCommand('torch', 'toggle')">💡 補光燈</button>
+                <button class="btn" onclick="takeSnapshot()">📸 快照截圖</button>
+                <button class="btn btn-danger" onclick="sendCommand('alarm', 'trigger')">🚨 蜂鳴警報</button>
+            </div>
 
-                        <div class="panel-title" style="margin-top:10px;">🎮 遠端控制面板</div>
-                        <div class="btn-grid">
-                            <button class="btn" onclick="sendCommand('camera', 'switch')">🔄 切換前後鏡頭</button>
-                            <button class="btn" onclick="sendCommand('torch', 'toggle')">💡 閃光燈開關</button>
-                            <button class="btn" onclick="takeSnapshot()">📸 快照截圖</button>
-                            <button class="btn btn-danger" onclick="sendCommand('alarm', 'trigger')">🚨 遠端蜂鳴警報</button>
-                        </div>
+            <div class="panel-title" style="margin-top: 6px;">🔊 聲音監聽 (即時)</div>
+            <button class="btn" id="btn-audio-listen" onclick="toggleAudioListen()">🎧 啟動聲音監聽</button>
 
-                        <div class="panel-title" style="margin-top:10px;">🎥 畫質與解析度調整</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                            <select class="btn" onchange="sendCommand('resolution', this.value)" style="text-align:center;">
-                                <option value="" disabled selected>解析度調整</option>
-                                <option value="1080p">1080p (FHD)</option>
-                                <option value="720p">720p (HD)</option>
-                                <option value="480p">480p (SD)</option>
-                                <option value="360p">360p (Low)</option>
-                            </select>
-                            <select class="btn" onchange="sendCommand('quality', this.value)" style="text-align:center;">
-                                <option value="" disabled selected>JPEG 壓縮品質</option>
-                                <option value="90">90% (高畫質)</option>
-                                <option value="75">75% (平衡)</option>
-                                <option value="50">50% (流暢)</option>
-                                <option value="30">30% (省流量)</option>
-                            </select>
-                        </div>
+            <div class="panel-title" style="margin-top: 6px;">🌙 夜視開關 (即時)</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                <button class="btn" id="btn-night-off" onclick="sendCommand('night_vision', 'off')">☀️ 關</button>
+                <button class="btn" id="btn-night-on" onclick="sendCommand('night_vision', 'on')">🌙 開</button>
+                <button class="btn" id="btn-night-auto" onclick="sendCommand('night_vision', 'auto')">🤖 自動</button>
+            </div>
 
-                        <div class="panel-title" style="margin-top:10px;">🌙 夜視模式控制</div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                            <button class="btn" id="btn-night-off" onclick="sendCommand('night_vision', 'off')">☀️ 關閉夜視</button>
-                            <button class="btn" id="btn-night-on" onclick="sendCommand('night_vision', 'on')">🌙 開啟夜視</button>
-                            <button class="btn" id="btn-night-auto" onclick="sendCommand('night_vision', 'auto')">🤖 自動夜視</button>
-                        </div>
+            <div class="panel-title" style="margin-top: 6px;">💾 儲存空間狀況</div>
+            <div class="stat-box"><div class="stat-label">可用容量</div><div class="stat-val" id="storage-val">-- / --</div></div>
+        </div>
+    </div>
 
-                        <div class="panel-title" style="margin-top:10px;">💾 儲存空間與循環錄影</div>
-                        <div class="stat-box">
-                            <div class="stat-label">裝置可用空間 (自動覆蓋保護中)</div>
-                            <div class="stat-val" id="storage-val">-- / --</div>
-                        </div>
+    <!-- System Settings Batch Modal Dialog -->
+    <div id="config-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ 系統組態設定 (批次儲存)</h2>
+                <button class="btn" style="padding: 4px 10px;" onclick="closeConfigModal()">✕</button>
+            </div>
 
-                        <div class="panel-title" style="margin-top:10px;">⚡ 開機自動啟動與電源防護</div>
-                        <div style="display: flex; flex-direction: column; gap: 8px;">
-                            <button class="btn" id="btn-autostart-toggle" onclick="toggleAutoStart()">⚡ 開機/復電自動啟動: 讀取中...</button>
-                            <button class="btn" id="btn-powercut-toggle" onclick="togglePowerCutAlert()">🚨 斷電與低電量警報: 讀取中...</button>
-                        </div>
-                    </div>
+            <!-- Device Name -->
+            <div class="form-group">
+                <label class="form-label">鏡頭裝置名稱</label>
+                <input type="text" id="cfg-dev-name" class="form-control" placeholder="例：OcularNode 客廳鏡頭">
+            </div>
+
+            <!-- Camera Config -->
+            <div class="panel-title" style="margin-top: 4px;">📷 相機與畫質</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label class="form-label">預設解析度</label>
+                    <select id="cfg-resolution" class="form-control">
+                        <option value="1080p">1080p (Full HD)</option>
+                        <option value="720p">720p (HD)</option>
+                        <option value="480p">480p (SD)</option>
+                        <option value="360p">360p (Low)</option>
+                    </select>
                 </div>
-
-                <!-- Motion Event Logs & Downloads Section -->
-                <div style="width:100%; max-width:900px; margin-top:24px;" class="panel-card">
-                    <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>📁 動態警報事件與照片/紀錄下載</span>
-                        <button class="btn" style="padding:4px 10px; font-size:0.8rem;" onclick="fetchEvents()">🔄 重新整理列表</button>
-                    </div>
-                    <div id="events-container" style="display:grid; grid-template-columns:1fr; gap:10px; margin-top:10px;">
-                        <div style="color:var(--subtext); text-align:center; padding:16px;">載入事件紀錄中...</div>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">JPEG 畫質</label>
+                    <select id="cfg-quality" class="form-control">
+                        <option value="90">90% (高品質)</option>
+                        <option value="75">75% (平衡)</option>
+                        <option value="50">50% (流暢)</option>
+                        <option value="30">30% (省流量)</option>
+                    </select>
                 </div>
+            </div>
 
-                <!-- Performance & Recharts Monitoring Section -->
-                <div id="perf-dashboard-section" style="width:100%; max-width:900px; margin-top:24px; display:none;" class="panel-card">
-                    <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span>📈 節點資源與效能監控 (Recharts 趨勢圖)</span>
-                        <span id="perf-status-badge" style="font-size:0.8rem; color:var(--accent-green);">● 系統運行正常</span>
-                    </div>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-top:10px;">
-                        <div class="stat-box">
-                            <div class="stat-label">當前 CPU 使用率</div>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <div class="stat-val" id="cpu-stat-val">--%</div>
-                                <span id="cpu-warning" style="display:none; color:var(--accent-red); font-size:1.1rem;" title="CPU 使用率過高">⚠️</span>
-                            </div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">當前記憶體占用</div>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <div class="stat-val" id="mem-stat-val">--%</div>
-                                <span id="mem-warning" style="display:none; color:var(--accent-red); font-size:1.1rem;" title="記憶體占用過高">⚠️</span>
-                            </div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-label">連線品質 (Ping)</div>
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <div class="stat-val" id="ping-stat-val">-- ms</div>
-                                <span id="ping-warning" style="display:none; color:var(--accent-red); font-size:1.1rem;" title="連線延遲過高">⚠️</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="margin-top:15px; height:180px; width:100%;" id="recharts-container">
-                        <div style="color:var(--subtext); text-align:center; padding-top:60px;">載入 Recharts 趨勢圖中...</div>
-                    </div>
+            <!-- Motion Detection & AI Category Filters -->
+            <div class="panel-title" style="margin-top: 4px;">🚨 動態偵測與 AI 過濾</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label class="form-label">靈敏度 (1 - 10)</label>
+                    <input type="number" id="cfg-motion-sens" class="form-control" min="1" max="10" value="5">
                 </div>
+                <div class="form-group">
+                    <label class="form-label">警報冷卻時間 (秒)</label>
+                    <input type="number" id="cfg-motion-cooldown" class="form-control" min="5" max="300" value="10">
+                </div>
+            </div>
 
-                <div style="width:100%; max-width:900px; margin-top:24px; text-align:center; margin-bottom:24px;">
-                    <label style="color:var(--text); font-size:0.9rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px;">
-                        <input type="checkbox" id="toggle-perf-dashboard" onchange="togglePerfDashboard()" style="width:16px; height:16px;">
-                        顯示節點資源與效能監控 (Recharts)
+            <div class="form-label">動態推播過濾 (觸發通知之類別)</div>
+            <div class="checkbox-group">
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HUMAN_AND_ACTIVITY" checked> 人類與活動</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-PET_AND_ANIMAL" checked> 寵物與動物</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-VEHICLE_AND_TRANSPORT" checked> 交通工具</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HOUSEHOLD_ITEM" checked> 居家物品</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-ENVIRONMENT_AND_NATURE" checked> 環境與自然</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-OTHER" checked> 其他異動</label>
+            </div>
+
+            <!-- Recording & Storage -->
+            <div class="panel-title" style="margin-top: 4px;">🎥 自動錄影與容量上限</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label class="checkbox-item" style="margin-top: 24px;">
+                        <input type="checkbox" id="cfg-event-recording" checked> 啟用事件自動錄影
                     </label>
                 </div>
+                <div class="form-group">
+                    <label class="form-label">影片容量上限 (GB)</label>
+                    <input type="number" id="cfg-max-storage" class="form-control" min="1" max="100" step="0.5" value="10.0">
+                </div>
+            </div>
 
-                <script>
-                    let isTorchOn = false;
-                    let currentAutoStart = true;
-                    let currentPowerCut = true;
-                    let currentRotation = 0;
+            <div class="form-label">自動錄影過濾 (觸發自動錄影之類別)</div>
+            <div class="checkbox-group">
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-HUMAN_AND_ACTIVITY" checked> 人類與活動</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-PET_AND_ANIMAL" checked> 寵物與動物</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-VEHICLE_AND_TRANSPORT" checked> 交通工具</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-HOUSEHOLD_ITEM" checked> 居家物品</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-ENVIRONMENT_AND_NATURE" checked> 環境與自然</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-OTHER" checked> 其他異動</label>
+            </div>
 
-                    function toggleAutoStart() {
-                        sendCommand('auto_start_boot', currentAutoStart ? 'off' : 'on');
+            <!-- Protection & Telegram -->
+            <div class="panel-title" style="margin-top: 4px;">⚡ 自動防護與 Telegram 警報</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <label class="checkbox-item"><input type="checkbox" id="cfg-power-cut" checked> 斷電推播警報</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-sys-log" checked> 系統日誌紀錄</label>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
+                <div class="form-group">
+                    <label class="form-label">Telegram Bot Token</label>
+                    <input type="text" id="cfg-tg-token" class="form-control" placeholder="bot123456:ABC...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telegram Chat ID</label>
+                    <input type="text" id="cfg-tg-chat" class="form-control" placeholder="-100123456789">
+                </div>
+            </div>
+
+            <!-- Modal Actions -->
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; border-top: 1px solid #334155; padding-top: 12px;">
+                <button class="btn" onclick="closeConfigModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveConfigBatch()">💾 儲存並套用</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Canvas Native Chart Section -->
+    <div style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
+        <div class="panel-title">
+            <span>📈 節點資源與效能趨勢 (原生繪圖)</span>
+            <span style="font-size: 0.8rem; color: var(--accent-green);">● 系統運作中</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">
+            <div class="stat-box"><div class="stat-label">CPU 使用率</div><div class="stat-val" id="cpu-stat-val">--%</div></div>
+            <div class="stat-box"><div class="stat-label">記憶體占用</div><div class="stat-val" id="mem-stat-val">--%</div></div>
+            <div class="stat-box"><div class="stat-label">連線延遲 (Ping)</div><div class="stat-val" id="ping-stat-val">-- ms</div></div>
+        </div>
+        <canvas id="perf-canvas" width="800" height="160"></canvas>
+    </div>
+
+    <!-- Motion Event Logs & Downloads Section -->
+    <div style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
+        <div class="panel-title">
+            <span>📁 動態警報事件與紀錄</span>
+            <div style="display: flex; gap: 6px;">
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="fetchEvents()">🔄 重整</button>
+                <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="clearAllEvents()">🧹 清除全部</button>
+            </div>
+        </div>
+        <div id="events-container" style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px;">
+            <div style="color: var(--subtext); text-align: center; padding: 16px;">載入事件紀錄中...</div>
+        </div>
+    </div>
+
+    <script>
+        let isTorchOn = false;
+        let currentAutoStart = true;
+        let currentPowerCut = true;
+        let currentRotation = 0;
+        let currentZoom = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let perfHistory = [];
+
+        const catNames = ['HUMAN_AND_ACTIVITY', 'PET_AND_ANIMAL', 'VEHICLE_AND_TRANSPORT', 'HOUSEHOLD_ITEM', 'ENVIRONMENT_AND_NATURE', 'OTHER'];
+
+        async function openConfigModal() {
+            try {
+                const res = await fetch('/config');
+                const data = await res.json();
+                
+                if (data.device && data.device.deviceName) {
+                    document.getElementById('cfg-dev-name').value = data.device.deviceName;
+                }
+                if (data.camera) {
+                    if (data.camera.resolution) document.getElementById('cfg-resolution').value = data.camera.resolution;
+                    if (data.camera.quality) document.getElementById('cfg-quality').value = String(data.camera.quality);
+                }
+                if (data.motionDetection) {
+                    if (data.motionDetection.sensitivity) document.getElementById('cfg-motion-sens').value = data.motionDetection.sensitivity;
+                    if (data.motionDetection.cooldownSeconds) document.getElementById('cfg-motion-cooldown').value = data.motionDetection.cooldownSeconds;
+                    if (data.motionDetection.categories) {
+                        catNames.forEach(cat => {
+                            const el = document.getElementById('cfg-cat-' + cat);
+                            if (el) el.checked = data.motionDetection.categories[cat] !== false;
+                        });
                     }
-
-                    function togglePowerCutAlert() {
-                        sendCommand('power_cut_alert', currentPowerCut ? 'off' : 'on');
+                }
+                if (data.recording) {
+                    document.getElementById('cfg-event-recording').checked = data.recording.eventRecordingEnabled !== false;
+                    if (data.recording.maxStorageGb) document.getElementById('cfg-max-storage').value = data.recording.maxStorageGb;
+                    if (data.recording.categoryRecording) {
+                        catNames.forEach(cat => {
+                            const el = document.getElementById('cfg-rec-cat-' + cat);
+                            if (el) el.checked = data.recording.categoryRecording[cat] !== false;
+                        });
                     }
-                    let currentZoom = 1.0;
-                    let panX = 0;
-                    let panY = 0;
-                    let isDragging = false;
-                    let startX = 0;
-                    let startY = 0;
-
-                    function togglePerfDashboard() {
-                        const cb = document.getElementById('toggle-perf-dashboard');
-                        const section = document.getElementById('perf-dashboard-section');
-                        if (cb && section) {
-                            if (cb.checked) {
-                                section.style.display = 'block';
-                                renderPerfChart();
-                            } else {
-                                section.style.display = 'none';
-                            }
-                        }
+                }
+                if (data.notifications) {
+                    document.getElementById('cfg-power-cut').checked = data.notifications.powerCutAlertEnabled !== false;
+                    document.getElementById('cfg-sys-log').checked = data.notifications.systemLogEnabled !== false;
+                    if (data.notifications.telegram) {
+                        document.getElementById('cfg-tg-token').value = data.notifications.telegram.botToken || '';
+                        document.getElementById('cfg-tg-chat').value = data.notifications.telegram.chatId || '';
                     }
+                }
 
-                    function rotate(deltaDeg) {
-                        currentRotation = (currentRotation + deltaDeg + 360) % 360;
-                        applyTransform();
+                document.getElementById('config-modal').style.display = 'flex';
+            } catch (e) {
+                alert('無法載入系統組態: ' + e);
+            }
+        }
+
+        function closeConfigModal() {
+            document.getElementById('config-modal').style.display = 'none';
+        }
+
+        async function saveConfigBatch() {
+            const catObj = {};
+            const recCatObj = {};
+            catNames.forEach(cat => {
+                const el = document.getElementById('cfg-cat-' + cat);
+                if (el) catObj[cat] = el.checked;
+                const recEl = document.getElementById('cfg-rec-cat-' + cat);
+                if (recEl) recCatObj[cat] = recEl.checked;
+            });
+
+            const configPayload = {
+                device: {
+                    deviceName: document.getElementById('cfg-dev-name').value
+                },
+                camera: {
+                    resolution: document.getElementById('cfg-resolution').value,
+                    quality: parseInt(document.getElementById('cfg-quality').value) || 75
+                },
+                motionDetection: {
+                    enabled: true,
+                    sensitivity: parseFloat(document.getElementById('cfg-motion-sens').value) || 5.0,
+                    cooldownSeconds: parseInt(document.getElementById('cfg-motion-cooldown').value) || 10,
+                    categories: catObj
+                },
+                recording: {
+                    eventRecordingEnabled: document.getElementById('cfg-event-recording').checked,
+                    maxStorageGb: parseFloat(document.getElementById('cfg-max-storage').value) || 10.0,
+                    categoryRecording: recCatObj
+                },
+                notifications: {
+                    powerCutAlertEnabled: document.getElementById('cfg-power-cut').checked,
+                    systemLogEnabled: document.getElementById('cfg-sys-log').checked,
+                    telegram: {
+                        botToken: document.getElementById('cfg-tg-token').value,
+                        chatId: document.getElementById('cfg-tg-chat').value
                     }
+                }
+            };
 
-                    function zoom(deltaScale) {
-                        currentZoom = Math.min(Math.max(currentZoom + deltaScale, 1.0), 5.0);
-                        if (currentZoom === 1.0) {
-                            panX = 0;
-                            panY = 0;
-                        }
-                        applyTransform();
-                    }
-
-                    function resetZoom() {
-                        currentZoom = 1.0;
-                        panX = 0;
-                        panY = 0;
-                        applyTransform();
-                    }
-
-                    function applyTransform() {
-                        const img = document.getElementById('stream');
-                        if (!img) return;
-
-                        const badge = document.getElementById('zoom-badge');
-                        if (badge) badge.innerText = currentZoom.toFixed(1) + 'x';
-
-                        if (currentZoom <= 1.0) {
-                            panX = 0;
-                            panY = 0;
-                            img.style.cursor = 'default';
-                        } else {
-                            img.style.cursor = isDragging ? 'grabbing' : 'grab';
-                        }
-
-                        const isVertical = (currentRotation === 90 || currentRotation === 270);
-                        if (isVertical) {
-                            const card = img.parentElement;
-                            const cardW = card.clientWidth - 20;
-                            const cardH = 480;
-                            const nw = img.naturalWidth || 1280;
-                            const nh = img.naturalHeight || 720;
-                            const imgW = img.offsetWidth || cardW;
-                            const imgH = img.offsetHeight || (imgW * nh / nw);
-
-                            const baseScale = Math.min(cardW / imgH, cardH / imgW, 1);
-                            const finalScale = baseScale * currentZoom;
-                            img.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) rotate(' + currentRotation + 'deg) scale(' + finalScale + ')';
-                        } else {
-                            img.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) rotate(' + currentRotation + 'deg) scale(' + currentZoom + ')';
-                        }
-                    }
-
-                    window.addEventListener('resize', applyTransform);
-
-                    document.addEventListener('DOMContentLoaded', () => {
-                        const videoCard = document.querySelector('.video-card');
-                        if (videoCard) {
-                            videoCard.addEventListener('wheel', (e) => {
-                                e.preventDefault();
-                                zoom(e.deltaY < 0 ? 0.25 : -0.25);
-                            }, { passive: false });
-
-                            const onStart = (clientX, clientY) => {
-                                if (currentZoom > 1.0) {
-                                    isDragging = true;
-                                    startX = clientX - panX;
-                                    startY = clientY - panY;
-                                    applyTransform();
-                                }
-                            };
-
-                            const onMove = (clientX, clientY) => {
-                                if (isDragging && currentZoom > 1.0) {
-                                    panX = clientX - startX;
-                                    panY = clientY - startY;
-                                    applyTransform();
-                                }
-                            };
-
-                            const onEnd = () => {
-                                if (isDragging) {
-                                    isDragging = false;
-                                    applyTransform();
-                                }
-                            };
-
-                            videoCard.addEventListener('mousedown', (e) => {
-                                if (currentZoom > 1.0) {
-                                    e.preventDefault();
-                                    onStart(e.clientX, e.clientY);
-                                }
-                            });
-
-                            window.addEventListener('mousemove', (e) => {
-                                if (isDragging) {
-                                    e.preventDefault();
-                                    onMove(e.clientX, e.clientY);
-                                }
-                            });
-
-                            window.addEventListener('mouseup', onEnd);
-
-                            videoCard.addEventListener('touchstart', (e) => {
-                                if (currentZoom > 1.0 && e.touches.length === 1) {
-                                    onStart(e.touches[0].clientX, e.touches[0].clientY);
-                                }
-                            }, { passive: true });
-
-                            window.addEventListener('touchmove', (e) => {
-                                if (isDragging && e.touches.length === 1) {
-                                    onMove(e.touches[0].clientX, e.touches[0].clientY);
-                                }
-                            }, { passive: true });
-
-                            window.addEventListener('touchend', onEnd);
-                        }
-                    });
-
-                    let perfHistory = [];
-                    let chartRoot = null;
-
-                    function renderPerfChart() {
-                        try {
-                            const section = document.getElementById('perf-dashboard-section');
-                            if (!section || section.style.display === 'none') return;
-
-                            if (typeof window.Recharts === 'undefined') {
-                                console.warn("Recharts not loaded yet");
-                                return;
-                            }
-                            const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } = window.Recharts;
-                            const container = document.getElementById('recharts-container');
-                            if (!container) return;
-                            
-                            // 修正載入提示消失
-                            if (container.querySelector('div') && container.querySelector('div').innerText.includes('載入')) {
-                                container.innerHTML = '';
-                            }
-
-                            const element = React.createElement(ResponsiveContainer, { width: '100%', height: '100%' },
-                                React.createElement(AreaChart, { data: perfHistory },
-                                    React.createElement(CartesianGrid, { strokeDasharray: '3 3', stroke: '#334155' }),
-                                    React.createElement(XAxis, { dataKey: 'time', stroke: '#94A3B8', fontSize: 10 }),
-                                    React.createElement(YAxis, { stroke: '#94A3B8', fontSize: 10, domain: [0, 100] }),
-                                    React.createElement(Tooltip, { contentStyle: { background: '#1E293B', border: '1px solid #334155', borderRadius: '8px', color: '#F8FAFC' } }),
-                                    React.createElement(Area, { type: 'monotone', dataKey: 'cpu', stroke: '#6750A4', fill: '#6750A4', fillOpacity: 0.3, name: 'CPU %', isAnimationActive: false }),
-                                    React.createElement(Area, { type: 'monotone', dataKey: 'mem', stroke: '#22C55E', fill: '#22C55E', fillOpacity: 0.3, name: '記憶體 %', isAnimationActive: false })
-                                )
-                            );
-                            
-                            if (window.ReactDOM.createRoot) {
-                                if (!chartRoot) {
-                                    chartRoot = window.ReactDOM.createRoot(container);
-                                }
-                                chartRoot.render(element);
-                            } else {
-                                window.ReactDOM.render(element, container);
-                            }
-                        } catch (e) {
-                            console.error("Recharts render error:", e);
-                        }
-                    }
-
-                    async function fetchStatus() {
-                        try {
-                            const startTime = Date.now();
-                            const res = await fetch('/status');
-                            const ping = Date.now() - startTime;
-                            const data = await res.json();
-                            document.getElementById('dev-name').innerText = data.deviceName || 'OcularNode 鏡頭';
-                            let battTxt = (data.batteryLevel >= 0 ? data.batteryLevel + '%' : '未知');
-                            if (data.batteryTemp && data.batteryTemp > 0) {
-                                battTxt += ' (' + data.batteryTemp.toFixed(1) + '°C)';
-                            }
-                            if (data.isThermalThrottled) {
-                                battTxt += ' 🔥 高溫降載';
-                            }
-                            document.getElementById('battery-val').innerText = battTxt;
-                            document.getElementById('clients-val').innerText = data.connectedClients + ' 人';
-                            document.getElementById('fps-val').innerText = data.fps || '0';
-                            document.getElementById('res-badge').innerText = data.resolution || '720p';
-                            
-                            const cpu = data.cpuUsage || 30;
-                            const mem = data.memoryUsage || 45;
-                            document.getElementById('cpu-stat-val').innerText = cpu + '%';
-                            document.getElementById('mem-stat-val').innerText = mem + '% (' + (data.memoryUsedMB || 0) + 'MB)';
-                            document.getElementById('ping-stat-val').innerText = ping + ' ms';
-
-                            const cpuWarn = document.getElementById('cpu-warning');
-                            if (cpu > 80) { cpuWarn.style.display = 'inline'; } else { cpuWarn.style.display = 'none'; }
-
-                            const memWarn = document.getElementById('mem-warning');
-                            if (mem > 85) { memWarn.style.display = 'inline'; } else { memWarn.style.display = 'none'; }
-
-                            const pingWarn = document.getElementById('ping-warning');
-                            if (ping > 250) { pingWarn.style.display = 'inline'; } else { pingWarn.style.display = 'none'; }
-
-                            const timeStr = new Date().toLocaleTimeString();
-                            perfHistory.push({ time: timeStr, cpu: cpu, mem: mem });
-                            if (perfHistory.length > 15) { perfHistory.shift(); }
-                            renderPerfChart();
-
-                            const opMode = data.operatingMode || 'monitor';
-                            document.getElementById('mode-val').innerText = (opMode === 'monitor' ? '👁️ 監看模式' : '🚨 動態偵測');
-                            document.getElementById('btn-mode-monitor').style.background = (opMode === 'monitor' ? '#6750A4' : '#334155');
-                            document.getElementById('btn-mode-detection').style.background = (opMode === 'detection' ? '#6750A4' : '#334155');
-
-                            const nMode = data.nightVisionMode || 'auto';
-                            document.getElementById('night-val').innerText = (data.isNightVisionActive ? '夜視中 (' + nMode + ')' : '一般 (' + nMode + ')');
-                            
-                            document.getElementById('btn-night-off').style.background = (nMode === 'off' ? '#6750A4' : '#334155');
-                            document.getElementById('btn-night-on').style.background = (nMode === 'on' ? '#6750A4' : '#334155');
-                            document.getElementById('btn-night-auto').style.background = (nMode === 'auto' ? '#6750A4' : '#334155');
-
-                            if (data.storageFree && data.storageTotal) {
-                                document.getElementById('storage-val').innerText = '剩餘 ' + data.storageFree + ' / 全部 ' + data.storageTotal;
-                            }
-
-                            currentAutoStart = data.autoStartOnBoot !== false;
-                            currentPowerCut = data.powerCutAlertEnabled !== false;
-
-                            const btnAuto = document.getElementById('btn-autostart-toggle');
-                            if (btnAuto) {
-                                btnAuto.innerText = '⚡ 開機/復電自動啟動: ' + (currentAutoStart ? '【已開啟】' : '【已關閉】');
-                                btnAuto.style.background = currentAutoStart ? '#22C55E' : '#334155';
-                            }
-
-                            const btnPower = document.getElementById('btn-powercut-toggle');
-                            if (btnPower) {
-                                btnPower.innerText = '🚨 斷電與低電量警報: ' + (currentPowerCut ? '【已開啟】' : '【已關閉】');
-                                btnPower.style.background = currentPowerCut ? '#EF4444' : '#334155';
-                            }
-
-                            isTorchOn = data.isTorchOn;
-                        } catch (e) {
-                            console.error(e);
-                        }
-                    }
-
-                    async function fetchEvents() {
-                        try {
-                            const res = await fetch('/events');
-                            const events = await res.json();
-                            const container = document.getElementById('events-container');
-                            if (!container) return;
-
-                            if (!Array.isArray(events) || events.length === 0) {
-                                container.innerHTML = '<div style="color:var(--subtext); text-align:center; padding:16px;">目前尚無動態警報紀錄</div>';
-                                return;
-                            }
-
-                            var htmlStr = '';
-                            for (var i = 0; i < events.length; i++) {
-                                var ev = events[i];
-                                var imgTag = ev.thumbnailBase64 ? '<img src="data:image/jpeg;base64,' + ev.thumbnailBase64 + '" style="width:84px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #334155;">' : '<div style="width:84px; height:64px; background:#1E293B; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94A3B8;">📷</div>';
-                                htmlStr += '<div style="background:#0F172A; border:1px solid #334155; border-radius:12px; padding:10px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
-                                    imgTag +
-                                    '<div style="flex:1; min-width:160px;">' +
-                                    '<div style="font-weight:bold; font-size:0.95rem; color:#F1F5F9;">🚨 動態觸發 (' + ev.motionPercentage + '%)</div>' +
-                                    '<div style="font-size:0.8rem; color:var(--subtext); margin-top:2px;">📅 ' + ev.formattedTime + '</div>' +
-                                    '</div>' +
-                                    '<div style="display:flex; gap:6px;">' +
-                                    '<a href="' + ev.downloadUrl + '" download style="text-decoration:none;" class="btn btn-primary">⬇️ 下載照片</a>' +
-                                    '<button onclick="deleteEvent(' + ev.id + ')" class="btn btn-danger">🗑️</button>' +
-                                    '</div>' +
-                                    '</div>';
-                            }
-                            container.innerHTML = htmlStr;
-                        } catch (e) {
-                            console.error(e);
-                        }
-                    }
-
-                    async function deleteEvent(id) {
-                        if (confirm('確定要刪除這筆動態事件與快照嗎？')) {
-                            try {
-                                await fetch('/events/delete?id=' + id);
-                                fetchEvents();
-                            } catch (e) {
-                                alert('刪除失敗: ' + e);
-                            }
-                        }
-                    }
-
-                    async function sendCommand(cmd, val) {
-                        if (cmd === 'torch' && val === 'toggle') {
-                            val = isTorchOn ? 'off' : 'on';
-                        }
-                        try {
-                            await fetch('/control', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ command: cmd, value: val })
-                            });
-                            setTimeout(fetchStatus, 300);
-                        } catch (e) {
-                            alert('發送控制指令失敗: ' + e);
-                        }
-                    }
-
-                    function takeSnapshot() {
-                        const img = document.getElementById('stream');
-                        const w = img.naturalWidth || 1280;
-                        const h = img.naturalHeight || 720;
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-
-                        if (currentRotation === 90 || currentRotation === 270) {
-                            canvas.width = h;
-                            canvas.height = w;
-                        } else {
-                            canvas.width = w;
-                            canvas.height = h;
-                        }
-
-                        ctx.translate(canvas.width / 2, canvas.height / 2);
-                        ctx.rotate((currentRotation * Math.PI) / 180);
-                        ctx.drawImage(img, -w / 2, -h / 2);
-
-                        const a = document.createElement('a');
-                        a.href = canvas.toDataURL('image/jpeg');
-                        a.download = 'OcularNode_snapshot_' + Date.now() + '.jpg';
-                        a.click();
-                    }
-
+            try {
+                const res = await fetch('/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(configPayload)
+                });
+                const result = await res.json();
+                if (result.status === 'ok') {
+                    alert('✅ 系統組態已成功套用！');
+                    closeConfigModal();
                     fetchStatus();
+                } else {
+                    alert('❌ 儲存失敗: ' + (result.message || '未知錯誤'));
+                }
+            } catch (e) {
+                alert('發送組態設定失敗: ' + e);
+            }
+        }
+
+        function reloadStream() {
+            const img = document.getElementById('stream');
+            if (img) {
+                img.src = '/mjpeg?t=' + Date.now();
+                document.getElementById('stream-status-tag').innerText = '● 連線中';
+                document.getElementById('stream-status-tag').style.background = 'var(--accent-green)';
+            }
+        }
+
+        function onStreamError() {
+            console.warn('MJPEG stream connection error, trying snapshot fallback...');
+            const tag = document.getElementById('stream-status-tag');
+            if (tag) {
+                tag.innerText = '⚠️ 快照模式';
+                tag.style.background = '#F59E0B';
+            }
+            const img = document.getElementById('stream');
+            if (img) {
+                img.src = '/snapshot?t=' + Date.now();
+            }
+        }
+
+        function rotate(deltaDeg) {
+            currentRotation = (currentRotation + deltaDeg + 360) % 360;
+            applyTransform();
+        }
+
+        function zoom(deltaScale) {
+            currentZoom = Math.min(Math.max(currentZoom + deltaScale, 1.0), 5.0);
+            if (currentZoom === 1.0) { panX = 0; panY = 0; }
+            applyTransform();
+        }
+
+        function resetZoom() {
+            currentZoom = 1.0;
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        }
+
+        function applyTransform() {
+            const img = document.getElementById('stream');
+            if (!img) return;
+            const badge = document.getElementById('zoom-badge');
+            if (badge) badge.innerText = currentZoom.toFixed(1) + 'x';
+            img.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) rotate(' + currentRotation + 'deg) scale(' + currentZoom + ')';
+        }
+
+        function drawPerfCanvas() {
+            const canvas = document.getElementById('perf-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#0F172A';
+            ctx.fillRect(0, 0, w, h);
+
+            // Grid lines
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            for (let y = 20; y < h; y += 35) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            if (perfHistory.length < 2) return;
+
+            const maxPoints = 20;
+            const stepX = w / (maxPoints - 1);
+
+            // Draw CPU line
+            ctx.strokeStyle = '#6750A4';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < perfHistory.length; i++) {
+                const x = i * stepX;
+                const val = perfHistory[i].cpu || 0;
+                const y = h - (val / 100 * (h - 20)) - 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Draw Memory line
+            ctx.strokeStyle = '#22C55E';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < perfHistory.length; i++) {
+                const x = i * stepX;
+                const val = perfHistory[i].mem || 0;
+                const y = h - (val / 100 * (h - 20)) - 10;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // Legend
+            ctx.fillStyle = '#6750A4';
+            ctx.fillRect(10, 10, 12, 12);
+            ctx.fillStyle = '#F8FAFC';
+            ctx.font = '11px sans-serif';
+            ctx.fillText('CPU %', 28, 20);
+
+            ctx.fillStyle = '#22C55E';
+            ctx.fillRect(80, 10, 12, 12);
+            ctx.fillStyle = '#F8FAFC';
+            ctx.fillText('記憶體 %', 98, 20);
+        }
+
+        async function fetchStatus() {
+            try {
+                const startTime = Date.now();
+                const res = await fetch('/status');
+                const ping = Date.now() - startTime;
+                const data = await res.json();
+
+                const devName = document.getElementById('dev-name');
+                if (devName) devName.innerText = data.deviceName || 'OcularNode 鏡頭';
+
+                let battTxt = (data.batteryLevel >= 0 ? data.batteryLevel + '%' : '未知');
+                if (data.batteryTemp && data.batteryTemp > 0) battTxt += ' (' + data.batteryTemp.toFixed(1) + '°C)';
+                if (data.isThermalThrottled) battTxt += ' 🔥 高溫';
+                const battEl = document.getElementById('battery-val');
+                if (battEl) battEl.innerText = battTxt;
+
+                const clientsEl = document.getElementById('clients-val');
+                if (clientsEl) clientsEl.innerText = (data.connectedClients || 0) + ' 人';
+
+                const fpsEl = document.getElementById('fps-val');
+                if (fpsEl) fpsEl.innerText = (data.fps || 0) + ' FPS';
+
+                const resBadge = document.getElementById('res-badge');
+                if (resBadge) resBadge.innerText = data.resolution || '720p';
+
+                const cpu = data.cpuUsage || 30;
+                const mem = data.memoryUsage || 45;
+                const cpuEl = document.getElementById('cpu-stat-val');
+                if (cpuEl) cpuEl.innerText = cpu + '%';
+
+                const memEl = document.getElementById('mem-stat-val');
+                if (memEl) memEl.innerText = mem + '%';
+
+                const pingEl = document.getElementById('ping-stat-val');
+                if (pingEl) pingEl.innerText = ping + ' ms';
+
+                perfHistory.push({ cpu: cpu, mem: mem });
+                if (perfHistory.length > 20) perfHistory.shift();
+                drawPerfCanvas();
+
+                const opMode = data.operatingMode || 'monitor';
+                const modeEl = document.getElementById('mode-val');
+                if (modeEl) modeEl.innerText = (opMode === 'monitor' ? '👁️ 監看' : '🚨 動態偵測');
+
+                const btnMon = document.getElementById('btn-mode-monitor');
+                if (btnMon) btnMon.style.background = (opMode === 'monitor' ? 'var(--primary)' : '#334155');
+                const btnDet = document.getElementById('btn-mode-detection');
+                if (btnDet) btnDet.style.background = (opMode === 'detection' ? 'var(--primary)' : '#334155');
+
+                const nMode = data.nightVisionMode || 'auto';
+                const nightEl = document.getElementById('night-val');
+                if (nightEl) nightEl.innerText = (data.isNightVisionActive ? '夜視中 (' + nMode + ')' : '一般 (' + nMode + ')');
+
+                const btnNOff = document.getElementById('btn-night-off');
+                if (btnNOff) btnNOff.style.background = (nMode === 'off' ? 'var(--primary)' : '#334155');
+                const btnNOn = document.getElementById('btn-night-on');
+                if (btnNOn) btnNOn.style.background = (nMode === 'on' ? 'var(--primary)' : '#334155');
+                const btnNAuto = document.getElementById('btn-night-auto');
+                if (btnNAuto) btnNAuto.style.background = (nMode === 'auto' ? 'var(--primary)' : '#334155');
+
+                if (data.storageFree && data.storageTotal) {
+                    const storEl = document.getElementById('storage-val');
+                    if (storEl) storEl.innerText = data.storageFree + ' / ' + data.storageTotal;
+                }
+            } catch (e) {
+                console.error('fetchStatus error:', e);
+            }
+        }
+
+        async function fetchEvents() {
+            try {
+                const res = await fetch('/events');
+                const events = await res.json();
+                const container = document.getElementById('events-container');
+                if (!container) return;
+
+                if (!Array.isArray(events) || events.length === 0) {
+                    container.innerHTML = '<div style="color: var(--subtext); text-align: center; padding: 16px;">目前尚無動態警報紀錄</div>';
+                    return;
+                }
+
+                var htmlStr = '';
+                for (var i = 0; i < events.length; i++) {
+                    var ev = events[i];
+                    var imgTag = ev.thumbnailBase64 ? '<img src="data:image/jpeg;base64,' + ev.thumbnailBase64 + '" style="width:84px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #334155;">' : '<div style="width:84px; height:64px; background:#1E293B; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94A3B8;">📷</div>';
+                    
+                    var videoBtn = ev.hasVideo ? '<a href="' + ev.videoUrl + '" target="_blank" class="btn" style="background:#2563EB; font-size:0.8rem; padding:4px 8px;">🎬 影片</a>' : '';
+
+                    htmlStr += '<div style="background:#0F172A; border:1px solid #334155; border-radius:12px; padding:10px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
+                        imgTag +
+                        '<div style="flex:1; min-width:160px;">' +
+                        '<div style="font-weight:bold; font-size:0.95rem; color:#F1F5F9;">🚨 動態觸發 (' + ev.motionPercentage + '%)</div>' +
+                        '<div style="font-size:0.8rem; color:var(--subtext); margin-top:2px;">📅 ' + ev.formattedTime + '</div>' +
+                        '</div>' +
+                        '<div style="display:flex; gap:6px; align-items:center;">' +
+                        '<a href="' + ev.downloadUrl + '" download class="btn btn-primary" style="font-size:0.8rem; padding:4px 8px;">⬇️ 照片</a>' +
+                        videoBtn +
+                        '<button onclick="deleteEvent(' + ev.id + ')" class="btn btn-danger" style="padding:4px 8px;">🗑️</button>' +
+                        '</div>' +
+                        '</div>';
+                }
+                container.innerHTML = htmlStr;
+            } catch (e) {
+                console.error('fetchEvents error:', e);
+            }
+        }
+
+        async function deleteEvent(id) {
+            if (confirm('確定要刪除這筆動態事件與快照嗎？')) {
+                try {
+                    await fetch('/events/delete?id=' + id);
                     fetchEvents();
-                    setInterval(fetchStatus, 2000);
-                    setInterval(fetchEvents, 10000);
-                    applyTransform();
-                </script>
-            </body>
-            </html>
-        """.trimIndent()
+                } catch (e) {
+                    alert('刪除失敗: ' + e);
+                }
+            }
+        }
+
+        async function clearAllEvents() {
+            if (confirm('確定要清除所有動態事件紀錄嗎？')) {
+                try {
+                    await fetch('/events/clear');
+                    fetchEvents();
+                } catch (e) {
+                    alert('清除失敗: ' + e);
+                }
+            }
+        }
+
+        async function sendCommand(cmd, val) {
+            if (cmd === 'torch' && val === 'toggle') {
+                val = isTorchOn ? 'off' : 'on';
+            }
+            try {
+                await fetch('/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: cmd, value: val })
+                });
+                setTimeout(fetchStatus, 300);
+            } catch (e) {
+                alert('發送控制指令失敗: ' + e);
+            }
+        }
+
+        function takeSnapshot() {
+            const img = document.getElementById('stream');
+            if (!img) return;
+            const w = img.naturalWidth || 1280;
+            const h = img.naturalHeight || 720;
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            if (currentRotation === 90 || currentRotation === 270) {
+                canvas.width = h; canvas.height = w;
+            } else {
+                canvas.width = w; canvas.height = h;
+            }
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((currentRotation * Math.PI) / 180);
+            ctx.drawImage(img, -w / 2, -h / 2);
+            const a = document.createElement('a');
+            a.href = canvas.toDataURL('image/jpeg');
+            a.download = 'OcularNode_snapshot_' + Date.now() + '.jpg';
+            a.click();
+        }
+
+        let audioCtx = null;
+        let audioReader = null;
+        let isAudioListening = false;
+        let nextPlayTime = 0;
+
+        async function toggleAudioListen() {
+            const btn = document.getElementById('btn-audio-listen');
+            if (isAudioListening) {
+                stopAudioListen();
+                return;
+            }
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+                nextPlayTime = audioCtx.currentTime;
+
+                const response = await fetch('/audio');
+                if (!response.body) {
+                    alert('瀏覽器不支援串流音訊');
+                    return;
+                }
+                audioReader = response.body.getReader();
+                isAudioListening = true;
+                if (btn) {
+                    btn.innerText = '🔊 關閉聲音監聽';
+                    btn.style.background = '#EF4444';
+                }
+                readAudioStream();
+            } catch (e) {
+                alert('無法啟動聲音監聽: ' + e);
+                stopAudioListen();
+            }
+        }
+
+        function stopAudioListen() {
+            isAudioListening = false;
+            if (audioReader) {
+                try { audioReader.cancel(); } catch(_){}
+                audioReader = null;
+            }
+            if (audioCtx) {
+                try { audioCtx.close(); } catch(_){}
+                audioCtx = null;
+            }
+            const btn = document.getElementById('btn-audio-listen');
+            if (btn) {
+                btn.innerText = '🎧 啟動聲音監聽';
+                btn.style.background = '#334155';
+            }
+        }
+
+        async function readAudioStream() {
+            let leftover = new Uint8Array(0);
+            while (isAudioListening && audioReader) {
+                try {
+                    const { done, value } = await audioReader.read();
+                    if (done) break;
+                    if (!value || value.length === 0) continue;
+
+                    let totalLen = leftover.length + value.length;
+                    let combined = new Uint8Array(totalLen);
+                    combined.set(leftover, 0);
+                    combined.set(value, leftover.length);
+
+                    let samplesCount = Math.floor(totalLen / 2);
+                    if (samplesCount === 0) {
+                        leftover = combined;
+                        continue;
+                    }
+
+                    let usedBytes = samplesCount * 2;
+                    leftover = combined.slice(usedBytes);
+
+                    let dataView = new DataView(combined.buffer, combined.byteOffset, usedBytes);
+                    let float32Array = new Float32Array(samplesCount);
+                    for (let i = 0; i < samplesCount; i++) {
+                        let int16 = dataView.getInt16(i * 2, true);
+                        float32Array[i] = int16 / 32768.0;
+                    }
+
+                    if (audioCtx) {
+                        let audioBuffer = audioCtx.createBuffer(1, samplesCount, 16000);
+                        audioBuffer.getChannelData(0).set(float32Array);
+
+                        let source = audioCtx.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(audioCtx.destination);
+
+                        let currentTime = audioCtx.currentTime;
+                        if (nextPlayTime < currentTime) {
+                            nextPlayTime = currentTime + 0.05;
+                        }
+                        source.start(nextPlayTime);
+                        nextPlayTime += audioBuffer.duration;
+                    }
+                } catch (e) {
+                    console.error('Audio stream read error:', e);
+                    break;
+                }
+            }
+            stopAudioListen();
+        }
+
+        fetchStatus();
+        fetchEvents();
+        setInterval(fetchStatus, 2000);
+        setInterval(fetchEvents, 10000);
+        applyTransform();
+    </script>
+</body>
+</html>""".trimIndent()
     }
-
-
     fun stop() {
         isRunning = false
         try {

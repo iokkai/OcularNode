@@ -170,6 +170,9 @@ fun MainAppScreen(
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
+                                if (currentTab != tab) {
+                                    settingsViewModel.clearStatus()
+                                }
                                 currentTab = tab
                                 if (tab == AppTab.ALERTS) {
                                     eventLogsViewModel.markAllAsRead()
@@ -305,7 +308,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("📷 鏡頭端 (攝影機)", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
+                            Text("鏡頭端 (攝影機)", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
                             Text("作為監控攝影機，錄影、串流與警報", color = Color(0xFF49454F), fontSize = 12.sp)
                         }
                     }
@@ -335,7 +338,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("📺 觀看端 (監控螢幕)", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
+                            Text("觀看端 (監控螢幕)", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
                             Text("作為隨身螢幕，遠端查看鏡頭畫面", color = Color(0xFF49454F), fontSize = 12.sp)
                         }
                     }

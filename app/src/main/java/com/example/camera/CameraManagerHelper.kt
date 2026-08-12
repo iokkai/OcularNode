@@ -17,6 +17,10 @@ import android.hardware.camera2.CameraManager
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
+import android.hardware.camera2.CaptureRequest
+import android.util.Range
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraInfo
@@ -26,6 +30,7 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -46,14 +51,20 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class CameraManagerHelper(private val context: Context) {
+    private val settingsManager = com.example.data.SettingsManager(context)
 
     private val executor = Executors.newSingleThreadExecutor()
     private var cameraProvider: ProcessCameraProvider? = null
     private var camera: Camera? = null
 
-    // Video Capture (Default 720p HD)
+    // Video Capture (Default 720p HD with fallback)
     private val recorder = Recorder.Builder()
-        .setQualitySelector(QualitySelector.from(Quality.HD))
+        .setQualitySelector(
+            QualitySelector.fromOrderedList(
+                listOf(Quality.HD, Quality.SD, Quality.LOWEST, Quality.HIGHEST),
+                FallbackStrategy.lowerQualityOrHigherThan(Quality.LOWEST)
+            )
+        )
         .build()
     var videoCapture: VideoCapture<Recorder> = VideoCapture.withOutput(recorder)
         private set
@@ -82,6 +93,7 @@ class CameraManagerHelper(private val context: Context) {
     var motionSensitivity: Float = 5.0f // 1..10
     var motionCooldownSeconds: Int = 30 // seconds
     var autoNightVisionThreshold: Float = 45.0f
+    var autoNightVisionHysteresis: Float = 8.0f
 
     // Motion Detection State
     private var prevLumaMatrix: FloatArray? = null
@@ -160,6 +172,17 @@ class CameraManagerHelper(private val context: Context) {
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
 
+        @OptIn(ExperimentalCamera2Interop::class)
+        val camera2Extender = Camera2Interop.Extender(imageAnalysisBuilder)
+        camera2Extender.setCaptureRequestOption(
+            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+            Range(30, 30)
+        )
+        camera2Extender.setCaptureRequestOption(
+            CaptureRequest.CONTROL_MODE,
+            CaptureRequest.CONTROL_MODE_AUTO
+        )
+
         if (targetSize != null) {
             imageAnalysisBuilder.setTargetResolution(targetSize)
         }
@@ -196,9 +219,9 @@ class CameraManagerHelper(private val context: Context) {
                 if (surfaceToUse != null) {
                     val preview = Preview.Builder().build()
                     preview.setSurfaceProvider(surfaceToUse)
-                    camera = provider.bindToLifecycle(owner, cameraSelector, preview, fallbackAnalysis, videoCapture)
+                    camera = provider.bindToLifecycle(owner, cameraSelector, preview, fallbackAnalysis)
                 } else {
-                    camera = provider.bindToLifecycle(owner, cameraSelector, fallbackAnalysis, videoCapture)
+                    camera = provider.bindToLifecycle(owner, cameraSelector, fallbackAnalysis)
                 }
                 if (lensFacing == CameraSelector.LENS_FACING_BACK && isTorchOn) {
                     camera?.cameraControl?.enableTorch(true)
@@ -326,11 +349,21 @@ class CameraManagerHelper(private val context: Context) {
             val avgLuma = if (sampleCount > 0) (totalLuma.toFloat() / sampleCount) else 100f
             onLumaMeasured?.invoke(avgLuma)
 
-            // Determine Night Vision state
+            // Determine Night Vision state with Hysteresis (磁滯區間防頻繁切換)
             isNightVisionActive = when (nightVisionMode) {
                 "on" -> true
                 "off" -> false
-                else -> avgLuma < autoNightVisionThreshold
+                else -> {
+                    val lowThreshold = (autoNightVisionThreshold - autoNightVisionHysteresis).coerceAtLeast(0f)
+                    val highThreshold = (autoNightVisionThreshold + autoNightVisionHysteresis).coerceAtMost(255f)
+                    if (isNightVisionActive) {
+                        // 夜視開啟中：亮度必須高於上限 threshold + hysteresis 才關閉夜視
+                        avgLuma <= highThreshold
+                    } else {
+                        // 夜視關閉中：亮度必須低於下限 threshold - hysteresis 才開啟夜視
+                        avgLuma < lowThreshold
+                    }
+                }
             }
 
             // 1.5. If motion detection is enabled, we can run it on Y-buffer directly without Bitmap
@@ -341,7 +374,6 @@ class CameraManagerHelper(private val context: Context) {
 
             // If no one is watching and we are not recording, skip the heavy Bitmap/JPEG processing!
             if (!hasActiveConsumers() && !isRecordingVideo) {
-                onFrameEncoded?.invoke(ByteArray(0))
                 imageProxy.close()
                 isProcessingFrame.set(false)
                 return
@@ -356,9 +388,14 @@ class CameraManagerHelper(private val context: Context) {
                 // toBitmap() already handles rotation in CameraX!
                 val baseWidth = bitmap.width
                 val baseHeight = bitmap.height
+                val manualRotation = settingsManager.streamRotation
 
-                val scaledWidth = (baseWidth * dynamicScaleFactor).toInt().coerceAtLeast(1)
-                val scaledHeight = (baseHeight * dynamicScaleFactor).toInt().coerceAtLeast(1)
+                val isRotated90Or270 = manualRotation % 180 != 0
+                val rotatedBaseWidth = if (isRotated90Or270) baseHeight else baseWidth
+                val rotatedBaseHeight = if (isRotated90Or270) baseWidth else baseHeight
+
+                val scaledWidth = (rotatedBaseWidth * dynamicScaleFactor).toInt().coerceAtLeast(1)
+                val scaledHeight = (rotatedBaseHeight * dynamicScaleFactor).toInt().coerceAtLeast(1)
 
                 // 1. Initialize reusable bitmap
                 if (reusableBitmap == null || reusableBitmap!!.width != scaledWidth || reusableBitmap!!.height != scaledHeight) {
@@ -376,6 +413,12 @@ class CameraManagerHelper(private val context: Context) {
                 // Apply dynamic scaling
                 canvas.scale(dynamicScaleFactor, dynamicScaleFactor)
                 
+                if (manualRotation != 0) {
+                    canvas.translate(rotatedBaseWidth / 2f, rotatedBaseHeight / 2f)
+                    canvas.rotate(manualRotation.toFloat())
+                    canvas.translate(-baseWidth / 2f, -baseHeight / 2f)
+                }
+
                 if (lensFacing == CameraSelector.LENS_FACING_FRONT) {
                     canvas.translate(baseWidth.toFloat(), 0f)
                     canvas.scale(-1f, 1f) // Mirror front camera
@@ -625,13 +668,37 @@ class CameraManagerHelper(private val context: Context) {
                     try {
                         var activeBitmap = bitmap ?: try { imageProxy.toBitmap() } catch(e: Exception) { null }
                         if (activeBitmap != null) {
-                            val scaled = Bitmap.createScaledBitmap(activeBitmap, 320, (320f * height / width).toInt(), true)
+                            // 保留高清 HD 解析度 (最高長邊限制 1280px，清晰度高且不會超過網路傳輸負荷)
+                            val maxDimension = 1280f
+                            val srcWidth = activeBitmap.width.toFloat()
+                            val srcHeight = activeBitmap.height.toFloat()
+                            val scaleFactor = if (Math.max(srcWidth, srcHeight) > maxDimension) {
+                                maxDimension / Math.max(srcWidth, srcHeight)
+                            } else {
+                                1.0f
+                            }
+
+                            val targetW = (srcWidth * scaleFactor).toInt().coerceAtLeast(1)
+                            val targetH = (srcHeight * scaleFactor).toInt().coerceAtLeast(1)
+
+                            val scaledBitmap = if (scaleFactor < 1.0f) {
+                                Bitmap.createScaledBitmap(activeBitmap, targetW, targetH, true)
+                            } else {
+                                activeBitmap
+                            }
+
                             val matrix = Matrix()
-                            if (rotation != 0) matrix.postRotate(rotation.toFloat())
-                            val rotated = Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, matrix, true)
+                            val totalRotation = settingsManager.streamRotation % 360
+                            if (totalRotation != 0) matrix.postRotate(totalRotation.toFloat())
+                            val rotated = if (totalRotation != 0 || scaledBitmap != activeBitmap) {
+                                Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.width, scaledBitmap.height, matrix, true)
+                            } else {
+                                scaledBitmap
+                            }
                             
                             val thumbStream = ByteArrayOutputStream()
-                            rotated.compress(Bitmap.CompressFormat.JPEG, 50, thumbStream)
+                            // 提升 JPEG 壓縮品質至 85% (原 50% 會產生嚴重馬賽克與模糊)
+                            rotated.compress(Bitmap.CompressFormat.JPEG, 85, thumbStream)
                             val thumbnailBytes = thumbStream.toByteArray()
                             
                             onMotionDetected?.invoke(motionRatio, thumbnailBytes, rotated)

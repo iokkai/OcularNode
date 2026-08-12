@@ -143,6 +143,16 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    private val _streamRotation = MutableStateFlow(settingsManager.streamRotation)
+    val streamRotation: StateFlow<Int> = _streamRotation.asStateFlow()
+
+    fun rotateStream() {
+        val currentRotation = settingsManager.streamRotation
+        val newRotation = (currentRotation + 90) % 360
+        settingsManager.streamRotation = newRotation
+        _streamRotation.value = newRotation
+    }
+
     private val _currentResolution = MutableStateFlow(settingsManager.defaultResolution)
     val currentResolution: StateFlow<String> = _currentResolution.asStateFlow()
 

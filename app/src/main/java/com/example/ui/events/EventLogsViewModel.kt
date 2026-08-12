@@ -89,10 +89,25 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch(Dispatchers.IO) {
             val events = eventDao.getEventsListOnce()
             
-            // Delete local files
+            // Delete local files referenced by events
             for (ev in events) {
-                ev.snapshotPath?.let { java.io.File(it).delete() }
-                ev.videoPath?.let { java.io.File(it).delete() }
+                ev.snapshotPath?.let { try { java.io.File(it).delete() } catch (_: Exception) {} }
+                ev.videoPath?.let { try { java.io.File(it).delete() } catch (_: Exception) {} }
+            }
+
+            // Wipe all media files in media directories
+            val mediaDirs = listOfNotNull(
+                getApplication<Application>().getExternalFilesDir(null)?.let { java.io.File(it, "media") },
+                getApplication<Application>().getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.let { java.io.File(it, "OcularNode") }
+            )
+            for (dir in mediaDirs) {
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            try { file.delete() } catch (_: Exception) {}
+                        }
+                    }
+                }
             }
             
             // Find remote cameras that have events

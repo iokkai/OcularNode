@@ -125,6 +125,14 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    suspend fun saveRemoteConfig(camera: CameraDevice, draftConfigJson: String): Boolean {
+        return streamClient.postRemoteConfig(camera, draftConfigJson)
+    }
+
+    suspend fun fetchRemoteConfig(camera: CameraDevice): org.json.JSONObject? {
+        return streamClient.fetchRemoteConfig(camera)
+    }
+
     suspend fun fetchCameraStatus(camera: CameraDevice): org.json.JSONObject? {
         return streamClient.fetchCameraStatus(camera)
     }
@@ -148,6 +156,18 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             streamClient.stopSpeakingAudio()
         } else {
             streamClient.startSpeakingAudio(camera, viewModelScope)
+        }
+    }
+
+    fun onResume() {
+        if (_selectedCamera.value != null) {
+            streamClient.onResume()
+        }
+    }
+
+    fun onPause() {
+        if (_selectedCamera.value != null) {
+            streamClient.onPause()
         }
     }
 

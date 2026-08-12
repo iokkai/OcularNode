@@ -2,6 +2,11 @@ package com.example.ui.viewer
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,12 +42,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -53,10 +60,13 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,14 +77,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.mutableStateMapOf
-import kotlinx.coroutines.launch
 import com.example.data.NotificationCategory
 import com.example.ui.camera.ResolutionSelectionDialog
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,6 +88,7 @@ fun RemoteSettingsScreen(
     cameraName: String,
     cameraStatusJson: JSONObject?,
     onSendCommand: suspend (String, String) -> Boolean,
+    onSaveBatchConfig: (suspend (String) -> Boolean)? = null,
     onSyncTelegram: () -> Unit,
     onNavigateBack: () -> Unit,
     onFetchLogs: (suspend () -> List<String>)? = null
@@ -93,6 +99,7 @@ fun RemoteSettingsScreen(
     var showRemoteLogs by remember { mutableStateOf(false) }
     var remoteLogsList by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoadingLogs by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     val surfaceBgColor = Color(0xFFFDF8FF)
@@ -109,6 +116,7 @@ fun RemoteSettingsScreen(
     val isMotion = cameraStatusJson?.optBoolean("isMotionDetectionEnabled", false) ?: false
     val nightMode = cameraStatusJson?.optString("nightVisionMode", "auto") ?: "auto"
     val nightLuma = cameraStatusJson?.optDouble("nightVisionLuma", 45.0)?.toFloat() ?: 45.0f
+    val nightHysteresis = cameraStatusJson?.optDouble("nightVisionHysteresis", 8.0)?.toFloat() ?: 8.0f
     val currentOpMode = cameraStatusJson?.optString("operatingMode", "monitor") ?: "monitor"
     val isTorchOn = cameraStatusJson?.optBoolean("isTorchOn", false) ?: false
     val lensFacing = cameraStatusJson?.optString("lensFacing", "back") ?: "back"
@@ -123,16 +131,18 @@ fun RemoteSettingsScreen(
     val maxEventCount = cameraStatusJson?.optInt("maxEventCountLimit", 200) ?: 200
     val autoStartOnBoot = cameraStatusJson?.optBoolean("autoStartOnBoot", true) ?: true
     val powerCutAlertEnabled = cameraStatusJson?.optBoolean("powerCutAlertEnabled", true) ?: true
+    val systemLogEnabled = cameraStatusJson?.optBoolean("systemLogEnabled", true) ?: true
 
-    // Local mutable state for sliders
+    // Local DraftState
     var editingName by remember(deviceNameStr) { mutableStateOf(deviceNameStr) }
+    var localResolution by remember(currentRes) { mutableStateOf(currentRes) }
     var localQuality by remember(currentQuality) { mutableFloatStateOf(currentQuality.toFloat()) }
     var localSens by remember(motionSensitivity) { mutableFloatStateOf(motionSensitivity) }
     var localCooldown by remember(motionCooldown) { mutableFloatStateOf(motionCooldown.toFloat()) }
     var localNightLuma by remember(nightLuma) { mutableFloatStateOf(nightLuma) }
+    var localNightHysteresis by remember(nightHysteresis) { mutableFloatStateOf(nightHysteresis) }
     var localStorageGB by remember(storageLimitGB) { mutableFloatStateOf(storageLimitGB) }
     var localMaxEvents by remember(maxEventCount) { mutableFloatStateOf(maxEventCount.toFloat()) }
-    val systemLogEnabled = cameraStatusJson?.optBoolean("systemLogEnabled", true) ?: true
 
     var localIsMotion by remember(isMotion) { mutableStateOf(isMotion) }
     var localNightMode by remember(nightMode) { mutableStateOf(nightMode) }
@@ -165,17 +175,10 @@ fun RemoteSettingsScreen(
 
     if (showResPicker) {
         ResolutionSelectionDialog(
-            currentResolution = currentRes,
+            currentResolution = localResolution,
             onSelect = { res ->
-                coroutineScope.launch {
-                    val success = onSendCommand("resolution", res)
-                    if (success) {
-                        Toast.makeText(context, "已變更遠端解析度為 $res", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                    }
-                    showResPicker = false
-                }
+                localResolution = res
+                showResPicker = false
             },
             onDismiss = { showResPicker = false }
         )
@@ -200,7 +203,7 @@ fun RemoteSettingsScreen(
                             fontSize = 18.sp
                         )
                         Text(
-                            text = "正在控制: $deviceNameStr",
+                            text = "正在控制: ${editingName.ifBlank { cameraName }}",
                             fontSize = 12.sp,
                             color = brandPrimaryColor,
                             fontWeight = FontWeight.Medium
@@ -217,6 +220,112 @@ fun RemoteSettingsScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Surface(
+                color = surfaceBgColor,
+                shadowElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = onNavigateBack,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("取消", color = textPrimaryColor, fontWeight = FontWeight.Medium)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (isSaving) return@Button
+                            isSaving = true
+                            coroutineScope.launch {
+                                val draftConfigJson = JSONObject().apply {
+                                    put("device", JSONObject().apply {
+                                        put("deviceName", editingName.ifBlank { cameraName })
+                                        put("operatingMode", localOpMode)
+                                    })
+                                    put("camera", JSONObject().apply {
+                                        put("resolution", localResolution)
+                                        put("quality", localQuality.toInt())
+                                        put("nightVisionMode", localNightMode)
+                                        put("nightVisionLuma", localNightLuma.toDouble())
+                                        put("nightVisionHysteresis", localNightHysteresis.toDouble())
+                                        put("isTorchOn", localTorchOn)
+                                        put("lensFacing", localLensFacing)
+                                    })
+                                    put("motionDetection", JSONObject().apply {
+                                        put("enabled", localIsMotion)
+                                        put("sensitivity", localSens.toDouble())
+                                        put("cooldownSeconds", localCooldown.toInt())
+                                        put("playLocalAlarm", localPlayLocalAlarm)
+                                        put("mlKitEnabled", localMlKitEnabled)
+                                        put("categories", JSONObject().apply {
+                                            categoryStates.forEach { (cat, enabled) ->
+                                                put(cat.name, enabled)
+                                            }
+                                        })
+                                    })
+                                    put("recording", JSONObject().apply {
+                                        put("eventRecordingEnabled", localIsMotion)
+                                        put("maxStorageGb", localStorageGB.toDouble())
+                                        put("maxEventCount", localMaxEvents.toInt())
+                                        put("autoCleanup", localAutoCleanup)
+                                        put("categoryRecording", JSONObject().apply {
+                                            categoryRecordStates.forEach { (cat, enabled) ->
+                                                put(cat.name, enabled)
+                                            }
+                                        })
+                                    })
+                                    put("notifications", JSONObject().apply {
+                                        put("autoStartOnBoot", localAutoStartOnBoot)
+                                        put("powerCutAlertEnabled", localPowerCutAlert)
+                                        put("systemLogEnabled", localSystemLogEnabled)
+                                    })
+                                }.toString()
+
+                                val success = if (onSaveBatchConfig != null) {
+                                    onSaveBatchConfig(draftConfigJson)
+                                } else {
+                                    onSendCommand("batch_config", draftConfigJson)
+                                }
+
+                                isSaving = false
+                                if (success) {
+                                    Toast.makeText(context, "已成功將所有變更同步至鏡頭端", Toast.LENGTH_SHORT).show()
+                                    onNavigateBack()
+                                } else {
+                                    Toast.makeText(context, "同步失敗，請檢查網路連線", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isSaving,
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("儲存中...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        } else {
+                            Text("💾 儲存並套用變更", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Column(
@@ -258,824 +367,739 @@ fun RemoteSettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                    when (selectedTab) {
-                        0 -> {
-                            // TAB 1: Camera & Quality Card
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                                border = BorderStroke(1.dp, cardBorderColor),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("裝置名稱", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                        OutlinedTextField(
-                                            value = editingName,
-                                            onValueChange = { editingName = it },
-                                            singleLine = true,
-                                            colors = OutlinedTextFieldDefaults.colors(
-                                                focusedTextColor = textPrimaryColor,
-                                                unfocusedTextColor = textPrimaryColor,
-                                                focusedBorderColor = brandPrimaryColor,
-                                                unfocusedBorderColor = cardBorderColor
-                                            ),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Button(
-                                            onClick = {
-                                                if (editingName.isNotBlank()) {
-                                                    coroutineScope.launch {
-                                                        val success = onSendCommand("device_name", editingName)
-                                                        if (success) {
-                                                            Toast.makeText(context, "已更新鏡頭名稱: $editingName", Toast.LENGTH_SHORT).show()
-                                                        } else {
-                                                            Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                            editingName = deviceNameStr
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
-                                            shape = RoundedCornerShape(10.dp)
-                                        ) {
-                                            Text("變更", fontSize = 12.sp)
-                                        }
-                                    }
+                when (selectedTab) {
+                    0 -> {
+                        // TAB 1: Camera & Quality Card
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("裝置名稱", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                OutlinedTextField(
+                                    value = editingName,
+                                    onValueChange = { editingName = it },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = textPrimaryColor,
+                                        unfocusedTextColor = textPrimaryColor,
+                                        focusedBorderColor = brandPrimaryColor,
+                                        unfocusedBorderColor = cardBorderColor
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
 
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                                    Text("運作模式", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        val isMon = currentOpMode == "monitor"
-                                        Button(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("mode", "monitor")
-                                                    if (success) {
-                                                        localOpMode = "monitor"
-                                                        Toast.makeText(context, "已設為監看模式", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (isMon) brandPrimaryColor else Color(0xFFE8DEF8),
-                                                contentColor = if (isMon) Color.White else Color(0xFF1D192B)
-                                            ),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text("👁️ 監看模式", fontSize = 12.sp, fontWeight = if (isMon) FontWeight.Bold else FontWeight.Normal)
-                                        }
-                                        Button(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("mode", "detection")
-                                                    if (success) {
-                                                        localOpMode = "detection"
-                                                        Toast.makeText(context, "已設為動態偵測模式", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (!isMon) brandPrimaryColor else Color(0xFFE8DEF8),
-                                                contentColor = if (!isMon) Color.White else Color(0xFF1D192B)
-                                            ),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Text("🚨 動態偵測", fontSize = 12.sp, fontWeight = if (!isMon) FontWeight.Bold else FontWeight.Normal)
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Switch Camera / Torch Buttons
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("camera", "switch")
-                                                    if (success) {
-                                                        localLensFacing = if (localLensFacing == "back") "front" else "back"
-                                                        Toast.makeText(context, "已切換前後鏡頭", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.dp, brandPrimaryColor),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(Icons.Default.FlipCameraAndroid, contentDescription = null, tint = brandPrimaryColor, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("切換鏡頭 (${if (lensFacing == "back") "後" else "前"})", color = brandPrimaryColor, fontSize = 11.sp)
-                                        }
-
-                                        Button(
-                                            onClick = {
-                                                coroutineScope.launch {
-                                                    val targetState = !localTorchOn
-                                                    val success = onSendCommand("torch", if (targetState) "on" else "off")
-                                                    if (success) {
-                                                        localTorchOn = targetState
-                                                        Toast.makeText(context, if (isTorchOn) "已關閉閃光燈" else "已開啟閃光燈", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (isTorchOn) Color(0xFFE2A03F) else Color(0xFFE8DEF8),
-                                                contentColor = if (isTorchOn) Color.White else Color(0xFF1D192B)
-                                            ),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(Icons.Default.FlashOn, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(if (isTorchOn) "關閉補光燈" else "開啟補光燈", fontSize = 11.sp)
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Resolution
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column {
-                                            Text("畫面解析度", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("降低解析度可顯著節省傳輸頻寬", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        OutlinedButton(
-                                            onClick = { showResPicker = true },
-                                            shape = RoundedCornerShape(10.dp),
-                                            border = BorderStroke(1.5.dp, brandPrimaryColor)
-                                        ) {
-                                            Text("📹 $currentRes ▾", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Quality Slider
-                                    Column {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("JPEG 壓縮品質", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("${localQuality.toInt()}%", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                        Slider(
-                                            value = localQuality,
-                                            onValueChange = { localQuality = it },
-                                            onValueChangeFinished = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("quality", "${localQuality.toInt()}")
-                                                    if (success) {
-                                                        Toast.makeText(context, "品質已設定為: ${localQuality.toInt()}%", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        localQuality = currentQuality.toFloat()
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            valueRange = 30f..90f,
-                                            steps = 5,
-                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Night Vision
-                                    Text("夜視模式", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                        val modes = listOf("off" to "關閉", "on" to "黑白夜視", "auto" to "自動切換")
-                                        modes.forEach { (modeKey, label) ->
-                                            val isSelected = nightMode.equals(modeKey, ignoreCase = true)
-                                            Button(
-                                                onClick = {
-                                                    coroutineScope.launch {
-                                                        val success = onSendCommand("night_vision", modeKey)
-                                                        if (success) {
-                                                            localNightMode = modeKey
-                                                            Toast.makeText(context, "夜視模式設為: $label", Toast.LENGTH_SHORT).show()
-                                                        } else {
-                                                            Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                    }
-                                                },
-                                                shape = RoundedCornerShape(10.dp),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = if (isSelected) brandPrimaryColor else Color(0xFFE8DEF8),
-                                                    contentColor = if (isSelected) Color.White else Color(0xFF1D192B)
-                                                ),
-                                                modifier = Modifier.weight(1f)
-                                            ) {
-                                                Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
-                                            }
-                                        }
-                                    }
-
-                                    if (nightMode == "auto") {
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                        Column {
-                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("自動夜視切換亮度閥值", fontSize = 12.sp, color = textSecondaryColor)
-                                                Text("${localNightLuma.toInt()} Luma", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                            }
-                                            Slider(
-                                                value = localNightLuma,
-                                                onValueChange = { localNightLuma = it },
-                                                onValueChangeFinished = {
-                                                    coroutineScope.launch {
-                                                        val success = onSendCommand("night_vision_luma", "${localNightLuma.toInt()}")
-                                                        if (success) {
-                                                            Toast.makeText(context, "夜視亮度閥值已設為: ${localNightLuma.toInt()}", Toast.LENGTH_SHORT).show()
-                                                        } else {
-                                                            localNightLuma = nightLuma
-                                                            Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                    }
-                                                },
-                                                valueRange = 10f..100f,
-                                                colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        1 -> {
-                            // TAB 2: Motion Detection & Alarm Card
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                                border = BorderStroke(1.dp, cardBorderColor),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("啟用智慧動態偵測", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("鏡頭異動時自動記錄與告警", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localIsMotion,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("motion", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localIsMotion = checked
-                                                        Toast.makeText(context, if (checked) "已開啟遠端動態偵測" else "已關閉遠端動態偵測", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Motion Sensitivity
-                                    Column {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("動態差異觸發門檻", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text(String.format("%.1f%%", localSens), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                        Text("低於此百分比的畫面變動將被忽略 (1% = 極度敏感, 100% = 需要全畫面變動)", fontSize = 11.sp, color = textSecondaryColor)
-                                        Slider(
-                                            value = localSens,
-                                            onValueChange = { localSens = it },
-                                            onValueChangeFinished = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("sensitivity", String.format("%.1f", localSens))
-                                                    if (success) {
-                                                        Toast.makeText(context, "觸發門檻設為: ${String.format("%.1f%%", localSens)}", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        localSens = motionSensitivity
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            valueRange = 1.0f..100.0f,
-                                            steps = 98,
-                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Cooldown
-                                    Column {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("告警冷卻時間", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("${localCooldown.toInt()} 秒", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                        Text("觸發告警後暫停再次告警的時間間隔", fontSize = 11.sp, color = textSecondaryColor)
-                                        Slider(
-                                            value = localCooldown,
-                                            onValueChange = { localCooldown = it },
-                                            onValueChangeFinished = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("cooldown", "${localCooldown.toInt()}")
-                                                    if (success) {
-                                                        Toast.makeText(context, "冷卻時間設為: ${localCooldown.toInt()} 秒", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        localCooldown = motionCooldown.toFloat()
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            valueRange = 5f..120f,
-                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // ML Kit Filter Switch
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Google ML Kit AI 物體/寵物過濾", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("辨識寵物與人體，減少風吹樹影誤報", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localMlKitEnabled,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("mlkit_filter", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localMlKitEnabled = checked
-                                                        Toast.makeText(context, if (checked) "已啟用 AI ML Kit 過濾" else "已關閉 AI 過濾", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Play Local Alarm Switch & Test Alarm
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("異動時鏡頭端發出響聲", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("偵測異動時鏡頭手機發出警告音", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localPlayLocalAlarm,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("play_alarm_setting", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localPlayLocalAlarm = checked
-                                                        Toast.makeText(context, if (checked) "已開啟現場警報聲" else "已關閉現場警報聲", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    OutlinedButton(
+                                Text("安防模式", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    val isMon = (localOpMode == "monitor") && !localIsMotion
+                                    Button(
                                         onClick = {
-                                            coroutineScope.launch {
-                                                val success = onSendCommand("alarm", "trigger")
-                                                if (success) {
-                                                    Toast.makeText(context, "🚨 已發送測試警報指令至鏡頭端", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
+                                            localOpMode = "monitor"
+                                            localIsMotion = false
                                         },
                                         shape = RoundedCornerShape(10.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB3261E)),
-                                        border = BorderStroke(1.dp, Color(0xFFB3261E)),
-                                        modifier = Modifier.fillMaxWidth()
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isMon) brandPrimaryColor else Color(0xFFE8DEF8),
+                                            contentColor = if (isMon) Color.White else Color(0xFF1D192B)
+                                        ),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("🚨 測試鏡頭端發聲響", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text("👁️ 即時監看模式", fontSize = 12.sp, fontWeight = if (isMon) FontWeight.Bold else FontWeight.Normal)
                                     }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Push Notification Category Filter Card
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                                border = BorderStroke(1.dp, cardBorderColor),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.NotificationsActive,
-                                            contentDescription = null,
-                                            tint = brandPrimaryColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = "推播過濾與智慧分類設定",
-                                            color = textPrimaryColor,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "此鏡頭偵測到畫面異動時，僅針對勾選開啟的分類類別傳送告警通知：",
-                                        fontSize = 11.sp,
-                                        color = textSecondaryColor
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Spacer(modifier = Modifier.weight(1.2f))
-                                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                            Text("允許推播", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                                        }
-                                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                            Text("觸發錄影", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                    NotificationCategory.values().forEach { category ->
-                                        val isEnabled = categoryStates[category] ?: true
-                                        val isRecordEnabled = categoryRecordStates[category] ?: true
-                                        val iconStr = when (category) {
-                                            NotificationCategory.HUMAN_AND_ACTIVITY -> "🚶 👨‍👩‍👧"
-                                            NotificationCategory.PET_AND_ANIMAL -> "🐶 🐱"
-                                            NotificationCategory.VEHICLE_AND_TRANSPORT -> "🚗 🚲"
-                                            NotificationCategory.HOUSEHOLD_ITEM -> "🛋️ 📦"
-                                            NotificationCategory.ENVIRONMENT_AND_NATURE -> "🌿 🏞️"
-                                            NotificationCategory.OTHER -> "❓"
-                                        }
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "$iconStr ${category.displayName}",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = textPrimaryColor,
-                                                modifier = Modifier.weight(1.2f)
-                                            )
-                                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                Switch(
-                                                    checked = isEnabled,
-                                                    onCheckedChange = { checked ->
-                                                        coroutineScope.launch {
-                                                            val payload = JSONObject().apply {
-                                                                put("category", category.name)
-                                                                put("enabled", checked)
-                                                            }.toString()
-                                                            val success = onSendCommand("cat_toggle", payload)
-                                                            if (success) {
-                                                                categoryStates[category] = checked
-                                                            } else {
-                                                                Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                            }
-                                                        }
-                                                    },
-                                                    colors = SwitchDefaults.colors(
-                                                        checkedThumbColor = Color.White,
-                                                        checkedTrackColor = brandPrimaryColor
-                                                    ),
-                                                    modifier = Modifier.size(40.dp)
-                                                )
-                                            }
-                                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                Switch(
-                                                    checked = isRecordEnabled,
-                                                    onCheckedChange = { checked ->
-                                                        coroutineScope.launch {
-                                                            val payload = JSONObject().apply {
-                                                                put("category", category.name)
-                                                                put("enabled", checked)
-                                                            }.toString()
-                                                            val success = onSendCommand("cat_record_toggle", payload)
-                                                            if (success) {
-                                                                categoryRecordStates[category] = checked
-                                                            } else {
-                                                                Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                            }
-                                                        }
-                                                    },
-                                                    colors = SwitchDefaults.colors(
-                                                        checkedThumbColor = Color.White,
-                                                        checkedTrackColor = brandPrimaryColor
-                                                    ),
-                                                    modifier = Modifier.size(40.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        2 -> {
-                            // TAB 3: Storage & Cleanup Card
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                                border = BorderStroke(1.dp, cardBorderColor),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("空間自動循環清理 (Loop Storage)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("空間或筆數超標時自動刪除最舊紀錄", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localAutoCleanup,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("auto_cleanup", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localAutoCleanup = checked
-                                                        Toast.makeText(context, if (checked) "已開啟自動循環清理" else "已關閉自動循環清理", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Storage Limit GB
-                                    Column {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("儲存空間上限", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text(String.format("%.1f GB", localStorageGB), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                        Slider(
-                                            value = localStorageGB,
-                                            onValueChange = { localStorageGB = it },
-                                            onValueChangeFinished = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("storage_limit_gb", String.format("%.1f", localStorageGB))
-                                                    if (success) {
-                                                        Toast.makeText(context, "儲存容量上限設為: ${String.format("%.1f GB", localStorageGB)}", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        localStorageGB = storageLimitGB
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            valueRange = 0.5f..10.0f,
-                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Max Events Limit
-                                    Column {
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("最高留存事件筆數", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("${localMaxEvents.toInt()} 筆", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        }
-                                        Slider(
-                                            value = localMaxEvents,
-                                            onValueChange = { localMaxEvents = it },
-                                            onValueChangeFinished = {
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("max_event_count", "${localMaxEvents.toInt()}")
-                                                    if (success) {
-                                                        Toast.makeText(context, "最高事件筆數設為: ${localMaxEvents.toInt()} 筆", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        localMaxEvents = maxEventCount.toFloat()
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            valueRange = 50f..500f,
-                                            steps = 8,
-                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Auto Start On Boot Switch
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("開機/復電自動啟動監控服務", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("手機重新開機後背景自動啟動「相機節點」", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localAutoStartOnBoot,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("auto_start_boot", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localAutoStartOnBoot = checked
-                                                        Toast.makeText(context, if (checked) "已開啟開機自動啟動" else "已關閉開機自動啟動", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // System Log Switch
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("啟用系統日誌紀錄 (Log)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("開啟後會將運作狀態紀錄至記憶體供排解問題", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localSystemLogEnabled,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("system_log_enabled", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localSystemLogEnabled = checked
-                                                        Toast.makeText(context, if (checked) "已開啟系統日誌" else "已關閉系統日誌", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
-                                    }
-                                    
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    
-                                    androidx.compose.material3.OutlinedButton(
-                                        onClick = { 
-                                            if (onFetchLogs != null) {
-                                                isLoadingLogs = true
-                                                showRemoteLogs = true
-                                                coroutineScope.launch {
-                                                    remoteLogsList = onFetchLogs()
-                                                    isLoadingLogs = false
-                                                }
-                                            } else {
-                                                Toast.makeText(context, "暫不支援遠端提取日誌", Toast.LENGTH_SHORT).show()
-                                            }
+                                    Button(
+                                        onClick = {
+                                            localOpMode = "detection"
+                                            localIsMotion = true
                                         },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, brandPrimaryColor)
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (!isMon) brandPrimaryColor else Color(0xFFE8DEF8),
+                                            contentColor = if (!isMon) Color.White else Color(0xFF1D192B)
+                                        ),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        androidx.compose.material3.Text("📝 查看系統日誌 (Log)", color = brandPrimaryColor, fontWeight = FontWeight.Bold)
-                                    }
-
-                                    // Power Cut Alert Switch
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("斷電與低電量 Telegram 警報", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                            Text("拔除電源線或低電量時發送推播通知", fontSize = 11.sp, color = textSecondaryColor)
-                                        }
-                                        Switch(
-                                            checked = localPowerCutAlert,
-                                            onCheckedChange = { checked ->
-                                                coroutineScope.launch {
-                                                    val success = onSendCommand("power_cut_alert", if (checked) "on" else "off")
-                                                    if (success) {
-                                                        localPowerCutAlert = checked
-                                                        Toast.makeText(context, if (checked) "已開啟斷電/低電量警報" else "已關閉斷電/低電量警報", Toast.LENGTH_SHORT).show()
-                                                    } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
-                                                    }
-                                                }
-                                            },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
-                                        )
+                                        Text("🚨 動態偵測防護", fontSize = 12.sp, fontWeight = if (!isMon) FontWeight.Bold else FontWeight.Normal)
                                     }
                                 }
-                            }
-                        }
 
-                        3 -> {
-                            // TAB 4: Telegram Sync Card
-                            val remoteBotToken = cameraStatusJson?.optString("telegramBotToken", "") ?: ""
-                            val remoteChatId = cameraStatusJson?.optString("telegramChatId", "") ?: ""
-                            val hasRemoteTelegram = remoteBotToken.isNotBlank() && remoteChatId.isNotBlank()
+                                Spacer(modifier = Modifier.height(16.dp))
 
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = cardBgColor),
-                                border = BorderStroke(1.dp, cardBorderColor),
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Card(
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = CardDefaults.cardColors(containerColor = if (hasRemoteTelegram) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
-                                        modifier = Modifier.fillMaxWidth()
+                                // Switch Camera / Torch Buttons
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            localLensFacing = if (localLensFacing == "back") "front" else "back"
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, brandPrimaryColor),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
-                                            Text(
-                                                text = if (hasRemoteTelegram) "✅ 鏡頭端已綁定 Telegram Bot" else "⚠️ 鏡頭端尚未設定 Telegram 告警",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 13.sp,
-                                                color = if (hasRemoteTelegram) Color(0xFF2E7D32) else Color(0xFFB3261E)
-                                            )
-                                            if (hasRemoteTelegram) {
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text("Chat ID: $remoteChatId", fontSize = 11.sp, color = Color(0xFF1B5E20))
-                                            }
-                                        }
+                                        Icon(Icons.Default.FlipCameraAndroid, contentDescription = null, tint = brandPrimaryColor, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("切換鏡頭 (${if (localLensFacing == "back") "前" else "後"})", color = brandPrimaryColor, fontSize = 11.sp)
                                     }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    Text("一鍵同步設定", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("將目前觀看端的 Telegram Bot Token 與 Chat ID 推送給這台鏡頭裝置：", fontSize = 12.sp, color = textSecondaryColor)
-                                    Spacer(modifier = Modifier.height(12.dp))
 
                                     Button(
                                         onClick = {
-                                            onSyncTelegram()
-                                            Toast.makeText(context, "已將觀看端 Telegram 設定推送至該鏡頭", Toast.LENGTH_SHORT).show()
+                                            localTorchOn = !localTorchOn
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.fillMaxWidth()
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (localTorchOn) Color(0xFFE2A03F) else Color(0xFFE8DEF8),
+                                            contentColor = if (localTorchOn) Color.White else Color(0xFF1D192B)
+                                        ),
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text("⚡ 同步觀看端 Telegram 設定至本鏡頭", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Icon(Icons.Default.FlashOn, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(if (localTorchOn) "關閉補光燈" else "開啟補光燈", fontSize = 11.sp)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Resolution
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text("畫面解析度", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("降低解析度可顯著節省傳輸頻寬", fontSize = 11.sp, color = textSecondaryColor)
+                                    }
+                                    OutlinedButton(
+                                        onClick = { showResPicker = true },
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.5.dp, brandPrimaryColor)
+                                    ) {
+                                        Text("📹 $localResolution ▾", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Quality Slider
+                                Column {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("JPEG 壓縮品質", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("${localQuality.toInt()}%", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Slider(
+                                        value = localQuality,
+                                        onValueChange = { localQuality = it },
+                                        valueRange = 30f..90f,
+                                        steps = 5,
+                                        colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Night Vision
+                                Text("夜視模式", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    val modes = listOf("off" to "關閉", "on" to "黑白夜視", "auto" to "自動切換")
+                                    modes.forEach { (modeKey, label) ->
+                                        val isSelected = localNightMode.equals(modeKey, ignoreCase = true)
+                                        Button(
+                                            onClick = {
+                                                localNightMode = modeKey
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isSelected) brandPrimaryColor else Color(0xFFE8DEF8),
+                                                contentColor = if (isSelected) Color.White else Color(0xFF1D192B)
+                                            ),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    }
+                                }
+
+                                if (localNightMode == "auto") {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("自動夜視切換基準閥值", fontSize = 12.sp, color = textSecondaryColor)
+                                            Text("${localNightLuma.toInt()} Luma", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                        Slider(
+                                            value = localNightLuma,
+                                            onValueChange = { localNightLuma = it },
+                                            valueRange = 10f..100f,
+                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                        )
+
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("切換磁滯區間 (Hysteresis)", fontSize = 12.sp, color = textSecondaryColor)
+                                            Text("±${localNightHysteresis.toInt()} Luma", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                        Slider(
+                                            value = localNightHysteresis,
+                                            onValueChange = { localNightHysteresis = it },
+                                            valueRange = 2f..20f,
+                                            colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                        )
+
+                                        val lowCut = (localNightLuma - localNightHysteresis).coerceAtLeast(0f).toInt()
+                                        val highCut = (localNightLuma + localNightHysteresis).coerceAtMost(255f).toInt()
+                                        Surface(
+                                            color = Color(0xFFF3EDF7),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(10.dp)) {
+                                                Text("防頻繁閃爍狀態區間：", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                                                Text("• 進入夜視：環境亮度 < $lowCut Luma", fontSize = 11.sp, color = Color(0xFF6750A4))
+                                                Text("• 離開夜視：環境亮度 > $highCut Luma", fontSize = 11.sp, color = Color(0xFF6750A4))
+                                                Text("• 介於 $lowCut ~ $highCut Luma 之間時，保持當前模式不切換", fontSize = 10.sp, color = Color(0xFF79747E))
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+
+                    1 -> {
+                        // TAB 2: 防護模式與動態偵測設定
+                        val isDetectionMode = localIsMotion || localOpMode == "detection"
+
+                        // 1. 安防運作模式 (主控卡片)
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("安防運作模式", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("選擇鏡頭端的運作模式與防護機制", fontSize = 11.sp, color = textSecondaryColor)
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // 👁️ 即時監看模式
+                                    Button(
+                                        onClick = {
+                                            localOpMode = "monitor"
+                                            localIsMotion = false
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (!isDetectionMode) brandPrimaryColor else Color(0xFFE8DEF8),
+                                            contentColor = if (!isDetectionMode) Color.White else Color(0xFF1D192B)
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("👁️ 即時監看模式", fontSize = 12.sp, fontWeight = if (!isDetectionMode) FontWeight.Bold else FontWeight.Medium)
+                                    }
+
+                                    // 🚨 動態偵測防護模式
+                                    Button(
+                                        onClick = {
+                                            localOpMode = "detection"
+                                            localIsMotion = true
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isDetectionMode) brandPrimaryColor else Color(0xFFE8DEF8),
+                                            contentColor = if (isDetectionMode) Color.White else Color(0xFF1D192B)
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("🚨 動態偵測防護", fontSize = 12.sp, fontWeight = if (isDetectionMode) FontWeight.Bold else FontWeight.Medium)
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // 模式說明區塊
+                                Surface(
+                                    color = if (isDetectionMode) Color(0xFFF3EDF7) else Color(0xFFF1F5F9),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = if (isDetectionMode) 
+                                                "🚨 動態偵測防護模式：鏡頭持續分析畫面移動，一旦觸發即記錄事件、發送告警推播與備份影像。" 
+                                            else 
+                                                "👁️ 即時監看模式：僅提供即時串流影像，不執行背景影像比對與推播，適合人在家時使用。",
+                                            fontSize = 11.sp,
+                                            color = if (isDetectionMode) Color(0xFF6750A4) else Color(0xFF475569),
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. 層級化設定 (開啟防護模式時才展開)
+                        AnimatedVisibility(
+                            visible = isDetectionMode,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Column {
+                                // 告警參數卡片
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                                    border = BorderStroke(1.dp, cardBorderColor),
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text("⚙️ 防護細節與告警參數", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        // ➔ 敏感度門檻 (Sensitivity)
+                                        Column {
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Text("動態差異觸發門檻 (Sensitivity)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                                Text(String.format("%.1f%%", localSens), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            }
+                                            Text("低於此百分比的畫面變動將被忽略 (1% = 極度敏感, 100% = 需要全畫面變動)", fontSize = 11.sp, color = textSecondaryColor)
+                                            Slider(
+                                                value = localSens,
+                                                onValueChange = { localSens = it },
+                                                valueRange = 1.0f..100.0f,
+                                                steps = 98,
+                                                colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        // ➔ 事件冷卻時間 (Cooldown)
+                                        Column {
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Text("告警冷卻時間 (Cooldown)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                                Text("${localCooldown.toInt()} 秒", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            }
+                                            Text("觸發告警後暫停再次告警的時間間隔", fontSize = 11.sp, color = textSecondaryColor)
+                                            Slider(
+                                                value = localCooldown,
+                                                onValueChange = { localCooldown = it },
+                                                valueRange = 5f..120f,
+                                                colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        // 異動時鏡頭端發出響聲
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("異動時鏡頭端發出警報聲", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                                Text("偵測異動時鏡頭手機發出警報鳴聲", fontSize = 11.sp, color = textSecondaryColor)
+                                            }
+                                            Switch(
+                                                checked = localPlayLocalAlarm,
+                                                onCheckedChange = { localPlayLocalAlarm = it },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        OutlinedButton(
+                                            onClick = {
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("alarm", "trigger")
+                                                    if (success) {
+                                                        Toast.makeText(context, "🚨 已發送測試警報指令至鏡頭端", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB3261E)),
+                                            border = BorderStroke(1.dp, Color(0xFFB3261E)),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("🚨 測試鏡頭端發聲響", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // ➔ 推播過濾與智慧分類設定 (人/車/寵物)
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                                    border = BorderStroke(1.dp, cardBorderColor),
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.NotificationsActive,
+                                                contentDescription = null,
+                                                tint = brandPrimaryColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "推播過濾與智慧分類設定",
+                                                color = textPrimaryColor,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "設定 AI 物件辨識與各類別 (人類、寵物、車輛等) 之推播與錄影過濾規則：",
+                                            fontSize = 11.sp,
+                                            color = textSecondaryColor
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        // AI 智慧過濾總開關 (Google ML Kit)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Google ML Kit AI 智慧物件過濾",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 13.sp,
+                                                    color = textPrimaryColor
+                                                )
+                                                Text(
+                                                    text = "自動辨識人體、寵物與車輛並智慧分類，大幅減少風吹草動無效誤報",
+                                                    fontSize = 11.sp,
+                                                    color = textSecondaryColor
+                                                )
+                                            }
+                                            Switch(
+                                                checked = localMlKitEnabled,
+                                                onCheckedChange = { localMlKitEnabled = it },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(1.dp)
+                                                .background(Color(0xFFE2E8F0))
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Spacer(modifier = Modifier.weight(1.2f))
+                                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                                Text("允許推播", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                            }
+                                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                                Text("觸發錄影", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                        NotificationCategory.values().forEach { category ->
+                                            val isEnabled = categoryStates[category] ?: true
+                                            val isRecordEnabled = categoryRecordStates[category] ?: true
+                                            val iconStr = when (category) {
+                                                NotificationCategory.HUMAN_AND_ACTIVITY -> "🚶 👨‍👩‍👧"
+                                                NotificationCategory.PET_AND_ANIMAL -> "🐶 🐱"
+                                                NotificationCategory.VEHICLE_AND_TRANSPORT -> "🚗 🚲"
+                                                NotificationCategory.HOUSEHOLD_ITEM -> "🛋️ 📦"
+                                                NotificationCategory.ENVIRONMENT_AND_NATURE -> "🌿 🏞️"
+                                                NotificationCategory.OTHER -> "❓"
+                                            }
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "$iconStr ${category.displayName}",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = textPrimaryColor,
+                                                    modifier = Modifier.weight(1.2f)
+                                                )
+                                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                                    Switch(
+                                                        checked = isEnabled,
+                                                        onCheckedChange = { categoryStates[category] = it },
+                                                        colors = SwitchDefaults.colors(
+                                                            checkedThumbColor = Color.White,
+                                                            checkedTrackColor = brandPrimaryColor
+                                                        ),
+                                                        modifier = Modifier.size(40.dp)
+                                                    )
+                                                }
+                                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                                                    Switch(
+                                                        checked = isRecordEnabled,
+                                                        onCheckedChange = { categoryRecordStates[category] = it },
+                                                        colors = SwitchDefaults.colors(
+                                                            checkedThumbColor = Color.White,
+                                                            checkedTrackColor = brandPrimaryColor
+                                                        ),
+                                                        modifier = Modifier.size(40.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = !isDetectionMode,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Surface(
+                                color = Color(0xFFF8FAFC),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("👁️ 當前處於「即時監看模式」", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF334155))
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        "背景動態比對與推播告警已暫停。點擊上方「🚨 動態偵測防護」即可開啟安防監控並設定觸發門檻、冷卻時間與 AI 物件過濾參數。",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        lineHeight = 18.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    2 -> {
+                        // TAB 3: Storage & Cleanup Card
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("空間自動循環清理 (Loop Storage)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("空間或筆數超標時自動刪除最舊紀錄", fontSize = 11.sp, color = textSecondaryColor)
+                                    }
+                                    Switch(
+                                        checked = localAutoCleanup,
+                                        onCheckedChange = { localAutoCleanup = it },
+                                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Storage Limit GB
+                                Column {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("儲存空間上限", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(String.format("%.1f GB", localStorageGB), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Slider(
+                                        value = localStorageGB,
+                                        onValueChange = { localStorageGB = it },
+                                        valueRange = 0.5f..10.0f,
+                                        colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Max Events Limit
+                                Column {
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("事件數量上限:", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("${localMaxEvents.toInt()} 筆", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    }
+                                    Slider(
+                                        value = localMaxEvents,
+                                        onValueChange = { localMaxEvents = it },
+                                        valueRange = 50f..500f,
+                                        steps = 8,
+                                        colors = SliderDefaults.colors(thumbColor = brandPrimaryColor, activeTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Auto Start On Boot Switch
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("開機/復電自動啟動監控服務", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("手機重新開機後背景自動啟動「相機節點」", fontSize = 11.sp, color = textSecondaryColor)
+                                    }
+                                    Switch(
+                                        checked = localAutoStartOnBoot,
+                                        onCheckedChange = { localAutoStartOnBoot = it },
+                                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // System Log Switch
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("啟用系統日誌紀錄 (Log)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("開啟後會將運作狀態紀錄至記憶體供排解問題", fontSize = 11.sp, color = textSecondaryColor)
+                                    }
+                                    Switch(
+                                        checked = localSystemLogEnabled,
+                                        onCheckedChange = { localSystemLogEnabled = it },
+                                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                OutlinedButton(
+                                    onClick = {
+                                        if (onFetchLogs != null) {
+                                            isLoadingLogs = true
+                                            showRemoteLogs = true
+                                            coroutineScope.launch {
+                                                remoteLogsList = onFetchLogs()
+                                                isLoadingLogs = false
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "暫不支援遠端提取日誌", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(24.dp),
+                                    border = BorderStroke(1.dp, brandPrimaryColor)
+                                ) {
+                                    Text("📝 查看系統日誌 (Log)", color = brandPrimaryColor, fontWeight = FontWeight.Bold)
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Power Cut Alert Switch
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("斷電與低電量 Telegram 警報", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("拔除電源線或低電量時發送推播通知", fontSize = 11.sp, color = textSecondaryColor)
+                                    }
+                                    Switch(
+                                        checked = localPowerCutAlert,
+                                        onCheckedChange = { localPowerCutAlert = it },
+                                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    3 -> {
+                        // TAB 4: Telegram Sync Card
+                        val remoteBotToken = cameraStatusJson?.optString("telegramBotToken", "") ?: ""
+                        val remoteChatId = cameraStatusJson?.optString("telegramChatId", "") ?: ""
+                        val hasRemoteTelegram = remoteBotToken.isNotBlank() && remoteChatId.isNotBlank()
+
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Card(
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = if (hasRemoteTelegram) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = if (hasRemoteTelegram) "✅ 鏡頭端已綁定 Telegram Bot" else "⚠️ 鏡頭端尚未設定 Telegram 告警",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = if (hasRemoteTelegram) Color(0xFF2E7D32) else Color(0xFFB3261E)
+                                        )
+                                        if (hasRemoteTelegram) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text("Chat ID: $remoteChatId", fontSize = 11.sp, color = Color(0xFF1B5E20))
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Text("一鍵同步設定", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("將目前觀看端的 Telegram Bot Token 與 Chat ID 推送給這台鏡頭裝置：", fontSize = 12.sp, color = textSecondaryColor)
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Button(
+                                    onClick = {
+                                        onSyncTelegram()
+                                        Toast.makeText(context, "已將觀看端 Telegram 設定推送至該鏡頭", Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("⚡ 同步觀看端 Telegram 設定至本鏡頭", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
                 }
+            }
         }
     }
 }
@@ -1085,6 +1109,7 @@ fun RemoteSettingsDialog(
     cameraName: String,
     cameraStatusJson: JSONObject?,
     onSendCommand: suspend (String, String) -> Boolean,
+    onSaveBatchConfig: (suspend (String) -> Boolean)? = null,
     onSyncTelegram: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1092,6 +1117,7 @@ fun RemoteSettingsDialog(
         cameraName = cameraName,
         cameraStatusJson = cameraStatusJson,
         onSendCommand = onSendCommand,
+        onSaveBatchConfig = onSaveBatchConfig,
         onSyncTelegram = onSyncTelegram,
         onNavigateBack = onDismiss
     )

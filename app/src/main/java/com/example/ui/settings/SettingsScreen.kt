@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
@@ -129,6 +130,7 @@ fun SettingsScreen(
     val livePreviewInListEnabled by viewModel.livePreviewInListEnabled.collectAsState()
     val autoStartOnBoot by viewModel.autoStartOnBoot.collectAsState()
     val powerCutAlertEnabled by viewModel.powerCutAlertEnabled.collectAsState()
+    val mlKitFilterEnabled by viewModel.mlKitFilterEnabled.collectAsState()
     val systemLogEnabled by viewModel.systemLogEnabled.collectAsState()
     val dynamicFpsAdjustmentEnabled by viewModel.dynamicFpsAdjustmentEnabled.collectAsState()
     val storageLimitGB by viewModel.storageLimitGB.collectAsState()
@@ -137,6 +139,18 @@ fun SettingsScreen(
     val testStatus by viewModel.testStatus.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     val isTesting by viewModel.isTesting.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+
+    var localStorageGB by remember(storageLimitGB) { mutableStateOf(storageLimitGB) }
+    var localMaxEvents by remember(maxEventCount) { mutableStateOf(maxEventCount.toFloat()) }
+    val brandPrimaryColor = Color(0xFF6750A4)
+    val textPrimaryColor = Color(0xFF1C1B1F)
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearStatus()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -145,9 +159,7 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text("系統與偏好設定", color = Color(0xFF1C1B1F), fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text("切換模式可顯示該模式的專屬設定項目", color = Color(0xFF49454F), fontSize = 13.sp)
+        Text("系統設定", color = Color(0xFF1C1B1F), fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -166,8 +178,6 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("裝置角色模式", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("選擇此裝置運作角色，切換時僅顯示該模式對應的設定選項：", color = Color(0xFF49454F), fontSize = 13.sp)
 
                 Spacer(modifier = Modifier.height(14.dp))
 
@@ -186,7 +196,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.Videocam, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("📷 鏡頭端", fontWeight = FontWeight.Bold)
+                        Text("鏡頭端", fontWeight = FontWeight.Bold)
                     }
 
                     Button(
@@ -200,7 +210,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.Visibility, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("📺 觀看端", fontWeight = FontWeight.Bold)
+                        Text("觀看端", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -273,12 +283,12 @@ fun SettingsScreen(
                             Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color(0xFF6750A4))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("開機自動啟動 (Auto-Start)", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("開機自動啟動", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    if (autoStartOnBoot) "停電復電重啟手機後，自動在背景啟動「相機監控節點」" else "關閉開機自動啟動，需手動開啟監控服務",
+                                    if (autoStartOnBoot) "停電復電重啟手機後，自動在背景啟動" else "開機後需手動開啟監控",
                                     color = Color(0xFF49454F),
-                                    fontSize = 12.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -312,12 +322,12 @@ fun SettingsScreen(
                             Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = Color(0xFFB3261E))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("斷電與低電量 Telegram 警報", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("斷電與低電量警報", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     if (powerCutAlertEnabled) "由「充電中」轉為「放電中」或電量低於 60% 時立即發送 Telegram 警報" else "關閉電源與低電量警報推播",
                                     color = Color(0xFF49454F),
-                                    fontSize = 12.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -349,25 +359,50 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Text("動態差異觸發門檻 (${"%.1f".format(sensitivity)}%)", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                    Slider(
-                        value = sensitivity,
-                        onValueChange = { viewModel.updateSensitivity(it) },
-                        valueRange = 1f..100f,
-                        steps = 98,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF6750A4),
-                            activeTrackColor = Color(0xFF6750A4),
-                            inactiveTrackColor = Color(0xFFE8DEF8)
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "動態差異觸發門檻 (Sensitivity)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = textPrimaryColor
+                            )
+                            Text(
+                                String.format("%.1f%%", sensitivity),
+                                color = brandPrimaryColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "低於此百分比的畫面變動將被忽略 (1% = 極度敏感，100% = 需要全畫面變動)",
+                            fontSize = 11.sp,
+                            color = Color(0xFF49454F)
                         )
-                    )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Slider(
+                            value = sensitivity,
+                            onValueChange = { viewModel.updateSensitivity(it) },
+                            valueRange = 1f..100f,
+                            colors = SliderDefaults.colors(
+                                thumbColor = brandPrimaryColor,
+                                activeTrackColor = brandPrimaryColor,
+                                inactiveTrackColor = Color(0xFFE8DEF8)
+                            )
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     OutlinedTextField(
                         value = cooldown,
                         onValueChange = { viewModel.updateCooldown(it) },
-                        label = { Text("警報冷卻時間 (秒，避免連續轟炸)") },
+                        label = { Text("冷卻時間 (秒，避免連續發送)") },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color(0xFF1C1B1F),
                             unfocusedTextColor = Color(0xFF1C1B1F),
@@ -388,7 +423,7 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("事件動態延長錄影", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text("開啟後，動態事件將自動錄製含前 5 秒緩衝的影片，並依據持續動態自動延長 (最長 3 分鐘)", fontSize = 12.sp, color = Color.Gray)
+                            Text("開啟後，動態事件將自動錄製含前 5 秒緩衝的影片，並依據持續動態自動延長 (最長 3 分鐘)", fontSize = 10.sp, color = Color.Gray)
                         }
                         Switch(
                             checked = eventVideoRecordingEnabled,
@@ -409,8 +444,8 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("動態傳輸畫質最佳化 (Dynamic FPS)", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text("根據設備效能監測自動降低碼率或幀率以穩定傳輸，避免舊機型過熱或卡頓", fontSize = 12.sp, color = Color.Gray)
+                            Text("動態調整 FPS", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
+                            Text("根據設備效能監測自動降低幀數以穩定傳輸，避免舊機型過熱或卡頓", fontSize = 10.sp, color = Color.Gray)
                         }
                         Switch(
                             checked = dynamicFpsAdjustmentEnabled,
@@ -451,7 +486,7 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("監控排程 (自動啟用/停用)", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text("開啟後，僅在指定時段自動開啟動態偵測", fontSize = 12.sp, color = Color.Gray)
+                            Text("開啟後，僅在指定時段自動開啟動態偵測", fontSize = 10.sp, color = Color.Gray)
                         }
                         Switch(
                             checked = motionScheduleEnabled,
@@ -509,7 +544,7 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("通知排程 (自動啟用/停用通知)", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text("開啟後，僅在指定時段自動發送告警與推播通知", fontSize = 12.sp, color = Color.Gray)
+                            Text("開啟後，僅在指定時段自動發送告警與推播通知", fontSize = 10.sp, color = Color.Gray)
                         }
                         Switch(
                             checked = notificationScheduleEnabled,
@@ -571,7 +606,7 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Send, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Telegram 警報機器人設定 (鏡頭端發送)", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Telegram 警報機器人設定", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -630,7 +665,7 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("測試中...", fontSize = 13.sp)
                         } else {
-                            Text("測試發送 Telegram 訊息", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("測試連線", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
 
@@ -654,18 +689,41 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("推播過濾與分類設定", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("通知過濾與分類設定", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("設定本機鏡頭偵測到各類別物件 (人類、寵物、車輛等) 時是否觸發推播，進一步減少不必要的洗版通知。", fontSize = 13.sp, color = Color(0xFF49454F))
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("設定偵測到各類別物件時是否觸發通知。", fontSize = 10.sp, color = Color(0xFF49454F))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("ML Kit 智慧過濾", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("開啟後啟用本機 AI 分析物件類別", color = Color(0xFF49454F), fontSize = 10.sp)
+                        }
+                        Switch(
+                            checked = mlKitFilterEnabled,
+                            onCheckedChange = { viewModel.updateMlKitFilterEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4),
+                                uncheckedThumbColor = Color(0xFF49454F),
+                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
                     Button(
                         onClick = { showNotificationSettings = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B))
                     ) {
-                        Text("前往設定智慧分類通知", fontWeight = FontWeight.Bold)
+                        Text("前往設定各分類通知", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -681,7 +739,7 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("儲存空間與歷史紀錄清理", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("儲存空間與紀錄清理", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -691,8 +749,8 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("啟用自動儲存空間清理", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("超過上限時自動刪除日期最早的偵測影像與紀錄", color = Color(0xFF49454F), fontSize = 12.sp)
+                            Text("自動清理", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("超過上限時自動刪除日期最早的偵測影像與紀錄", color = Color(0xFF49454F), fontSize = 10.sp)
                         }
                         Switch(
                             checked = autoCleanupEnabled,
@@ -708,47 +766,49 @@ fun SettingsScreen(
 
                     if (autoCleanupEnabled) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("儲存空間上限:", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf(0.5f, 1.0f, 2.0f, 5.0f, 10.0f).forEach { gbOption ->
-                                val isSelected = Math.abs(storageLimitGB - gbOption) < 0.1f
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { viewModel.updateStorageLimitGB(gbOption) },
-                                    label = { Text("${gbOption.toInt().let { if (gbOption < 1.0f) "500MB" else "${it}GB" }}", fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = Color(0xFFE8DEF8),
-                                        selectedLabelColor = Color(0xFF1D192B)
-                                    )
-                                )
+                        // Storage Limit GB
+                        Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("儲存空間上限", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text(String.format("%.1f GB", localStorageGB), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
+                            Slider(
+                                value = localStorageGB,
+                                onValueChange = {
+                                    localStorageGB = it
+                                    viewModel.updateStorageLimitGB(it)
+                                },
+                                valueRange = 0.5f..10.0f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = brandPrimaryColor,
+                                    activeTrackColor = brandPrimaryColor,
+                                    inactiveTrackColor = Color(0xFFE8DEF8)
+                                )
+                            )
                         }
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text("事件數量保留上限:", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf(100, 200, 500, 1000).forEach { countOption ->
-                                val isSelected = maxEventCount == countOption
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { viewModel.updateMaxEventCount(countOption) },
-                                    label = { Text("$countOption 筆", fontSize = 11.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = Color(0xFFE8DEF8),
-                                        selectedLabelColor = Color(0xFF1D192B)
-                                    )
-                                )
+                        // Max Events Limit
+                        Column {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("事件數量上限:", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text("${localMaxEvents.toInt()} 筆", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
+                            Slider(
+                                value = localMaxEvents,
+                                onValueChange = {
+                                    localMaxEvents = it
+                                    viewModel.updateMaxEventCount(it.toInt())
+                                },
+                                valueRange = 50f..500f,
+                                steps = 8,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = brandPrimaryColor,
+                                    activeTrackColor = brandPrimaryColor,
+                                    inactiveTrackColor = Color(0xFFE8DEF8)
+                                )
+                            )
                         }
                     }
 
@@ -762,7 +822,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = Color(0xFFB3261E), modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("🧹 立即清理舊快照與紀錄 (保留 80%)", color = Color(0xFFB3261E), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text("🧹 刪除紀錄 (保留最新20%)", color = Color(0xFFB3261E), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
                     AnimatedVisibility(visible = cleanupStatus != null) {
@@ -783,8 +843,8 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("啟用系統日誌紀錄 (Log)", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                        Text("開啟後會將運作狀態紀錄至記憶體供排解問題", fontSize = 12.sp, color = Color.Gray)
+                        Text("啟用系統日誌", color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
+                        Text("開啟後會紀錄運作狀態", fontSize = 10.sp, color = Color.Gray)
                     }
                     Switch(
                         checked = systemLogEnabled,
@@ -804,12 +864,12 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(24.dp),
                     border = BorderStroke(1.dp, Color(0xFF6750A4))
                 ) {
-                    Text("📝 查看系統日誌 (Log)", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
+                    Text("📝 查看系統日誌", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(32.dp))
             }
         } else {
-            // ==================== 📺 觀看端專用設定 ====================
+            // ==================== 觀看端專用設定 ====================
 
             // Live Stream Preview Setting Card (觀看端全鏡頭即時預覽)
             Card(
@@ -828,12 +888,12 @@ fun SettingsScreen(
                             Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF6750A4))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("觀看端全鏡頭即時預覽", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("即時預覽", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    if (livePreviewInListEnabled) "列表頁將持續輪詢刷新鏡頭最新畫面" else "預設使用靜態快照，節省網路流量與發熱",
+                                    if (livePreviewInListEnabled) "列表頁將持續顯示即時畫面" else "預設使用靜態快照",
                                     color = Color(0xFF49454F),
-                                    fontSize = 12.sp
+                                    fontSize = 10.sp
                                 )
                             }
                         }
@@ -861,18 +921,41 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("推播過濾與分類設定", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("通知過濾與分類設定", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("設定各類別物件 (人類、寵物、車輛等) 是否觸發動態通知，進一步減少不必要的洗版推播。", fontSize = 13.sp, color = Color(0xFF49454F))
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("設定各類別物件 (人類、寵物、車輛等) 是否觸發動態通知。", fontSize = 13.sp, color = Color(0xFF49454F))
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("ML Kit 智慧過濾", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("開啟後啟用本機 AI 分析物件類別", color = Color(0xFF49454F), fontSize = 10.sp)
+                        }
+                        Switch(
+                            checked = mlKitFilterEnabled,
+                            onCheckedChange = { viewModel.updateMlKitFilterEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4),
+                                uncheckedThumbColor = Color(0xFF49454F),
+                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
                     Button(
                         onClick = { showNotificationSettings = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B))
                     ) {
-                        Text("前往設定智慧分類通知", fontWeight = FontWeight.Bold)
+                        Text("前往設定各分類通知", fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -891,7 +974,7 @@ fun SettingsScreen(
                         Text("Telegram 機器人設定與同步", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("可在此統一設定 Token 與 Chat ID，並一鍵同步廣播給所有鏡頭端：", color = Color(0xFF49454F), fontSize = 13.sp)
+                    Text("此處設定可一鍵同步給所有鏡頭端，由鏡頭端發送 Telegram 警報通知", color = Color(0xFF49454F), fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
@@ -932,7 +1015,7 @@ fun SettingsScreen(
                         border = BorderStroke(1.dp, Color(0xFF6750A4)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("🤖 自動配對 Chat ID", fontWeight = FontWeight.Bold, color = Color(0xFF6750A4), fontSize = 13.sp)
+                        Text("🤖 自動配對 Chat ID", fontWeight = FontWeight.Bold, color = Color(0xFF6750A4), fontSize = 16.sp)
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -959,19 +1042,31 @@ fun SettingsScreen(
 
                         OutlinedButton(
                             onClick = { viewModel.syncTelegramToCameras() },
-                            enabled = botToken.isNotBlank() || chatId.isNotBlank(),
+                            enabled = !isSyncing && (botToken.isNotBlank() || chatId.isNotBlank()),
                             shape = RoundedCornerShape(20.dp),
                             border = BorderStroke(1.5.dp, Color(0xFF6750A4)),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("🔄 同步至鏡頭", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            if (isSyncing) {
+                                CircularProgressIndicator(color = Color(0xFF6750A4), modifier = Modifier.height(18.dp).width(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("同步中...", fontSize = 13.sp)
+                            } else {
+                                Text("🔄 同步至鏡頭", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
                         }
                     }
 
                     AnimatedVisibility(visible = syncStatus != null) {
                         syncStatus?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(msg, color = Color(0xFF2E7D32), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            val statusColor = when {
+                                msg.contains("⚡") || msg.contains("成功") -> Color(0xFF2E7D32)
+                                msg.contains("⏳") -> Color(0xFF6750A4)
+                                msg.contains("⚠️") -> Color(0xFFE65100)
+                                else -> Color(0xFFB3261E)
+                            }
+                            Text(msg, color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 

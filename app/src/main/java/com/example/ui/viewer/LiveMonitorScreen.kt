@@ -80,6 +80,11 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.ExpandMore
 
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+
 @Composable
 fun LiveMonitorScreen(
     viewModel: ViewerViewModel,
@@ -90,6 +95,25 @@ fun LiveMonitorScreen(
     }
 
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.onResume()
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.onPause()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
     val camera = viewModel.selectedCamera.collectAsState().value
     val frame by viewModel.streamClient.currentFrame.collectAsState()
     val isConnected by viewModel.streamClient.isConnected.collectAsState()
@@ -117,6 +141,7 @@ fun LiveMonitorScreen(
             cameraName = camera.name,
             cameraStatusJson = cameraStatusJson,
             onSendCommand = { cmd, valStr -> viewModel.sendControlCommandSuspend(cmd, valStr) },
+            onSaveBatchConfig = { jsonStr -> viewModel.saveRemoteConfig(camera, jsonStr) },
             onSyncTelegram = { viewModel.syncTelegramToCurrentCamera() },
             onNavigateBack = { showRemoteSettingsDialog = false },
             onFetchLogs = { viewModel.fetchRemoteLogs(camera) }

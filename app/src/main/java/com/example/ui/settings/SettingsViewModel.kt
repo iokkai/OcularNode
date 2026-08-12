@@ -94,6 +94,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _powerCutAlertEnabled = MutableStateFlow(settingsManager.powerCutAlertEnabled)
     val powerCutAlertEnabled: StateFlow<Boolean> = _powerCutAlertEnabled.asStateFlow()
 
+    private val _mlKitFilterEnabled = MutableStateFlow(settingsManager.mlKitFilterEnabled)
+    val mlKitFilterEnabled: StateFlow<Boolean> = _mlKitFilterEnabled.asStateFlow()
+
     private val _cleanupStatus = MutableStateFlow<String?>(null)
     val cleanupStatus: StateFlow<String?> = _cleanupStatus.asStateFlow()
 
@@ -106,14 +109,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _isTesting = MutableStateFlow(false)
     val isTesting: StateFlow<Boolean> = _isTesting.asStateFlow()
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    fun clearStatus() {
+        _cleanupStatus.value = null
+        _syncStatus.value = null
+        _testStatus.value = null
+    }
+
     fun reloadSettings() {
         _eventVideoRecordingEnabled.value = settingsManager.eventVideoRecordingEnabled
         _botToken.value = settingsManager.telegramBotToken
         _chatId.value = settingsManager.telegramChatId
-        syncTelegramToCameras()
     }
 
     fun updateRoleMode(mode: String) {
+        clearStatus()
         _roleMode.value = mode
         settingsManager.deviceRoleMode = mode
         if (mode == "VIEWER") {
@@ -139,57 +151,82 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         settingsManager.powerCutAlertEnabled = enabled
     }
 
+    fun updateMlKitFilterEnabled(enabled: Boolean) {
+        _mlKitFilterEnabled.value = enabled
+        settingsManager.mlKitFilterEnabled = enabled
+    }
+
     fun updateBotToken(token: String) {
         _botToken.value = token
         settingsManager.telegramBotToken = token
-        syncTelegramToCameras()
     }
 
     fun updateChatId(id: String) {
         _chatId.value = id
         settingsManager.telegramChatId = id
-        syncTelegramToCameras()
     }
 
     fun syncTelegramToCameras() {
+        if (_isSyncing.value) return
         viewModelScope.launch(Dispatchers.IO) {
-            val token = _botToken.value
-            val id = _chatId.value
-            val cameras = AppDatabase.getDatabase(getApplication()).cameraDeviceDao().getCamerasListOnce()
-            if (cameras.isEmpty()) return@launch
+            _isSyncing.value = true
+            val timeFormat = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+            val startTime = timeFormat.format(java.util.Date())
+            _syncStatus.value = "⏳ [$startTime] 正在同步至鏡頭..."
 
-            val client = OkHttpClient.Builder()
-                .connectTimeout(3, TimeUnit.SECONDS)
-                .readTimeout(3, TimeUnit.SECONDS)
-                .build()
-
-            val configJson = JSONObject().apply {
-                put("token", token)
-                put("chatId", id)
-            }.toString()
-
-            var syncedCount = 0
-            for (cam in cameras) {
-                try {
-                    val reqJson = JSONObject().apply {
-                        put("command", "telegram_config")
-                        put("value", configJson)
-                    }
-                    val body = reqJson.toString().toRequestBody("application/json".toMediaType())
-                    val request = Request.Builder()
-                        .url(cam.getControlUrl())
-                        .post(body)
-                        .build()
-
-                    val response = client.newCall(request).execute()
-                    if (response.isSuccessful) syncedCount++
-                    response.close()
-                } catch (e: Exception) {
-                    Log.e("SettingsViewModel", "Failed sync to ${cam.name}", e)
+            try {
+                val token = _botToken.value
+                val id = _chatId.value
+                val cameras = AppDatabase.getDatabase(getApplication()).cameraDeviceDao().getCamerasListOnce()
+                if (cameras.isEmpty()) {
+                    _syncStatus.value = "⚠️ [$startTime] 尚未連結任何鏡頭裝置"
+                    return@launch
                 }
-            }
-            if (syncedCount > 0) {
-                _syncStatus.value = "⚡ 已自動同步 Telegram 設定至 $syncedCount 個連線鏡頭"
+
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(3, TimeUnit.SECONDS)
+                    .readTimeout(3, TimeUnit.SECONDS)
+                    .build()
+
+                val configJson = JSONObject().apply {
+                    put("token", token)
+                    put("chatId", id)
+                }.toString()
+
+                var syncedCount = 0
+                val errors = mutableListOf<String>()
+                for (cam in cameras) {
+                    try {
+                        val reqJson = JSONObject().apply {
+                            put("command", "telegram_config")
+                            put("value", configJson)
+                        }
+                        val body = reqJson.toString().toRequestBody("application/json".toMediaType())
+                        val request = Request.Builder()
+                            .url(cam.getControlUrl())
+                            .post(body)
+                            .build()
+
+                        val response = client.newCall(request).execute()
+                        if (response.isSuccessful) syncedCount++
+                        response.close()
+                    } catch (e: Exception) {
+                        Log.e("SettingsViewModel", "Failed sync to ${cam.name} (${cam.ipAddress})", e)
+                        errors.add("${cam.name}(${cam.ipAddress})")
+                    }
+                }
+                val finishTime = timeFormat.format(java.util.Date())
+                if (syncedCount > 0) {
+                    _syncStatus.value = "⚡ [$finishTime] 已成功同步至 $syncedCount 個連線鏡頭"
+                } else {
+                    val failedList = errors.joinToString(", ")
+                    _syncStatus.value = "❌ [$finishTime] 無法連線至鏡頭: $failedList\n請確認鏡頭端已開啟監控服務且位在相同網路 (或 Tailscale)"
+                }
+            } catch (e: Exception) {
+                Log.e("SettingsViewModel", "Error syncing to cameras", e)
+                _syncStatus.value = "❌ 同步異常: ${e.message}"
+            } finally {
+                _isSyncing.value = false
             }
         }
     }
@@ -277,17 +314,61 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun performManualCleanup() {
         viewModelScope.launch(Dispatchers.IO) {
-            val eventDao = AppDatabase.getDatabase(getApplication()).motionEventDao()
-            val beforeCount = eventDao.getEventCount()
-            if (beforeCount == 0) {
-                _cleanupStatus.value = "目前無任何歷史紀錄需要清理"
-                return@launch
+            try {
+                val context = getApplication<Application>()
+                val eventDao = AppDatabase.getDatabase(context).motionEventDao()
+                val beforeCount = eventDao.getEventCount()
+                if (beforeCount == 0) {
+                    cleanOrphanMediaFiles(context, emptyList())
+                    _cleanupStatus.value = "目前無歷史紀錄，已清理媒體資料夾"
+                    return@launch
+                }
+                // Purge 80% oldest records
+                val purgeCount = (beforeCount * 0.8).toInt().coerceAtLeast(1)
+                val oldestEvents = eventDao.getOldestEvents(purgeCount)
+                for (oldEv in oldestEvents) {
+                    oldEv.snapshotPath?.let { path ->
+                        try { java.io.File(path).delete() } catch (_: Exception) {}
+                    }
+                    oldEv.videoPath?.let { path ->
+                        try { java.io.File(path).delete() } catch (_: Exception) {}
+                    }
+                }
+                eventDao.deleteOldestEvents(purgeCount)
+
+                // Sweep orphan files
+                val remainingEvents = eventDao.getEventsListOnce()
+                cleanOrphanMediaFiles(context, remainingEvents)
+
+                val afterCount = eventDao.getEventCount()
+                _cleanupStatus.value = "🧹 已成功清理最舊的 $purgeCount 筆歷史快照與媒體檔 (剩餘 $afterCount 筆)"
+            } catch (e: Exception) {
+                Log.e("SettingsViewModel", "Error during performManualCleanup", e)
+                _cleanupStatus.value = "清理失敗: ${e.message}"
             }
-            // Purge 20% oldest records
-            val purgeCount = (beforeCount * 0.2).toInt().coerceAtLeast(1)
-            eventDao.deleteOldestEvents(purgeCount)
-            val afterCount = eventDao.getEventCount()
-            _cleanupStatus.value = "🧹 已成功自動清理最舊的 $purgeCount 筆歷史快照 (剩餘 $afterCount 筆)"
+        }
+    }
+
+    private fun cleanOrphanMediaFiles(context: android.content.Context, validEvents: List<com.example.data.MotionEvent>) {
+        val validPaths = HashSet<String>()
+        for (ev in validEvents) {
+            ev.snapshotPath?.let { validPaths.add(it) }
+            ev.videoPath?.let { validPaths.add(it) }
+        }
+
+        val mediaDirs = listOfNotNull(
+            context.getExternalFilesDir(null)?.let { java.io.File(it, "media") },
+            context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.let { java.io.File(it, "OcularNode") }
+        )
+
+        for (dir in mediaDirs) {
+            if (dir.exists() && dir.isDirectory) {
+                dir.listFiles()?.forEach { file ->
+                    if (file.isFile && !validPaths.contains(file.absolutePath)) {
+                        try { file.delete() } catch (_: Exception) {}
+                    }
+                }
+            }
         }
     }
 

@@ -70,6 +70,14 @@ class SettingsManager(context: Context) {
         get() = prefs.getFloat(KEY_NIGHT_VISION_LUMA, 45.0f)
         set(value) = prefs.edit().putFloat(KEY_NIGHT_VISION_LUMA, value).apply()
 
+    var autoNightVisionHysteresis: Float // Hysteresis margin in Luma units to prevent flickering
+        get() = prefs.getFloat(KEY_NIGHT_VISION_HYSTERESIS, 8.0f)
+        set(value) = prefs.edit().putFloat(KEY_NIGHT_VISION_HYSTERESIS, value).apply()
+
+    var streamRotation: Int
+        get() = prefs.getInt(KEY_STREAM_ROTATION, 0)
+        set(value) = prefs.edit().putInt(KEY_STREAM_ROTATION, value).apply()
+
     var defaultQuality: Int // JPEG compression 30..90
         get() = prefs.getInt(KEY_DEFAULT_QUALITY, 60)
         set(value) = prefs.edit().putInt(KEY_DEFAULT_QUALITY, value).apply()
@@ -142,7 +150,9 @@ class SettingsManager(context: Context) {
         private const val KEY_MOTION_COOLDOWN = "motion_cooldown"
         private const val KEY_NIGHT_VISION = "night_vision"
         private const val KEY_NIGHT_VISION_LUMA = "night_vision_luma"
+        private const val KEY_NIGHT_VISION_HYSTERESIS = "night_vision_hysteresis"
         private const val KEY_DEFAULT_QUALITY = "default_quality"
+        private const val KEY_STREAM_ROTATION = "stream_rotation"
         private const val KEY_DEFAULT_RESOLUTION = "default_resolution"
         private const val KEY_OPERATING_MODE = "operating_mode"
         private const val KEY_PLAY_ALARM = "play_alarm"

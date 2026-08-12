@@ -33,7 +33,8 @@ sealed class TelegramSetupUiState {
         val pin: String,
         val botName: String = "",
         val botUsername: String = "",
-        val remainingSeconds: Int = 120
+        val remainingSeconds: Int = 120,
+        val isLoadingBotInfo: Boolean = false
     ) : TelegramSetupUiState()
 
     data class Success(
@@ -48,7 +49,7 @@ sealed class TelegramSetupUiState {
 class TelegramSetupViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
-        private const val CHANNEL_ID = "telegram_setup_channel"
+        private const val CHANNEL_ID = "telegram_setup_channel_high"
         private const val NOTIFICATION_ID = 9001
     }
 
@@ -74,7 +75,7 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Telegram 自動綁定通知",
-                NotificationManager.IMPORTANCE_DEFAULT
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "在背景執行 Telegram 配對時發送進度與結果通知"
             }
@@ -100,7 +101,9 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentTitle(title)
             .setContentText(content)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVibrate(longArrayOf(0, 500, 250, 500))
             .setOngoing(isOngoing)
             .setAutoCancel(!isOngoing)
             .setContentIntent(pendingIntent)
@@ -125,6 +128,30 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    private fun startForegroundService() {
+        val context = getApplication<Application>()
+        val intent = Intent(context, com.example.service.TelegramPairingService::class.java)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.e("TelegramSetupVM", "Failed to start foreground service", e)
+        }
+    }
+
+    private fun stopForegroundService() {
+        val context = getApplication<Application>()
+        val intent = Intent(context, com.example.service.TelegramPairingService::class.java)
+        try {
+            context.stopService(intent)
+        } catch (e: Exception) {
+            Log.e("TelegramSetupVM", "Failed to stop foreground service", e)
+        }
+    }
+
     fun startPairing(tokenInput: String) {
         val token = tokenInput.trim()
         if (token.isBlank()) {
@@ -134,30 +161,33 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
 
         // 停止之前的輪詢任務
         pollingJob?.cancel()
+        stopForegroundService()
 
         pollingJob = viewModelScope.launch(Dispatchers.IO) {
-            val botInfo = TelegramConfig.getBotInfo(token)
-            if (botInfo == null) {
-                _uiState.value = TelegramSetupUiState.Error("無法取得機器人資訊，請確認 Token 是否正確")
-                return@launch
-            }
-
+            startForegroundService()
+            
             // 產生 4 位數驗證 PIN 碼 (1000 ~ 9999)
             val pin = String.format(java.util.Locale.US, "%04d", (1000..9999).random())
 
             _uiState.value = TelegramSetupUiState.Step2_Listening(
                 token = token,
                 pin = pin,
-                botName = botInfo.firstName,
-                botUsername = botInfo.username,
-                remainingSeconds = 120
+                isLoadingBotInfo = true
             )
 
-            // 發送 Ongoing 本地通知，帶有 OPEN_TELEGRAM_SETUP，點擊可回到配對頁面
-            showNotification(
-                title = "等待 Telegram 配對...",
-                content = "請至 Telegram 傳送配對碼 [$pin] 給您的機器人 (限時 2 分鐘)",
-                isOngoing = true
+            val botInfo = TelegramConfig.getBotInfo(token)
+            if (botInfo == null) {
+                _uiState.value = TelegramSetupUiState.Error("無法取得機器人資訊，請確認 Token 是否正確")
+                return@launch
+            }
+
+            _uiState.value = TelegramSetupUiState.Step2_Listening(
+                token = token,
+                pin = pin,
+                botName = botInfo.firstName,
+                botUsername = botInfo.username,
+                remainingSeconds = 120,
+                isLoadingBotInfo = false
             )
 
             // 先自動清除殘留的 Webhook
@@ -169,34 +199,40 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
             var currentLastUpdateId: Long? = null
 
             val matchedChatId = withTimeoutOrNull(totalTimeoutMs) {
-                while (secondsLeft > 0) {
-                    val updateResponse = TelegramConfig.checkUpdatesResult(token, pin, currentLastUpdateId)
-                    currentLastUpdateId = updateResponse.newLastUpdateId
 
-                    when (val checkRes = updateResponse.result) {
-                        is TelegramCheckResult.Success -> {
-                            return@withTimeoutOrNull checkRes.chatId
-                        }
-                        is TelegramCheckResult.Error -> {
-                            fatalErrorMsg = checkRes.message
-                            return@withTimeoutOrNull null
-                        }
-                        is TelegramCheckResult.NotFound -> {
-                            // 繼續輪詢
+                while (secondsLeft > 0) {
+                    // 每 3 秒 (也就是 loopCount % 3 == 0) 才去查一次 API
+                    if (secondsLeft % 3 == 0) {
+                        val updateResponse = TelegramConfig.checkUpdatesResult(token, pin, currentLastUpdateId)
+                        currentLastUpdateId = updateResponse.newLastUpdateId
+
+                        when (val checkRes = updateResponse.result) {
+                            is TelegramCheckResult.Success -> {
+                                return@withTimeoutOrNull checkRes.chatId
+                            }
+                            is TelegramCheckResult.Error -> {
+                                fatalErrorMsg = checkRes.message
+                                return@withTimeoutOrNull null
+                            }
+                            is TelegramCheckResult.NotFound -> {
+                                // 沒找到，繼續等
+                            }
                         }
                     }
 
-                    delay(2000L)
-                    secondsLeft -= 2
+                    delay(1000L) // 還是只等 1 秒
+                    secondsLeft -= 1
 
-                    // 更新 UI 倒數計時
+                    // 這樣 UI 畫面依舊能每秒平滑倒數
                     val currentState = _uiState.value
                     if (currentState is TelegramSetupUiState.Step2_Listening) {
                         _uiState.value = currentState.copy(remainingSeconds = secondsLeft.coerceAtLeast(0))
                     }
                 }
                 null
-            }
+            }   
+
+            stopForegroundService()
 
             if (matchedChatId != null) {
                 val chatIdStr = matchedChatId.toString()
@@ -240,6 +276,7 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
     fun resetToStep1() {
         pollingJob?.cancel()
         pollingJob = null
+        stopForegroundService()
         cancelNotification()
         _uiState.value = TelegramSetupUiState.Step1_InputToken
     }
@@ -253,6 +290,7 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
         super.onCleared()
         pollingJob?.cancel()
         pollingJob = null
+        stopForegroundService()
         cancelNotification()
     }
 }

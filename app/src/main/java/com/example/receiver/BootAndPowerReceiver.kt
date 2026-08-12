@@ -37,7 +37,7 @@ class BootAndPowerReceiver : BroadcastReceiver() {
                         }
 
                         // Send Telegram Boot Notification
-                        if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                        if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 TelegramNotifier.sendSystemAlert(
                                     botToken = settingsManager.telegramBotToken,
@@ -55,7 +55,7 @@ class BootAndPowerReceiver : BroadcastReceiver() {
             }
 
             Intent.ACTION_POWER_DISCONNECTED -> {
-                if (settingsManager.powerCutAlertEnabled) {
+                if (settingsManager.powerCutAlertEnabled && settingsManager.deviceRoleMode != "VIEWER") {
                     val batteryPct = getBatteryPercentage(context)
                     Log.w("BootAndPowerReceiver", "Power cut detected! Disconnected from charger. Battery: $batteryPct%")
                     if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
@@ -73,7 +73,7 @@ class BootAndPowerReceiver : BroadcastReceiver() {
             }
 
             Intent.ACTION_POWER_CONNECTED -> {
-                if (settingsManager.powerCutAlertEnabled) {
+                if (settingsManager.powerCutAlertEnabled && settingsManager.deviceRoleMode != "VIEWER") {
                     val batteryPct = getBatteryPercentage(context)
                     Log.i("BootAndPowerReceiver", "Power restored! Connected to charger. Battery: $batteryPct%")
                     if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {

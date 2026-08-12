@@ -164,64 +164,58 @@ class EventVideoRecorder(
     
     /**
      * 執行影片編碼與 MediaMuxer 寫檔的核心邏輯。
-     * 步驟：
-     * 1. 設置並啟動 MediaCodec 與 MediaMuxer。
-     * 2. 取出 Pre-roll Buffer 內所有歷史畫面進行編碼 (過去 5 秒)。
-     * 3. 持續監聽 Channel，將收到的即時畫面進行編碼 (未來 10 秒)。
-     * 4. 結束錄製，釋放所有資源。
      */
     private suspend fun recordVideo(outputFile: File) {
-        // 設定 H.264 / AVC 影片格式
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-            setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
-            setInteger(MediaFormat.KEY_BIT_RATE, 2000000) // 2 Mbps 位元率
-            setInteger(MediaFormat.KEY_FRAME_RATE, fps)
-            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // 關鍵幀間隔 1 秒
-        }
-        
-        // 建立並啟動 MediaCodec
-        val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-        codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        codec.start()
-        
-        // 建立 MediaMuxer 負責將編碼後的資料寫入 MP4 容器
-        val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        var trackIndex = -1
-        var isMuxerStarted = false
-        
-        val bufferInfo = MediaCodec.BufferInfo()
-        val timeoutUs = 10000L
-        
-        var encodedPostFrames = 0
-        var isEos = false
-        
         // 1. 將 Pre-roll Buffer 內的畫面完整取出並清空 Buffer
         val historicalFrames = mutableListOf<FrameData>()
         bufferMutex.withLock {
             historicalFrames.addAll(preRollBuffer)
             preRollBuffer.clear()
         }
-        
-        Log.i(tag, "開始編碼歷史畫面，共取出 ${historicalFrames.size} 幀")
-        
-        // 內部 Helper：將 FrameData 轉碼放入 MediaCodec
-        fun encodeFrame(frame: FrameData, isEndOfStream: Boolean) {
-            val inputBufferIndex = codec.dequeueInputBuffer(timeoutUs)
-            if (inputBufferIndex >= 0) {
-                val inputBuffer = codec.getInputBuffer(inputBufferIndex)
-                inputBuffer?.clear()
-                
-                val bmp = android.graphics.BitmapFactory.decodeByteArray(frame.jpegBytes, 0, frame.jpegBytes.size)
-                if (bmp != null) {
-                    val yuvBytes = getNV12FromBitmap(bmp)
-                    inputBuffer?.put(yuvBytes)
-                    bmp.recycle()
-                    val flags = if (isEndOfStream) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
-                    codec.queueInputBuffer(inputBufferIndex, 0, yuvBytes.size, frame.presentationTimeUs, flags)
-                }
-            }
+
+        // 偵測首張畫面的實際寬高，動態設定 MediaCodec 編碼解析度，避免畫面比例變形拉伸
+        val sampleBytes = historicalFrames.firstOrNull()?.jpegBytes
+            ?: withTimeoutOrNull(2000L) { realTimeFrames.receive() }?.also { historicalFrames.add(it) }?.jpegBytes
+
+        val sampleOpts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        if (sampleBytes != null) {
+            android.graphics.BitmapFactory.decodeByteArray(sampleBytes, 0, sampleBytes.size, sampleOpts)
         }
-        
+
+        val rawFrameW = if (sampleOpts.outWidth > 0) sampleOpts.outWidth else width
+        val rawFrameH = if (sampleOpts.outHeight > 0) sampleOpts.outHeight else height
+
+        val encWidth = ((rawFrameW + 15) / 16) * 16
+        val encHeight = ((rawFrameH + 15) / 16) * 16
+
+        val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+        val chosenColorFormat = selectSupportedColorFormat(codec)
+
+        // 設定 H.264 / AVC 影片格式
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, encWidth, encHeight).apply {
+            setInteger(MediaFormat.KEY_COLOR_FORMAT, chosenColorFormat)
+            setInteger(MediaFormat.KEY_BIT_RATE, 2500000) // 2.5 Mbps 位元率
+            setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1) // 關鍵幀間隔 1 秒
+        }
+
+        codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        codec.start()
+
+        // 建立 MediaMuxer 負責將編碼後的資料寫入 MP4 容器
+        val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        var trackIndex = -1
+        var isMuxerStarted = false
+
+        val bufferInfo = MediaCodec.BufferInfo()
+        val timeoutUs = 10000L
+
+        var encodedPostFrames = 0
+        var isEos = false
+        var frameIndex = 0L
+
+        Log.i(tag, "開始編碼歷史畫面，共取出 ${historicalFrames.size} 幀，動態解析度: ${encWidth}x${encHeight} (原圖: ${rawFrameW}x${rawFrameH})，ColorFormat: $chosenColorFormat")
+
         // 內部 Helper：將 MediaCodec 編碼完的資料抽出並交由 MediaMuxer 寫入檔案
         fun drainOutput() {
             while (true) {
@@ -239,11 +233,11 @@ class EventVideoRecorder(
                 } else if (outputBufferIndex >= 0) {
                     val encodedData = codec.getOutputBuffer(outputBufferIndex)
                         ?: throw RuntimeException("無法獲取編碼緩衝區資料")
-                    
+
                     if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                         bufferInfo.size = 0
                     }
-                    
+
                     if (bufferInfo.size != 0) {
                         if (!isMuxerStarted) {
                             throw RuntimeException("嘗試寫入資料但 MediaMuxer 尚未啟動")
@@ -252,16 +246,67 @@ class EventVideoRecorder(
                         encodedData.limit(bufferInfo.offset + bufferInfo.size)
                         muxer.writeSampleData(trackIndex, encodedData, bufferInfo)
                     }
-                    
+
                     codec.releaseOutputBuffer(outputBufferIndex, false)
-                    
+
                     if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                         break
                     }
                 }
             }
         }
-        
+
+        // 內部 Helper：將 FrameData 轉碼放入 MediaCodec (維持比例，防止畫面變形)
+        fun encodeFrame(frame: FrameData, isEndOfStream: Boolean) {
+            val options = android.graphics.BitmapFactory.Options().apply {
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+            }
+            var bmp = android.graphics.BitmapFactory.decodeByteArray(frame.jpegBytes, 0, frame.jpegBytes.size, options) ?: return
+            if (bmp.width != encWidth || bmp.height != encHeight) {
+                val targetBmp = android.graphics.Bitmap.createBitmap(encWidth, encHeight, android.graphics.Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(targetBmp)
+                val scale = Math.min(encWidth.toFloat() / bmp.width, encHeight.toFloat() / bmp.height)
+                val dx = (encWidth - bmp.width * scale) / 2f
+                val dy = (encHeight - bmp.height * scale) / 2f
+                val matrix = android.graphics.Matrix().apply {
+                    postScale(scale, scale)
+                    postTranslate(dx, dy)
+                }
+                canvas.drawBitmap(bmp, matrix, null)
+                bmp.recycle()
+                bmp = targetBmp
+            }
+            val yuvBytes = if (chosenColorFormat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar) {
+                getI420FromBitmap(bmp, encWidth, encHeight)
+            } else {
+                getNV12FromBitmap(bmp, encWidth, encHeight)
+            }
+            bmp.recycle()
+
+            var inputBufferIndex = -1
+            var retries = 0
+            while (inputBufferIndex < 0 && retries < 10) {
+                inputBufferIndex = codec.dequeueInputBuffer(timeoutUs)
+                if (inputBufferIndex < 0) {
+                    drainOutput()
+                    retries++
+                }
+            }
+
+            if (inputBufferIndex >= 0) {
+                val inputBuffer = codec.getInputBuffer(inputBufferIndex)
+                if (inputBuffer != null) {
+                    inputBuffer.clear()
+                    val bytesToPut = Math.min(yuvBytes.size, inputBuffer.remaining())
+                    inputBuffer.put(yuvBytes, 0, bytesToPut)
+                    val ptsUs = frameIndex * 1_000_000L / fps
+                    frameIndex++
+                    val flags = if (isEndOfStream) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
+                    codec.queueInputBuffer(inputBufferIndex, 0, bytesToPut, ptsUs, flags)
+                }
+            }
+        }
+
         try {
             // 首先，編碼所有歷史緩衝區的畫面
             for (frame in historicalFrames) {
@@ -269,24 +314,23 @@ class EventVideoRecorder(
                 encodeFrame(frame, false)
                 drainOutput()
             }
-            
+
             Log.i(tag, "歷史畫面編碼完成。開始擷取即時畫面")
-            
+
             // 2. 持續從 Channel 獲取新的即時畫面並進行編碼
             while (kotlin.coroutines.coroutineContext.isActive && !isEos) {
-                // 使用帶超時的接收方式，避免因相機異常或無新幀而卡死在無限等待
                 val frameData = withTimeoutOrNull(2000L) {
                     realTimeFrames.receive()
                 }
-                
+
                 if (frameData != null) {
                     encodedPostFrames++
                     val currentTargetPostFrames = dynamicTargetPostFrames.get()
                     val isLastFrame = encodedPostFrames >= currentTargetPostFrames
-                    
+
                     encodeFrame(frameData, isLastFrame)
                     drainOutput()
-                    
+
                     if (isLastFrame) {
                         isEos = true
                         Log.i(tag, "已達成目標即時幀數 ($currentTargetPostFrames)，正常結束錄製。")
@@ -295,7 +339,6 @@ class EventVideoRecorder(
                     Log.w(tag, "超過 2 秒未收到新畫面，將強制結束錄製流程。")
                     val inputBufferIndex = codec.dequeueInputBuffer(timeoutUs)
                     if (inputBufferIndex >= 0) {
-                        // 傳送空的緩衝區並帶上 End Of Stream 旗標
                         codec.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
                     }
                     drainOutput()
@@ -306,64 +349,126 @@ class EventVideoRecorder(
             // 3. 安全停止並釋放 MediaCodec 與 MediaMuxer
             try {
                 codec.stop()
+            } catch (e: Exception) {
+                Log.e(tag, "codec.stop 失敗", e)
+            }
+            try {
                 codec.release()
             } catch (e: Exception) {
-                Log.e(tag, "釋放 MediaCodec 時發生錯誤", e)
+                Log.e(tag, "codec.release 失敗", e)
             }
-            
+
             try {
                 if (isMuxerStarted) {
-                    muxer.stop()
-                    muxer.release()
+                    try {
+                        muxer.stop()
+                    } catch (e: Exception) {
+                        Log.e(tag, "muxer.stop 失敗", e)
+                    }
                 }
             } catch (e: Exception) {
-                Log.e(tag, "釋放 MediaMuxer 時發生錯誤", e)
+                Log.e(tag, "MediaMuxer 異常", e)
+            } finally {
+                try {
+                    muxer.release()
+                } catch (e: Exception) {
+                    Log.e(tag, "muxer.release 失敗", e)
+                }
             }
-            
-            // 4. 清空 Channel 中未處理完的即時畫面並釋放 Bitmap，防止洩漏
+
+            // 4. 清空 Channel 中未處理完的即時畫面並釋放，防止洩漏
             while (true) {
-                val frame = realTimeFrames.tryReceive().getOrNull() ?: break
-                
+                realTimeFrames.tryReceive().getOrNull() ?: break
             }
         }
     }
-    
+
+    private fun selectSupportedColorFormat(codec: MediaCodec): Int {
+        return try {
+            val caps = codec.codecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            if (caps.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar)) {
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar
+            } else if (caps.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar)) {
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar
+            } else {
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar
+            }
+        } catch (e: Exception) {
+            MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar
+        }
+    }
+
     /**
      * 將 Bitmap 轉換為 YUV420 Semi-Planar (NV12) 格式，供 MediaCodec 編碼。
-     * 軟體轉換需要消耗 CPU 資源，為避免阻塞 UI 執行緒，必須在背景 (Dispatchers.Default) 中執行。
      */
-    private fun getNV12FromBitmap(bitmap: Bitmap): ByteArray {
-        val width = bitmap.width
-        val height = bitmap.height
+    private fun getNV12FromBitmap(bitmap: Bitmap, width: Int, height: Int): ByteArray {
         val size = width * height
         val pixels = IntArray(size)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-        
+
         val yuv = ByteArray(size * 3 / 2)
         var yIndex = 0
         var uvIndex = size
-        
+
         for (j in 0 until height) {
+            val rowOffset = j * width
+            val isEvenRow = (j % 2 == 0)
             for (i in 0 until width) {
-                val argb = pixels[j * width + i]
-                val r = (argb and 0xFF0000) shr 16
-                val g = (argb and 0x00FF00) shr 8
-                val b = argb and 0x0000FF
-                
-                // RGB to YUV 轉換公式
-                var y = ((66 * r + 129 * g + 25 * b + 128) shr 8) + 16
-                var u = ((-38 * r - 74 * g + 112 * b + 128) shr 8) + 128
-                var v = ((112 * r - 94 * g - 18 * b + 128) shr 8) + 128
-                
-                y = y.coerceIn(0, 255)
-                u = u.coerceIn(0, 255)
-                v = v.coerceIn(0, 255)
-                
-                yuv[yIndex++] = y.toByte()
-                // NV12 格式：U 與 V 交錯儲存 (U 在前，V 在後)
-                if (j % 2 == 0 && i % 2 == 0) {
-                    yuv[uvIndex++] = u.toByte()
-                    yuv[uvIndex++] = v.toByte()
+                val argb = pixels[rowOffset + i]
+                val r = (argb shr 16) and 0xFF
+                val g = (argb shr 8) and 0xFF
+                val b = argb and 0xFF
+
+                val y = ((66 * r + 129 * g + 25 * b + 128) shr 8) + 16
+                yuv[yIndex++] = y.coerceIn(0, 255).toByte()
+
+                if (isEvenRow && (i % 2 == 0)) {
+                    val u = ((-38 * r - 74 * g + 112 * b + 128) shr 8) + 128
+                    val v = ((112 * r - 94 * g - 18 * b + 128) shr 8) + 128
+                    if (uvIndex + 1 < yuv.size) {
+                        yuv[uvIndex++] = u.coerceIn(0, 255).toByte()
+                        yuv[uvIndex++] = v.coerceIn(0, 255).toByte()
+                    }
+                }
+            }
+        }
+        return yuv
+    }
+
+    /**
+     * 將 Bitmap 轉換為 YUV420 Planar (I420) 格式。
+     */
+    private fun getI420FromBitmap(bitmap: Bitmap, width: Int, height: Int): ByteArray {
+        val size = width * height
+        val pixels = IntArray(size)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        val yuv = ByteArray(size * 3 / 2)
+        var yIndex = 0
+        var uIndex = size
+        var vIndex = size + (size / 4)
+
+        for (j in 0 until height) {
+            val rowOffset = j * width
+            val isEvenRow = (j % 2 == 0)
+            for (i in 0 until width) {
+                val argb = pixels[rowOffset + i]
+                val r = (argb shr 16) and 0xFF
+                val g = (argb shr 8) and 0xFF
+                val b = argb and 0xFF
+
+                val y = ((66 * r + 129 * g + 25 * b + 128) shr 8) + 16
+                yuv[yIndex++] = y.coerceIn(0, 255).toByte()
+
+                if (isEvenRow && (i % 2 == 0)) {
+                    val u = ((-38 * r - 74 * g + 112 * b + 128) shr 8) + 128
+                    val v = ((112 * r - 94 * g - 18 * b + 128) shr 8) + 128
+                    if (uIndex < size + (size / 4)) {
+                        yuv[uIndex++] = u.coerceIn(0, 255).toByte()
+                    }
+                    if (vIndex < yuv.size) {
+                        yuv[vIndex++] = v.coerceIn(0, 255).toByte()
+                    }
                 }
             }
         }

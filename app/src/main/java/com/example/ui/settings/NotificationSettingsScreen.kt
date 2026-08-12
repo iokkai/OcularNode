@@ -1,6 +1,7 @@
 package com.example.ui.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,8 +31,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.NotificationCategory
 import com.example.data.SettingsDataStore
+import com.example.data.SettingsManager
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,6 +54,8 @@ fun NotificationSettingsScreen(
 ) {
     val context = LocalContext.current
     val dataStore = remember { SettingsDataStore(context) }
+    val settingsManager = remember { SettingsManager(context) }
+    var mlKitFilterEnabled by remember { mutableStateOf(settingsManager.mlKitFilterEnabled) }
     val scope = rememberCoroutineScope()
     
     Scaffold(
@@ -114,6 +120,30 @@ fun NotificationSettingsScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("推播類別開關", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Google ML Kit AI 物件過濾總開關", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
+                            Text("開啟後啟用本機 AI 分析物件類別與人臉", fontSize = 12.sp, color = Color(0xFF49454F))
+                        }
+                        Switch(
+                            checked = mlKitFilterEnabled,
+                            onCheckedChange = { checked ->
+                                mlKitFilterEnabled = checked
+                                settingsManager.mlKitFilterEnabled = checked
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4)
+                            )
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     Row(
