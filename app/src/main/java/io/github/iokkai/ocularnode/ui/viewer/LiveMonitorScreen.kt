@@ -9,8 +9,8 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.material.icons.filled.RotateLeft
-import androidx.compose.material.icons.filled.RotateRight
+import androidx.compose.material.icons.automirrored.filled.RotateLeft
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.FlipCameraAndroid
@@ -36,7 +36,7 @@ import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Nightlight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -69,7 +69,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.activity.compose.BackHandler
 import androidx.compose.material.icons.filled.ExpandMore
 
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -267,7 +267,7 @@ fun LiveMonitorScreen(
                 },
                 modifier = Modifier.size(34.dp)
             ) {
-                Icon(Icons.Default.RotateLeft, contentDescription = "逆時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Filled.RotateLeft, contentDescription = "逆時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
             }
             IconButton(
                 onClick = {
@@ -277,7 +277,7 @@ fun LiveMonitorScreen(
                 },
                 modifier = Modifier.size(34.dp)
             ) {
-                Icon(Icons.Default.RotateRight, contentDescription = "順時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "順時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
 
@@ -296,7 +296,7 @@ fun LiveMonitorScreen(
                     viewModel.disconnectCamera()
                     onBack()
                 }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1B1F))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1B1F))
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Column {
@@ -367,7 +367,7 @@ fun LiveMonitorScreen(
                                 .size(38.dp)
                                 .background(if (isListening) Color(0xFF2E7D32) else Color(0x44FFFFFF), CircleShape)
                         ) {
-                            Icon(Icons.Default.VolumeUp, contentDescription = "Listen", tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Listen", tint = Color.White, modifier = Modifier.size(20.dp))
                         }
 
                         // Push-to-Talk Walkie-Talkie Button

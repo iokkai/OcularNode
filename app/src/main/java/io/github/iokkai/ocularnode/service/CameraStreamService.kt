@@ -953,7 +953,7 @@ class CameraStreamService : Service(), LifecycleOwner {
                 eventVideoRecorder?.triggerRecording { savedFile ->
                     val success = savedFile != null
                     serviceScope.launch(Dispatchers.IO) {
-                        if (success && savedFile != null) {
+                        if (savedFile != null) {
                             Log.i("CameraStreamService", "Event video recording saved to ${savedFile.absolutePath} for event $eventId")
                             database.motionEventDao().updateVideoPath(eventId, savedFile.absolutePath)
                             sendVideoAlertIfNeeded(savedFile)

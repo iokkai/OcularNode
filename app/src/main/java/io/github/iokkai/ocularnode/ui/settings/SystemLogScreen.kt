@@ -63,7 +63,7 @@ fun SystemLogScreen(
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
                 )
-                Divider(color = Color(0xFF333333), thickness = 0.5.dp)
+                HorizontalDivider(color = Color.DarkGray, thickness = 1.dp)
             }
             if (logs.isEmpty()) {
                 item {

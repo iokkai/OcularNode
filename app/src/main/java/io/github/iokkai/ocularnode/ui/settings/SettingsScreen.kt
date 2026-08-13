@@ -23,7 +23,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Videocam
@@ -603,7 +603,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Telegram 警報機器人設定", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
@@ -1022,7 +1022,7 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Send, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Telegram 機器人設定與同步", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }

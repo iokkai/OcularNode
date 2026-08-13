@@ -29,7 +29,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -212,7 +212,7 @@ private fun Step1InputTokenContent(
                         .background(Color(0xFFE8DEF8), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null, tint = Color(0xFF6750A4))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {

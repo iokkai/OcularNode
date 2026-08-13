@@ -27,7 +27,7 @@ class AdminReceiver : DeviceAdminReceiver() {
         Log.i("AdminReceiver", "onProfileProvisioningComplete triggered")
 
         try {
-            val extras = intent.getParcelableExtra<PersistableBundle>(DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE)
+            val extras = androidx.core.content.IntentCompat.getParcelableExtra(intent, DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE, PersistableBundle::class.java)
             val authKey = extras?.getString("tailscale_auth_key") ?: ""
             val role = extras?.getString("device_role") ?: "CAMERA"
             val wifiSsid = extras?.getString("wifi_ssid") ?: ""

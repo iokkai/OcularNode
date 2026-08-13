@@ -106,6 +106,7 @@ class AudioEngine {
         }
     }
 
+    @Suppress("DEPRECATION")
     fun startPlaying(context: Context? = null) {
         if (isPlaying) return
         try {
@@ -173,6 +174,7 @@ class AudioEngine {
         }
     }
 
+    @Suppress("DEPRECATION")
     fun enableSpeakerphone(context: Context, enable: Boolean) {
         try {
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager

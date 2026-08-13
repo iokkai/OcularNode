@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package io.github.iokkai.ocularnode.ui.viewer
 
 import android.content.Context

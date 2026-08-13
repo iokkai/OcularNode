@@ -164,6 +164,7 @@ class EventVideoRecorder(
     /**
      * 執行影片編碼與 MediaMuxer 寫檔的核心邏輯。
      */
+    @Suppress("DEPRECATION")
     private suspend fun recordVideo(outputFile: File) {
         // 1. 將 Pre-roll Buffer 內的畫面完整取出並清空 Buffer
         val historicalFrames = mutableListOf<FrameData>()
@@ -381,7 +382,7 @@ class EventVideoRecorder(
             }
         }
     }
-
+    @Suppress("DEPRECATION")
     private fun selectSupportedColorFormat(codec: MediaCodec): Int {
         return try {
             val caps = codec.codecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
