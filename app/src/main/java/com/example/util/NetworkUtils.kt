@@ -74,14 +74,30 @@ object NetworkUtils {
             for (networkInterface in interfaces) {
                 if (!networkInterface.isUp || networkInterface.isLoopback) continue
                 val ifName = networkInterface.name.lowercase()
-                val addresses = networkInterface.inetAddresses
+                val isTunOrTailscaleInterface = ifName.contains("tailscale") || ifName.contains("tun") || ifName.contains("ts")
+
+                val addresses = networkInterface.inetAddresses.asSequence().toList()
+                var interfaceHasTailscaleIpv6 = false
+
+                // 檢查該介面是否有 Tailscale 專屬 IPv6 前綴 (fd7a:115c:a1e0:)
+                for (address in addresses) {
+                    val hostAddress = address.hostAddress ?: continue
+                    if (hostAddress.lowercase().startsWith(TailscaleDetector.TAILSCALE_IPV6_PREFIX)) {
+                        interfaceHasTailscaleIpv6 = true
+                        break
+                    }
+                }
+
                 for (address in addresses) {
                     if (address is Inet4Address && !address.isLoopbackAddress) {
                         val hostAddress = address.hostAddress ?: continue
                         allIps.add(hostAddress)
 
-                        // 判斷 Tailscale IP: 符合 100.64.0.0/10 網段 或 介面名稱含有 tailscale/tun/ts
-                        if (isTailscaleCgnatIp(hostAddress) || ifName.contains("tailscale") || (hostAddress.startsWith("100.") && (ifName.contains("tun") || ifName.contains("ts")))) {
+                        val isCgnat = isTailscaleCgnatIp(hostAddress)
+
+                        // 精確判定 Tailscale IP:
+                        // 必須符合 100.64.0.0/10 網段，且 (介面名稱包含 tailscale/tun/ts 或 擁有專屬 IPv6 前綴)
+                        if (isCgnat && (isTunOrTailscaleInterface || interfaceHasTailscaleIpv6)) {
                             tailscaleIp = hostAddress
                         } else if (localIp == null && (hostAddress.startsWith("192.168.") || hostAddress.startsWith("10.") || hostAddress.startsWith("172."))) {
                             localIp = hostAddress
@@ -93,7 +109,7 @@ object NetworkUtils {
             e.printStackTrace()
         }
 
-        val tsActive = if (context != null) TailscaleDetector.isTailscaleActive(context) else false
+        val tsActive = if (context != null) TailscaleDetector.isTailscaleActive(context) else !tailscaleIp.isNullOrBlank()
         val vpnActive = if (context != null) isVpnActive(context) else false
         val installed = if (context != null) isTailscaleInstalled(context) else false
 

@@ -158,9 +158,9 @@ class MjpegHttpServer(
             try {
                 serverSocket = ServerSocket().apply {
                     reuseAddress = true
-                    bind(java.net.InetSocketAddress(port))
+                    bind(java.net.InetSocketAddress(java.net.InetAddress.getByName("0.0.0.0"), port))
                 }
-                Log.i("MjpegHttpServer", "Server started on port $port")
+                Log.i("MjpegHttpServer", "Server bound to 0.0.0.0:$port (Tailscale / Local Network)")
 
                 while (isRunning && serverSocket?.isClosed == false) {
                     val socket = serverSocket?.accept() ?: break
@@ -421,13 +421,16 @@ class MjpegHttpServer(
 
                     audioEngine.startRecording(scope)
                     val collectorJob = scope.launch(Dispatchers.IO) {
-                        audioEngine.audioBufferFlow.collect { chunk ->
-                            try {
+                        try {
+                            audioEngine.audioBufferFlow.collect { chunk ->
                                 output.write(chunk)
                                 output.flush()
-                            } catch (e: Exception) {
-                                try { socket.close() } catch (_: Exception) {}
                             }
+                        } catch (e: Exception) {
+                            Log.w("MjpegHttpServer", "Audio stream client disconnected")
+                        } finally {
+                            audioEngine.stopRecording()
+                            try { socket.close() } catch (_: Exception) {}
                         }
                     }
                     return
@@ -457,6 +460,7 @@ class MjpegHttpServer(
                     } catch (e: Exception) {
                         Log.w("MjpegHttpServer", "Speak connection ended", e)
                     } finally {
+                        audioEngine.stopPlaying()
                         try { socket.close() } catch (_: Exception) {}
                     }
                     return

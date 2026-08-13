@@ -532,6 +532,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                 Log.e("CameraStreamClient", "Error speaking audio", e)
             } finally {
                 try { socket?.close() } catch (_: Exception) {}
+                audioEngine.stopRecording()
                 _isSpeakingAudio.value = false
             }
         }

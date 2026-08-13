@@ -110,11 +110,34 @@ fun MainAppScreen(
 ) {
     val roleMode by settingsViewModel.roleMode.collectAsState()
     val isBlackScreenActive by cameraServerViewModel.isBlackScreenActive.collectAsState()
-    var currentTab by remember { mutableStateOf(if (roleMode == "VIEWER") AppTab.VIEWER else AppTab.CAMERA) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dpm = remember(context) { context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager }
+    val isDeviceOwner = remember(context, dpm) { dpm?.isDeviceOwnerApp(context.packageName) == true }
+
+    var currentTab by remember {
+        mutableStateOf(
+            if (isDeviceOwner || roleMode == "CAMERA") AppTab.CAMERA else AppTab.VIEWER
+        )
+    }
     var viewingMonitorDevice by remember { mutableStateOf<CameraDevice?>(null) }
     val unreadCount by eventLogsViewModel.unreadCount.collectAsState()
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    // Force CAMERA role & sync if Device Owner
+    LaunchedEffect(isDeviceOwner) {
+        if (isDeviceOwner) {
+            if (roleMode != "CAMERA") {
+                settingsViewModel.updateRoleMode("CAMERA")
+            }
+            if (currentTab == AppTab.VIEWER) {
+                currentTab = AppTab.CAMERA
+            }
+            val activity = context as? MainActivity
+            val settingsManager = com.example.data.SettingsManager(context)
+            if (settingsManager.isKioskModeActive && activity != null) {
+                com.example.util.ZeroTouchProvisionManager.enableKioskMode(activity)
+            }
+        }
+    }
 
     // Listen for notification click with OPEN_TELEGRAM_SETUP intent
     val activity = context as? MainActivity
@@ -125,7 +148,11 @@ fun MainAppScreen(
         }
     }
     LaunchedEffect(roleMode) {
-        if (roleMode == "CAMERA" && currentTab == AppTab.VIEWER) {
+        if (isDeviceOwner) {
+            if (currentTab == AppTab.VIEWER) {
+                currentTab = AppTab.CAMERA
+            }
+        } else if (roleMode == "CAMERA" && currentTab == AppTab.VIEWER) {
             currentTab = AppTab.CAMERA
         } else if (roleMode == "VIEWER") {
             if (currentTab == AppTab.CAMERA) {
@@ -142,14 +169,15 @@ fun MainAppScreen(
         }
     }
 
-    val availableTabs = when (roleMode) {
-        "VIEWER" -> listOf(AppTab.VIEWER, AppTab.ALERTS, AppTab.SETTINGS)
-        "CAMERA" -> listOf(AppTab.CAMERA, AppTab.ALERTS, AppTab.SETTINGS)
-        else -> listOf(AppTab.CAMERA, AppTab.VIEWER, AppTab.ALERTS, AppTab.SETTINGS)
+    val availableTabs = when {
+        isDeviceOwner -> listOf(AppTab.CAMERA, AppTab.ALERTS, AppTab.SETTINGS)
+        roleMode == "VIEWER" -> listOf(AppTab.VIEWER, AppTab.ALERTS, AppTab.SETTINGS)
+        roleMode == "CAMERA" -> listOf(AppTab.CAMERA, AppTab.ALERTS, AppTab.SETTINGS)
+        else -> listOf(AppTab.VIEWER, AppTab.CAMERA, AppTab.ALERTS, AppTab.SETTINGS)
     }
 
-    // Onboarding role selection dialog on first run
-    if (roleMode == "UNSET") {
+    // Onboarding role selection dialog on first run (only for non-Device Owner)
+    if (roleMode == "UNSET" && !isDeviceOwner) {
         InitialRoleSelectionDialog(
             onSelectRole = { selectedRole ->
                 settingsViewModel.updateRoleMode(selectedRole)

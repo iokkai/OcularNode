@@ -143,6 +143,14 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_LOW_BATTERY_THRESHOLD, 60)
         set(value) = prefs.edit().putInt(KEY_LOW_BATTERY_THRESHOLD, value).apply()
 
+    var tailscaleAuthKey: String
+        get() = prefs.getString(KEY_TAILSCALE_AUTH_KEY, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_TAILSCALE_AUTH_KEY, value).apply()
+
+    var isKioskModeActive: Boolean
+        get() = prefs.getBoolean(KEY_KIOSK_MODE_ACTIVE, false)
+        set(value) = prefs.edit().putBoolean(KEY_KIOSK_MODE_ACTIVE, value).apply()
+
     companion object {
         private const val KEY_DEVICE_ROLE_MODE = "device_role_mode"
         private const val KEY_PORT = "server_port"
@@ -177,5 +185,7 @@ class SettingsManager(context: Context) {
         private const val KEY_LOW_BATTERY_THRESHOLD = "low_battery_threshold"
         private const val KEY_SYSTEM_LOG_ENABLED = "system_log_enabled"
         private const val KEY_DYNAMIC_FPS_ENABLED = "dynamic_fps_enabled"
+        private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
+        private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
     }
 }

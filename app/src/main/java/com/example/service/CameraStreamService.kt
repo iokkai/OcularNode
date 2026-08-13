@@ -132,7 +132,11 @@ class CameraStreamService : Service(), LifecycleOwner {
             } else if (key == "dynamic_fps_enabled") {
                 cameraHelper.dynamicFpsAdjustmentEnabled = settingsManager.dynamicFpsAdjustmentEnabled
             } else if (key == "default_quality") {
-                cameraHelper.defaultJpegQuality = settingsManager.defaultQuality
+                val newQuality = settingsManager.defaultQuality
+                cameraHelper.defaultJpegQuality = newQuality
+                cameraHelper.jpegQuality = newQuality
+            } else if (key == "default_resolution") {
+                cameraHelper.setResolution(settingsManager.defaultResolution, this@CameraStreamService)
             } else if (key == "night_vision_hysteresis") {
                 cameraHelper.autoNightVisionHysteresis = settingsManager.autoNightVisionHysteresis
             }

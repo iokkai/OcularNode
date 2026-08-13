@@ -121,6 +121,7 @@ dependencies {
   implementation(libs.mlkit.detection)
   implementation(libs.mlkit.labeling)
   implementation("com.google.zxing:core:3.5.3")
+  implementation("androidx.security:security-crypto:1.1.0-alpha06")
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)

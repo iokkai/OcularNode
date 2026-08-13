@@ -1163,6 +1163,91 @@ fun SettingsScreen(
             }
 
         }
+
+        // ==================== 🔐 專用設備 Kiosk 死鎖與維護逃生門 (Escape Hatch) ====================
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val activity = context as? android.app.Activity
+        var escapeHatchClicks by remember { mutableStateOf(0) }
+        val dpm = remember(context) { context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager }
+        val isDeviceOwner = remember(context, dpm) { dpm?.isDeviceOwnerApp(context.packageName) == true }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, if (isDeviceOwner) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.PowerSettingsNew,
+                        contentDescription = null,
+                        tint = if (isDeviceOwner) Color(0xFF6750A4) else Color(0xFF49454F)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("專用設備 Kiosk 與維護逃生門", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = if (isDeviceOwner) "已取得 Device Owner 特權，已具備零接觸 Kiosk 死鎖能力" else "當前為一般 App 模式 (非 Device Owner)",
+                    fontSize = 12.sp,
+                    color = if (isDeviceOwner) Color(0xFF2E7D32) else Color(0xFF49454F),
+                    fontWeight = FontWeight.Medium
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            activity?.let {
+                                com.example.util.ZeroTouchProvisionManager.enableKioskMode(it)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("🔒 啟動 Kiosk 死鎖", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            escapeHatchClicks++
+                            if (escapeHatchClicks >= 5) {
+                                escapeHatchClicks = 0
+                                activity?.let {
+                                    com.example.util.ZeroTouchProvisionManager.disableKioskMode(it)
+                                }
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "再點擊 ${5 - escapeHatchClicks} 次以解除 Kiosk 死鎖",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        border = BorderStroke(1.5.dp, Color(0xFFB3261E)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB3261E)),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (escapeHatchClicks > 0) "逃生門 (${escapeHatchClicks}/5)" else "🚨 解除死鎖 (連擊5次)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

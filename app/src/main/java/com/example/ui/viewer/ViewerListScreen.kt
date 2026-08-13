@@ -2,6 +2,11 @@ package com.example.ui.viewer
 
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,6 +47,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -104,6 +111,13 @@ fun ViewerListScreen(
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showQrScannerDialog by remember { mutableStateOf(false) }
+    var showDedicatedDeviceWizard by remember { mutableStateOf(false) }
+    var isSpeedDialExpanded by remember { mutableStateOf(false) }
+
+    val fabRotationAngle by animateFloatAsState(
+        targetValue = if (isSpeedDialExpanded) 45f else 0f,
+        label = "fab_rotation"
+    )
 
     var prefilledInfo by remember { mutableStateOf<ScannedCameraInfo?>(null) }
     var editingCamera by remember { mutableStateOf<CameraDevice?>(null) }
@@ -115,6 +129,13 @@ fun ViewerListScreen(
 
     LaunchedEffect(Unit) {
         viewModel.refreshNetworkInfo()
+    }
+
+    if (showDedicatedDeviceWizard) {
+        DedicatedDeviceWizardScreen(
+            onBack = { showDedicatedDeviceWizard = false }
+        )
+        return
     }
 
     if (remoteSettingsCamera != null) {
@@ -147,27 +168,121 @@ fun ViewerListScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    prefilledInfo = null
-                    showAddDialog = true
-                },
-                containerColor = Color(0xFF6750A4),
-                contentColor = Color.White,
-                shape = RoundedCornerShape(16.dp)
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "新增鏡頭")
+                AnimatedVisibility(
+                    visible = isSpeedDialExpanded,
+                    enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut()
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // 子選項 1：🛠️ 製作專用設備
+                        Surface(
+                            onClick = {
+                                isSpeedDialExpanded = false
+                                showDedicatedDeviceWizard = true
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF6750A4),
+                            contentColor = Color.White,
+                            shadowElevation = 6.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("🛠️", fontSize = 16.sp)
+                                Text(
+                                    text = "製作專用設備",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // 子選項 2：📷 掃描 QR code
+                        Surface(
+                            onClick = {
+                                isSpeedDialExpanded = false
+                                showQrScannerDialog = true
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF6750A4),
+                            contentColor = Color.White,
+                            shadowElevation = 6.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("📷", fontSize = 16.sp)
+                                Text(
+                                    text = "掃描 QR code",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // 子選項 3：⌨️ 手動輸入 IP
+                        Surface(
+                            onClick = {
+                                isSpeedDialExpanded = false
+                                prefilledInfo = null
+                                showAddDialog = true
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF6750A4),
+                            contentColor = Color.White,
+                            shadowElevation = 6.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("⌨️", fontSize = 16.sp)
+                                Text(
+                                    text = "手動輸入 IP",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = { isSpeedDialExpanded = !isSpeedDialExpanded },
+                    containerColor = Color(0xFF6750A4),
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = if (isSpeedDialExpanded) "關閉選單" else "新增鏡頭選單",
+                        modifier = Modifier.rotate(fabRotationAngle)
+                    )
+                }
             }
         },
         containerColor = Color(0xFFFDF8FF),
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp)
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -404,7 +519,17 @@ fun ViewerListScreen(
                 }
             )
         }
+
+        if (isSpeedDialExpanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.32f))
+                    .clickable { isSpeedDialExpanded = false }
+            )
+        }
     }
+}
 }
 
 @Composable

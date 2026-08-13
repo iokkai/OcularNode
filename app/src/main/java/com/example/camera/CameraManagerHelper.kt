@@ -178,6 +178,9 @@ class CameraManagerHelper(private val context: Context) {
         val resolutionSelector = if (currentResolutionString.equals("Max", ignoreCase = true) || targetSize == null) {
             ResolutionSelector.Builder()
                 .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
+                .setAspectRatioStrategy(
+                    androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+                )
                 .build()
         } else {
             ResolutionSelector.Builder()
@@ -186,6 +189,9 @@ class CameraManagerHelper(private val context: Context) {
                         targetSize,
                         ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                     )
+                )
+                .setAspectRatioStrategy(
+                    androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
                 )
                 .build()
         }
