@@ -61,6 +61,7 @@ jobs:
           echo "計算出的 versionCode = $VERSION_CODE"
           
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "version_name=$CLEAN_VERSION" >> $GITHUB_OUTPUT
           echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
 
       - name: 🔑 準備 Keystore 檔案
@@ -73,7 +74,7 @@ jobs:
           KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease -PversionCode=${{ steps.parse_version.outputs.version_code }}
+        run: ./gradlew assembleRelease -PversionCode=${{ steps.parse_version.outputs.version_code }} -PversionName=${{ steps.parse_version.outputs.version_name }}
 
       - name: 📦 上傳 APK 到 Action Artifacts (備份)
         uses: actions/upload-artifact@v4

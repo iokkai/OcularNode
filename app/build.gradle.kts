@@ -17,10 +17,12 @@ android {
     val runNumber = project.findProperty("versionCode") as? String
     val code = runNumber?.toIntOrNull() ?: 1
     versionCode = code
-    versionName = "1.$code"
+    
+    val runName = project.findProperty("versionName") as? String
+    versionName = if (!runName.isNullOrBlank()) runName else "1.$code"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    setProperty("archivesBaseName", "OcularNode")
+    setProperty("archivesBaseName", "OcularNode-v${versionName}")
 
     // Default configuration for OTA updates and Tailscale download (can be overridden by .env)
     buildConfigField("String", "GITHUB_OWNER", "\"iokkai\"")
