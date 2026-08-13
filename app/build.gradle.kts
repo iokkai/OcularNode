@@ -6,6 +6,15 @@ plugins {
   alias(libs.plugins.secrets)
 }
 
+val runNumber = project.findProperty("versionCode") as? String
+val computedVersionCode = runNumber?.toIntOrNull() ?: 1
+val runName = project.findProperty("versionName") as? String
+val computedVersionName = if (!runName.isNullOrBlank()) runName else "1.$computedVersionCode"
+
+base {
+  archivesName.set("OcularNode-v$computedVersionName")
+}
+
 android {
   namespace = "io.github.iokkai.ocularnode"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
@@ -14,15 +23,10 @@ android {
     applicationId = "io.github.iokkai.ocularnode"
     minSdk = 28
     targetSdk = 36
-    val runNumber = project.findProperty("versionCode") as? String
-    val code = runNumber?.toIntOrNull() ?: 1
-    versionCode = code
-    
-    val runName = project.findProperty("versionName") as? String
-    versionName = if (!runName.isNullOrBlank()) runName else "1.$code"
+    versionCode = computedVersionCode
+    versionName = computedVersionName
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    setProperty("archivesBaseName", "OcularNode-v${versionName}")
 
     // Default configuration for OTA updates and Tailscale download (can be overridden by .env)
     buildConfigField("String", "GITHUB_OWNER", "\"iokkai\"")
