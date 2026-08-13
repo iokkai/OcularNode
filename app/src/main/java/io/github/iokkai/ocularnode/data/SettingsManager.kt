@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 
 class SettingsManager(context: Context) {
-    val isEventVideoRecordingEnabled: Boolean
+
     private val prefs: SharedPreferences = context.getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE)
 
     var deviceRoleMode: String // "UNSET", "CAMERA", "VIEWER"

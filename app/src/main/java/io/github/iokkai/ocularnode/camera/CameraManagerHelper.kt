@@ -148,6 +148,7 @@ class CameraManagerHelper(private val context: Context) {
         bindCameraUseCases()
     }
 
+    @Suppress("OPT_IN_USAGE")
     fun bindCameraUseCases(
         lifecycleOwner: LifecycleOwner? = currentLifecycleOwner,
         previewSurface: Preview.SurfaceProvider? = currentPreviewSurface
@@ -188,7 +189,7 @@ class CameraManagerHelper(private val context: Context) {
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
             .setResolutionSelector(resolutionSelector)
 
-        @OptIn(ExperimentalCamera2Interop::class)
+
         val camera2Extender = Camera2Interop.Extender(imageAnalysisBuilder)
         camera2Extender.setCaptureRequestOption(
             CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
@@ -398,10 +399,10 @@ class CameraManagerHelper(private val context: Context) {
             }
 
             // 2. Optimized conversion: use CameraX toBitmap() directly
-            var rawJpegBytes: ByteArray
+            var rawJpegBytes = ByteArray(0)
             var bitmap = imageProxy.toBitmap()
 
-            if (bitmap != null) {
+            run {
                 
                 // toBitmap() already handles rotation in CameraX!
                 val baseWidth = bitmap.width
@@ -515,8 +516,6 @@ class CameraManagerHelper(private val context: Context) {
                 // Pass to video recorder
                 onFrameReadyForRecording?.invoke(rawJpegBytes, imageProxy.imageInfo.timestamp / 1000)
                 
-            } else {
-                rawJpegBytes = ByteArray(0)
             }
 
             onFrameEncoded?.invoke(rawJpegBytes)
