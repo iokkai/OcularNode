@@ -551,7 +551,17 @@ class CameraStreamService : Service(), LifecycleOwner {
                         Log.e("CameraStreamService", "Error parsing telegram_config JSON", e)
                     }
                 }
-                "notification_schedule" -> {
+                "motion_schedule", "motion_schedule_enabled" -> {
+                    val enable = value.lowercase() == "true" || value == "on"
+                    settingsManager.motionScheduleEnabled = enable
+                }
+                "motion_schedule_start" -> {
+                    if (value.isNotBlank()) settingsManager.motionScheduleStartTime = value
+                }
+                "motion_schedule_end" -> {
+                    if (value.isNotBlank()) settingsManager.motionScheduleEndTime = value
+                }
+                "notification_schedule", "notification_schedule_enabled" -> {
                     val enable = value.lowercase() == "true" || value == "on"
                     settingsManager.notificationScheduleEnabled = enable
                 }
@@ -705,6 +715,17 @@ class CameraStreamService : Service(), LifecycleOwner {
                             settingsManager.motionDetectionEnabled = enabled
                             cameraHelper.isMotionDetectionEnabled = enabled
                         }
+                        if (mdObj.has("scheduleEnabled") || mdObj.has("motionScheduleEnabled")) {
+                            settingsManager.motionScheduleEnabled = mdObj.optBoolean("scheduleEnabled", mdObj.optBoolean("motionScheduleEnabled", false))
+                        }
+                        if (mdObj.has("scheduleStart") || mdObj.has("motionScheduleStart")) {
+                            val start = mdObj.optString("scheduleStart", mdObj.optString("motionScheduleStart", "22:00"))
+                            if (start.isNotBlank()) settingsManager.motionScheduleStartTime = start
+                        }
+                        if (mdObj.has("scheduleEnd") || mdObj.has("motionScheduleEnd")) {
+                            val end = mdObj.optString("scheduleEnd", mdObj.optString("motionScheduleEnd", "06:00"))
+                            if (end.isNotBlank()) settingsManager.motionScheduleEndTime = end
+                        }
                         if (mdObj.has("sensitivity")) {
                             val sens = mdObj.optDouble("sensitivity", 5.0).toFloat()
                             settingsManager.motionSensitivity = sens
@@ -770,6 +791,17 @@ class CameraStreamService : Service(), LifecycleOwner {
                         }
                         if (notifObj.has("systemLogEnabled")) {
                             settingsManager.systemLogEnabled = notifObj.optBoolean("systemLogEnabled", true)
+                        }
+                        if (notifObj.has("scheduleEnabled") || notifObj.has("notificationScheduleEnabled")) {
+                            settingsManager.notificationScheduleEnabled = notifObj.optBoolean("scheduleEnabled", notifObj.optBoolean("notificationScheduleEnabled", false))
+                        }
+                        if (notifObj.has("scheduleStart") || notifObj.has("notificationScheduleStart")) {
+                            val start = notifObj.optString("scheduleStart", notifObj.optString("notificationScheduleStart", "22:00"))
+                            if (start.isNotBlank()) settingsManager.notificationScheduleStartTime = start
+                        }
+                        if (notifObj.has("scheduleEnd") || notifObj.has("notificationScheduleEnd")) {
+                            val end = notifObj.optString("scheduleEnd", notifObj.optString("notificationScheduleEnd", "06:00"))
+                            if (end.isNotBlank()) settingsManager.notificationScheduleEndTime = end
                         }
                         if (notifObj.has("telegram")) {
                             val tgObj = notifObj.optJSONObject("telegram")

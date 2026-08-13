@@ -463,7 +463,7 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/events/delete") -> {
-                    val id = path.substringAfter("id=").substringBefore("&").toLongOrNull()
+                    val id = rawPath.substringAfter("id=", "").substringBefore("&").toLongOrNull()
                     scope.launch(Dispatchers.IO) {
                         if (id != null) {
                             val eventDao = AppDatabase.getDatabase(context).motionEventDao()
@@ -519,6 +519,14 @@ class MjpegHttpServer(
                             val jsonArray = JSONArray()
                             val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
                             for (ev in events) {
+                                val hasVid = !ev.videoPath.isNullOrEmpty() && (
+                                    java.io.File(ev.videoPath).exists() ||
+                                    ev.videoPath.startsWith("content://") ||
+                                    listOfNotNull(
+                                        context.getExternalFilesDir(null)?.let { java.io.File(it, "media") },
+                                        context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.let { java.io.File(it, "OcularNode") }
+                                    ).any { java.io.File(it, java.io.File(ev.videoPath).name).exists() }
+                                )
                                 val item = JSONObject().apply {
                                     put("id", ev.id)
                                     put("timestamp", ev.timestamp)
@@ -526,7 +534,7 @@ class MjpegHttpServer(
                                     put("motionPercentage", String.format(Locale.US, "%.1f", ev.motionPercentage))
                                     put("downloadUrl", "/download?id=${ev.id}")
                                     put("videoUrl", "/video?id=${ev.id}")
-                                    put("hasVideo", !ev.videoPath.isNullOrEmpty() && java.io.File(ev.videoPath).exists())
+                                    put("hasVideo", hasVid)
                                     put("thumbnailBase64", ev.thumbnailBase64 ?: "")
                                     put("aiSummary", ev.aiSummary)
                                     put("aiFiltered", ev.aiFiltered)
@@ -545,28 +553,68 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/video") -> {
-                    val id = path.substringAfter("id=").substringBefore("&").toLongOrNull()
+                    val id = rawPath.substringAfter("id=", "").substringBefore("&").toLongOrNull()
                     scope.launch(Dispatchers.IO) {
                         try {
                             if (id != null) {
                                 val event = AppDatabase.getDatabase(context).motionEventDao().getEventById(id)
-                                val videoFile = event?.videoPath?.let { java.io.File(it) }
-                                if (videoFile != null && videoFile.exists()) {
-                                    val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-                                    val fileName = "PetMonitor_Video_${event.id}_${sdf.format(Date(event.timestamp))}.mp4"
-                                    val header = "HTTP/1.1 200 OK\r\n" +
-                                            "Access-Control-Allow-Origin: *\r\n" +
-                                            "Content-Type: video/mp4\r\n" +
-                                            "Content-Disposition: inline; filename=\"$fileName\"\r\n" +
-                                            "Content-Length: ${videoFile.length()}\r\n" +
-                                            "Connection: close\r\n\r\n"
-                                    output.write(header.toByteArray())
-                                    videoFile.inputStream().use { input ->
-                                        input.copyTo(output)
+                                if (event != null) {
+                                    var inputStream: java.io.InputStream? = null
+                                    var contentLength = 0L
+
+                                    val vPath = event.videoPath
+                                    if (!vPath.isNullOrEmpty()) {
+                                        val file = java.io.File(vPath)
+                                        if (file.exists() && file.canRead()) {
+                                            inputStream = java.io.FileInputStream(file)
+                                            contentLength = file.length()
+                                        } else if (vPath.startsWith("content://")) {
+                                            try {
+                                                val uri = android.net.Uri.parse(vPath)
+                                                inputStream = context.contentResolver.openInputStream(uri)
+                                                contentLength = context.contentResolver.openFileDescriptor(uri, "r")?.statSize ?: 0L
+                                            } catch (e: Exception) {
+                                                Log.w("MjpegHttpServer", "Failed to open content URI: $vPath", e)
+                                            }
+                                        } else {
+                                            val fileName = file.name
+                                            val altDirs = listOfNotNull(
+                                                context.getExternalFilesDir(null)?.let { java.io.File(it, "media") },
+                                                context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.let { java.io.File(it, "OcularNode") },
+                                                context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)
+                                            )
+                                            for (dir in altDirs) {
+                                                val altFile = java.io.File(dir, fileName)
+                                                if (altFile.exists() && altFile.canRead()) {
+                                                    inputStream = java.io.FileInputStream(altFile)
+                                                    contentLength = altFile.length()
+                                                    break
+                                                }
+                                            }
+                                        }
                                     }
-                                    output.flush()
-                                    try { socket.close() } catch (_: Exception) {}
-                                    return@launch
+
+                                    if (inputStream != null && contentLength > 0) {
+                                        val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                                        val fileName = "ocular_video_${event.id}_${sdf.format(Date(event.timestamp))}.mp4"
+                                        val header = "HTTP/1.1 200 OK\r\n" +
+                                                "Access-Control-Allow-Origin: *\r\n" +
+                                                "Content-Type: video/mp4\r\n" +
+                                                "Content-Disposition: inline; filename=\"$fileName\"\r\n" +
+                                                "Content-Length: $contentLength\r\n" +
+                                                "Connection: close\r\n\r\n"
+                                        output.write(header.toByteArray(Charsets.UTF_8))
+                                        inputStream.use { input ->
+                                            val buffer = ByteArray(32 * 1024)
+                                            var bytesRead: Int
+                                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                                output.write(buffer, 0, bytesRead)
+                                            }
+                                        }
+                                        output.flush()
+                                        try { socket.close() } catch (_: Exception) {}
+                                        return@launch
+                                    }
                                 }
                             }
                             sendJsonResponse(output, 404, "{\"error\":\"Video file not found\"}")
@@ -580,26 +628,67 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/download") -> {
-                    val id = path.substringAfter("id=").substringBefore("&").toLongOrNull()
+                    val id = rawPath.substringAfter("id=", "").substringBefore("&").toLongOrNull()
                     scope.launch(Dispatchers.IO) {
                         try {
                             if (id != null) {
                                 val event = AppDatabase.getDatabase(context).motionEventDao().getEventById(id)
-                                if (event != null && !event.thumbnailBase64.isNullOrEmpty()) {
-                                    val imageBytes = android.util.Base64.decode(event.thumbnailBase64, android.util.Base64.DEFAULT)
+                                if (event != null) {
                                     val sdf = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
-                                    val fileName = "PetMonitor_Event_${event.id}_${sdf.format(Date(event.timestamp))}.jpg"
-                                    val header = "HTTP/1.1 200 OK\r\n" +
-                                            "Access-Control-Allow-Origin: *\r\n" +
-                                            "Content-Type: image/jpeg\r\n" +
-                                            "Content-Disposition: attachment; filename=\"$fileName\"\r\n" +
-                                            "Content-Length: ${imageBytes.size}\r\n" +
-                                            "Connection: close\r\n\r\n"
-                                    output.write(header.toByteArray())
-                                    output.write(imageBytes)
-                                    output.flush()
-                                    try { socket.close() } catch (_: Exception) {}
-                                    return@launch
+                                    val fileName = "ocular_snapshot_${event.id}_${sdf.format(Date(event.timestamp))}.jpg"
+
+                                    var snapStream: java.io.InputStream? = null
+                                    var snapLen = 0L
+
+                                    val sPath = event.snapshotPath
+                                    if (!sPath.isNullOrEmpty()) {
+                                        val file = java.io.File(sPath)
+                                        if (file.exists() && file.canRead()) {
+                                            snapStream = java.io.FileInputStream(file)
+                                            snapLen = file.length()
+                                        } else if (sPath.startsWith("content://")) {
+                                            try {
+                                                val uri = android.net.Uri.parse(sPath)
+                                                snapStream = context.contentResolver.openInputStream(uri)
+                                                snapLen = context.contentResolver.openFileDescriptor(uri, "r")?.statSize ?: 0L
+                                            } catch (_: Exception) {}
+                                        }
+                                    }
+
+                                    if (snapStream != null && snapLen > 0) {
+                                        val header = "HTTP/1.1 200 OK\r\n" +
+                                                "Access-Control-Allow-Origin: *\r\n" +
+                                                "Content-Type: image/jpeg\r\n" +
+                                                "Content-Disposition: attachment; filename=\"$fileName\"\r\n" +
+                                                "Content-Length: $snapLen\r\n" +
+                                                "Connection: close\r\n\r\n"
+                                        output.write(header.toByteArray(Charsets.UTF_8))
+                                        snapStream.use { input ->
+                                            val buffer = ByteArray(32 * 1024)
+                                            var read: Int
+                                            while (input.read(buffer).also { read = it } != -1) {
+                                                output.write(buffer, 0, read)
+                                            }
+                                        }
+                                        output.flush()
+                                        try { socket.close() } catch (_: Exception) {}
+                                        return@launch
+                                    }
+
+                                    if (!event.thumbnailBase64.isNullOrEmpty()) {
+                                        val imageBytes = android.util.Base64.decode(event.thumbnailBase64, android.util.Base64.DEFAULT)
+                                        val header = "HTTP/1.1 200 OK\r\n" +
+                                                "Access-Control-Allow-Origin: *\r\n" +
+                                                "Content-Type: image/jpeg\r\n" +
+                                                "Content-Disposition: attachment; filename=\"$fileName\"\r\n" +
+                                                "Content-Length: ${imageBytes.size}\r\n" +
+                                                "Connection: close\r\n\r\n"
+                                        output.write(header.toByteArray(Charsets.UTF_8))
+                                        output.write(imageBytes)
+                                        output.flush()
+                                        try { socket.close() } catch (_: Exception) {}
+                                        return@launch
+                                    }
                                 }
                             }
                             sendJsonResponse(output, 404, "{\"error\":\"Snapshot not found\"}")
@@ -761,6 +850,12 @@ class MjpegHttpServer(
             put("autoStartOnBoot", settingsManager.autoStartOnBoot)
             put("powerCutAlertEnabled", settingsManager.powerCutAlertEnabled)
             put("systemLogEnabled", settingsManager.systemLogEnabled)
+            put("motionScheduleEnabled", settingsManager.motionScheduleEnabled)
+            put("motionScheduleStart", settingsManager.motionScheduleStartTime)
+            put("motionScheduleEnd", settingsManager.motionScheduleEndTime)
+            put("notificationScheduleEnabled", settingsManager.notificationScheduleEnabled)
+            put("notificationScheduleStart", settingsManager.notificationScheduleStartTime)
+            put("notificationScheduleEnd", settingsManager.notificationScheduleEndTime)
 
             val catJson = JSONObject()
             val catRecordJson = JSONObject()
@@ -810,6 +905,9 @@ class MjpegHttpServer(
                 put("enabled", isMotionEnabledGetter())
                 put("sensitivity", settingsManager.motionSensitivity)
                 put("cooldownSeconds", settingsManager.motionCooldownSeconds)
+                put("scheduleEnabled", settingsManager.motionScheduleEnabled)
+                put("scheduleStart", settingsManager.motionScheduleStartTime)
+                put("scheduleEnd", settingsManager.motionScheduleEndTime)
                 put("categories", catFilters)
             })
             put("recording", JSONObject().apply {
@@ -822,6 +920,9 @@ class MjpegHttpServer(
             put("notifications", JSONObject().apply {
                 put("powerCutAlertEnabled", settingsManager.powerCutAlertEnabled)
                 put("systemLogEnabled", settingsManager.systemLogEnabled)
+                put("scheduleEnabled", settingsManager.notificationScheduleEnabled)
+                put("scheduleStart", settingsManager.notificationScheduleStartTime)
+                put("scheduleEnd", settingsManager.notificationScheduleEndTime)
                 put("telegram", JSONObject().apply {
                     put("enabled", settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank())
                     put("botToken", settingsManager.telegramBotToken)
@@ -947,12 +1048,8 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="zoom-badge">1.0x</span>
             </div>
             <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap;">
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="reloadStream()">🔄 重載</button>
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="zoom(0.25)">🔍+</button>
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="zoom(-0.25)">🔍-</button>
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="resetZoom()">↺ 重置</button>
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotateStreamServer()">📐 旋轉 (伺服器)</button>
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotateLocal(90)">🔄 視角 (網頁)</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="reloadStream()">🔄 重新整理</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotateStreamServer()">↻</button>
             </div>
         </div>
 
@@ -960,9 +1057,9 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
         <div class="panel-card">
             <div class="panel-title">📊 狀態概觀</div>
             <div class="stat-grid">
-                <div class="stat-box"><div class="stat-label">工作模式</div><div class="stat-val" id="mode-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">觀看人數</div><div class="stat-val" id="clients-val">-- 人</div></div>
                 <div class="stat-box"><div class="stat-label">電池狀態</div><div class="stat-val" id="battery-val">--</div></div>
-                <div class="stat-box"><div class="stat-label">畫面角度</div><div class="stat-val" id="rotation-val">0°</div></div>
+                <div class="stat-box"><div class="stat-label">即時幀率</div><div class="stat-val" id="stat-fps-val">-- FPS</div></div>
                 <div class="stat-box"><div class="stat-label">夜視狀態</div><div class="stat-val" id="night-val">--</div></div>
             </div>
 
@@ -974,9 +1071,8 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
             <div class="panel-title" style="margin-top: 6px;">🎮 即時硬體控制</div>
             <div class="btn-grid">
-                <button class="btn" onclick="sendCommand('camera', 'switch')">🔄 前後鏡頭</button>
-                <button class="btn" onclick="rotateStreamServer()">📐 鏡頭旋轉 (+90°)</button>
-                <button class="btn" onclick="sendCommand('torch', 'toggle')">💡 補光燈</button>
+                <button class="btn" onclick="sendCommand('camera', 'switch')">🔄 翻轉鏡頭</button>
+                <button class="btn" onclick="sendCommand('torch', 'toggle')">💡 手電筒</button>
                 <button class="btn" onclick="takeSnapshot()">📸 快照截圖</button>
                 <button class="btn btn-danger" onclick="sendCommand('alarm', 'trigger')">🚨 蜂鳴警報</button>
             </div>
@@ -1049,7 +1145,21 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 </div>
             </div>
 
-            <div class="form-label">動態推播過濾 (觸發通知之類別)</div>
+            <div style="margin-top: 8px; border-top: 1px dashed #334155; padding-top: 8px;">
+                <label class="checkbox-item"><input type="checkbox" id="cfg-motion-sched-enable"> 啟用動態監控排程 (僅在排程時間內自動啟動防護)</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
+                    <div class="form-group">
+                        <label class="form-label">監控開始時間</label>
+                        <input type="time" id="cfg-motion-sched-start" class="form-control" value="22:00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">監控結束時間</label>
+                        <input type="time" id="cfg-motion-sched-end" class="form-control" value="06:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-label" style="margin-top: 10px;">動態推播過濾 (觸發通知之類別)</div>
             <div class="checkbox-group">
                 <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HUMAN_AND_ACTIVITY" checked> 人類與活動</label>
                 <label class="checkbox-item"><input type="checkbox" id="cfg-cat-PET_AND_ANIMAL" checked> 寵物與動物</label>
@@ -1089,6 +1199,20 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 <label class="checkbox-item"><input type="checkbox" id="cfg-power-cut" checked> 斷電推播警報</label>
                 <label class="checkbox-item"><input type="checkbox" id="cfg-sys-log" checked> 系統日誌紀錄</label>
             </div>
+
+            <div style="margin-top: 8px; border-top: 1px dashed #334155; padding-top: 8px;">
+                <label class="checkbox-item"><input type="checkbox" id="cfg-notif-sched-enable"> 啟用通知排程 (僅在排程時間內發送推播與響聲)</label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
+                    <div class="form-group">
+                        <label class="form-label">通知開始時間</label>
+                        <input type="time" id="cfg-notif-sched-start" class="form-control" value="22:00">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">通知結束時間</label>
+                        <input type="time" id="cfg-notif-sched-end" class="form-control" value="06:00">
+                    </div>
+                </div>
+            </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
                 <div class="form-group">
                     <label class="form-label">Telegram Bot Token</label>
@@ -1109,32 +1233,40 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
     </div>
 
     <!-- Canvas Native Chart Section -->
-    <div style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
-        <div class="panel-title">
-            <span>📈 節點資源與效能趨勢 (原生繪圖)</span>
-            <span style="font-size: 0.8rem; color: var(--accent-green);">● 系統運作中</span>
+<details style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
+        <summary class="panel-title" style="cursor: pointer; outline: none; list-style: none;">
+            <div style="display: inline-flex; align-items: center; gap: 8px;">
+                <span>📈 節點資源與效能趨勢</span>
+                <span style="font-size: 0.8rem; color: var(--accent-green);">● 系統運作中</span>
+            </div>
+            <span style="float: right; font-size: 0.8rem; color: var(--subtext);">▼ 點擊展開/折疊</span>
+        </summary>
+        
+        <div style="padding-top: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">
+                <div class="stat-box"><div class="stat-label">CPU 使用率</div><div class="stat-val" id="cpu-stat-val">--%</div></div>
+                <div class="stat-box"><div class="stat-label">記憶體占用</div><div class="stat-val" id="mem-stat-val">--%</div></div>
+                <div class="stat-box"><div class="stat-label">連線延遲 (Ping)</div><div class="stat-val" id="ping-stat-val">-- ms</div></div>
+            </div>
+            <canvas id="perf-canvas" width="800" height="160"></canvas>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">
-            <div class="stat-box"><div class="stat-label">CPU 使用率</div><div class="stat-val" id="cpu-stat-val">--%</div></div>
-            <div class="stat-box"><div class="stat-label">記憶體占用</div><div class="stat-val" id="mem-stat-val">--%</div></div>
-            <div class="stat-box"><div class="stat-label">連線延遲 (Ping)</div><div class="stat-val" id="ping-stat-val">-- ms</div></div>
-        </div>
-        <canvas id="perf-canvas" width="800" height="160"></canvas>
-    </div>
+    </details>
 
-    <!-- Motion Event Logs & Downloads Section -->
-    <div style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
-        <div class="panel-title">
+    <details style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
+        <summary class="panel-title" style="cursor: pointer; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
             <span>📁 動態警報事件與紀錄</span>
             <div style="display: flex; gap: 6px;">
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="fetchEvents()">🔄 重整</button>
-                <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="clearAllEvents()">🧹 清除全部</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); fetchEvents()">🔄 重整</button>
+                <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); clearAllEvents()">🧹 清除全部</button>
+            </div>
+        </summary>
+        
+        <div style="padding-top: 16px;">
+            <div id="events-container" style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px;">
+                <div style="color: var(--subtext); text-align: center; padding: 16px;">載入事件紀錄中...</div>
             </div>
         </div>
-        <div id="events-container" style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px;">
-            <div style="color: var(--subtext); text-align: center; padding: 16px;">載入事件紀錄中...</div>
-        </div>
-    </div>
+    </details>
 
     <script>
         let isTorchOn = false;
@@ -1163,6 +1295,10 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 if (data.motionDetection) {
                     if (data.motionDetection.sensitivity) document.getElementById('cfg-motion-sens').value = data.motionDetection.sensitivity;
                     if (data.motionDetection.cooldownSeconds) document.getElementById('cfg-motion-cooldown').value = data.motionDetection.cooldownSeconds;
+                    const mSched = document.getElementById('cfg-motion-sched-enable');
+                    if (mSched) mSched.checked = data.motionDetection.scheduleEnabled === true;
+                    if (data.motionDetection.scheduleStart) document.getElementById('cfg-motion-sched-start').value = data.motionDetection.scheduleStart;
+                    if (data.motionDetection.scheduleEnd) document.getElementById('cfg-motion-sched-end').value = data.motionDetection.scheduleEnd;
                     if (data.motionDetection.categories) {
                         catNames.forEach(cat => {
                             const el = document.getElementById('cfg-cat-' + cat);
@@ -1183,6 +1319,10 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 if (data.notifications) {
                     document.getElementById('cfg-power-cut').checked = data.notifications.powerCutAlertEnabled !== false;
                     document.getElementById('cfg-sys-log').checked = data.notifications.systemLogEnabled !== false;
+                    const nSched = document.getElementById('cfg-notif-sched-enable');
+                    if (nSched) nSched.checked = data.notifications.scheduleEnabled === true;
+                    if (data.notifications.scheduleStart) document.getElementById('cfg-notif-sched-start').value = data.notifications.scheduleStart;
+                    if (data.notifications.scheduleEnd) document.getElementById('cfg-notif-sched-end').value = data.notifications.scheduleEnd;
                     if (data.notifications.telegram) {
                         document.getElementById('cfg-tg-token').value = data.notifications.telegram.botToken || '';
                         document.getElementById('cfg-tg-chat').value = data.notifications.telegram.chatId || '';
@@ -1221,6 +1361,9 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                     enabled: true,
                     sensitivity: parseFloat(document.getElementById('cfg-motion-sens').value) || 5.0,
                     cooldownSeconds: parseInt(document.getElementById('cfg-motion-cooldown').value) || 10,
+                    scheduleEnabled: document.getElementById('cfg-motion-sched-enable')?.checked || false,
+                    scheduleStart: document.getElementById('cfg-motion-sched-start')?.value || '22:00',
+                    scheduleEnd: document.getElementById('cfg-motion-sched-end')?.value || '06:00',
                     categories: catObj
                 },
                 recording: {
@@ -1231,6 +1374,9 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 notifications: {
                     powerCutAlertEnabled: document.getElementById('cfg-power-cut').checked,
                     systemLogEnabled: document.getElementById('cfg-sys-log').checked,
+                    scheduleEnabled: document.getElementById('cfg-notif-sched-enable')?.checked || false,
+                    scheduleStart: document.getElementById('cfg-notif-sched-start')?.value || '22:00',
+                    scheduleEnd: document.getElementById('cfg-notif-sched-end')?.value || '06:00',
                     telegram: {
                         botToken: document.getElementById('cfg-tg-token').value,
                         chatId: document.getElementById('cfg-tg-chat').value
@@ -1470,6 +1616,8 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
                 const fpsEl = document.getElementById('fps-val');
                 if (fpsEl) fpsEl.innerText = (data.fps || 0) + ' FPS';
+                const statFpsEl = document.getElementById('stat-fps-val');
+                if (statFpsEl) statFpsEl.innerText = (data.fps || 0) + ' FPS';
 
                 const resBadge = document.getElementById('res-badge');
                 if (resBadge) {

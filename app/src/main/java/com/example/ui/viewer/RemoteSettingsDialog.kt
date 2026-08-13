@@ -135,6 +135,13 @@ fun RemoteSettingsScreen(
     val systemLogEnabled = cameraStatusJson?.optBoolean("systemLogEnabled", true) ?: true
     val remoteSendMediaType = cameraStatusJson?.optString("telegramSendMediaType", "photo") ?: "photo"
 
+    val motionSchedEnable = cameraStatusJson?.optBoolean("motionScheduleEnabled", false) ?: (cameraStatusJson?.optJSONObject("motionDetection")?.optBoolean("scheduleEnabled", false) ?: false)
+    val motionSchedStart = cameraStatusJson?.optString("motionScheduleStart", "22:00")?.ifBlank { "22:00" } ?: "22:00"
+    val motionSchedEnd = cameraStatusJson?.optString("motionScheduleEnd", "06:00")?.ifBlank { "06:00" } ?: "06:00"
+    val notifSchedEnable = cameraStatusJson?.optBoolean("notificationScheduleEnabled", false) ?: (cameraStatusJson?.optJSONObject("notifications")?.optBoolean("scheduleEnabled", false) ?: false)
+    val notifSchedStart = cameraStatusJson?.optString("notificationScheduleStart", "22:00")?.ifBlank { "22:00" } ?: "22:00"
+    val notifSchedEnd = cameraStatusJson?.optString("notificationScheduleEnd", "06:00")?.ifBlank { "06:00" } ?: "06:00"
+
     // Local DraftState
     var editingName by remember(deviceNameStr) { mutableStateOf(deviceNameStr) }
     var localResolution by remember(currentRes) { mutableStateOf(currentRes) }
@@ -158,6 +165,13 @@ fun RemoteSettingsScreen(
     var localPowerCutAlert by remember(powerCutAlertEnabled) { mutableStateOf(powerCutAlertEnabled) }
     var localSystemLogEnabled by remember(systemLogEnabled) { mutableStateOf(systemLogEnabled) }
     var localTelegramMediaType by remember(remoteSendMediaType) { mutableStateOf(remoteSendMediaType) }
+
+    var localMotionSchedEnable by remember(motionSchedEnable) { mutableStateOf(motionSchedEnable) }
+    var localMotionSchedStart by remember(motionSchedStart) { mutableStateOf(motionSchedStart) }
+    var localMotionSchedEnd by remember(motionSchedEnd) { mutableStateOf(motionSchedEnd) }
+    var localNotifSchedEnable by remember(notifSchedEnable) { mutableStateOf(notifSchedEnable) }
+    var localNotifSchedStart by remember(notifSchedStart) { mutableStateOf(notifSchedStart) }
+    var localNotifSchedEnd by remember(notifSchedEnd) { mutableStateOf(notifSchedEnd) }
 
     val categoryStates = remember(cameraStatusJson) {
         val catJson = cameraStatusJson?.optJSONObject("categoryFilters")
@@ -271,6 +285,9 @@ fun RemoteSettingsScreen(
                                         put("cooldownSeconds", localCooldown.toInt())
                                         put("playLocalAlarm", localPlayLocalAlarm)
                                         put("mlKitEnabled", localMlKitEnabled)
+                                        put("scheduleEnabled", localMotionSchedEnable)
+                                        put("scheduleStart", localMotionSchedStart)
+                                        put("scheduleEnd", localMotionSchedEnd)
                                         put("categories", JSONObject().apply {
                                             categoryStates.forEach { (cat, enabled) ->
                                                 put(cat.name, enabled)
@@ -292,6 +309,9 @@ fun RemoteSettingsScreen(
                                         put("autoStartOnBoot", localAutoStartOnBoot)
                                         put("powerCutAlertEnabled", localPowerCutAlert)
                                         put("systemLogEnabled", localSystemLogEnabled)
+                                        put("scheduleEnabled", localNotifSchedEnable)
+                                        put("scheduleStart", localNotifSchedStart)
+                                        put("scheduleEnd", localNotifSchedEnd)
                                         put("telegram", JSONObject().apply {
                                             put("mediaType", localTelegramMediaType)
                                         })
@@ -748,6 +768,70 @@ fun RemoteSettingsScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
+                                // ➔ 📅 監控排程設定 (自動開啟/停用動態偵測)
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                                    border = BorderStroke(1.dp, cardBorderColor),
+                                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("📅 監控排程設定", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                                Text("開啟後僅在排程時段內自動開啟動態偵測防護", fontSize = 11.sp, color = textSecondaryColor)
+                                            }
+                                            Switch(
+                                                checked = localMotionSchedEnable,
+                                                onCheckedChange = { localMotionSchedEnable = it },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                            )
+                                        }
+
+                                        AnimatedVisibility(visible = localMotionSchedEnable) {
+                                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            val parts = localMotionSchedStart.split(":")
+                                                            val h = parts.getOrNull(0)?.toIntOrNull() ?: 22
+                                                            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                                            android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                                                                localMotionSchedStart = String.format("%02d:%02d", hourOfDay, minute)
+                                                            }, h, m, true).show()
+                                                        },
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Text("開始時間: $localMotionSchedStart", fontSize = 12.sp)
+                                                    }
+
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            val parts = localMotionSchedEnd.split(":")
+                                                            val h = parts.getOrNull(0)?.toIntOrNull() ?: 6
+                                                            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                                            android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                                                                localMotionSchedEnd = String.format("%02d:%02d", hourOfDay, minute)
+                                                            }, h, m, true).show()
+                                                        },
+                                                        shape = RoundedCornerShape(10.dp),
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Text("結束時間: $localMotionSchedEnd", fontSize = 12.sp)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
                                 // ➔ 推播過濾與智慧分類設定 (人/車/寵物)
                                 Card(
                                     shape = RoundedCornerShape(20.dp),
@@ -1133,6 +1217,68 @@ fun RemoteSettingsScreen(
                                             contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
                                         ) {
                                             Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ➔ ⏰ 通知排程設定 (推播時段控制)
+                        Card(
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("⏰ 通知排程設定", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                        Text("開啟後僅在排程時段內自動發送告警與推播通知", fontSize = 11.sp, color = textSecondaryColor)
+                                    }
+                                    Switch(
+                                        checked = localNotifSchedEnable,
+                                        onCheckedChange = { localNotifSchedEnable = it },
+                                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
+                                    )
+                                }
+
+                                AnimatedVisibility(visible = localNotifSchedEnable) {
+                                    Column(modifier = Modifier.padding(top = 12.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            OutlinedButton(
+                                                onClick = {
+                                                    val parts = localNotifSchedStart.split(":")
+                                                    val h = parts.getOrNull(0)?.toIntOrNull() ?: 22
+                                                    val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                                    android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                                                        localNotifSchedStart = String.format("%02d:%02d", hourOfDay, minute)
+                                                    }, h, m, true).show()
+                                                },
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text("開始時間: $localNotifSchedStart", fontSize = 12.sp)
+                                            }
+
+                                            OutlinedButton(
+                                                onClick = {
+                                                    val parts = localNotifSchedEnd.split(":")
+                                                    val h = parts.getOrNull(0)?.toIntOrNull() ?: 6
+                                                    val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                                    android.app.TimePickerDialog(context, { _, hourOfDay, minute ->
+                                                        localNotifSchedEnd = String.format("%02d:%02d", hourOfDay, minute)
+                                                    }, h, m, true).show()
+                                                },
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text("結束時間: $localNotifSchedEnd", fontSize = 12.sp)
+                                            }
                                         }
                                     }
                                 }
