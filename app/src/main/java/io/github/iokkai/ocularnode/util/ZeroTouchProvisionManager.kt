@@ -90,6 +90,47 @@ object ZeroTouchProvisionManager {
     }
 
     /**
+     * 動態下載檔案並計算其 SHA-256 Checksum (URL-Safe Base64 編碼，無 padding)
+     * 在 Android 9+ (API 28+) 的 QR Code 部署中，下載 APK 時必須提供 Checksum
+     */
+    suspend fun getApkSha256Checksum(downloadUrl: String): String? = withContext(Dispatchers.IO) {
+        try {
+            Log.i(TAG, "開始計算 APK Checksum: $downloadUrl")
+            val client = OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .build()
+
+            val request = Request.Builder().url(downloadUrl).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e(TAG, "計算 Checksum 失敗 HTTP ${response.code}")
+                    return@withContext null
+                }
+                
+                val md = java.security.MessageDigest.getInstance("SHA-256")
+                response.body?.byteStream()?.use { input ->
+                    val buffer = ByteArray(8192)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        md.update(buffer, 0, read)
+                    }
+                }
+                val hashBytes = md.digest()
+                // Android 部署要求 URL-Safe Base64 (建議無 Padding 與無換行)
+                val checksum = android.util.Base64.encodeToString(
+                    hashBytes, 
+                    android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP
+                )
+                Log.i(TAG, "成功取得 APK Checksum: $checksum")
+                return@withContext checksum
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "計算 APK Checksum 異常", e)
+            null
+        }
+    }
+    /**
      * 檢查並將 OcularNode (自身 Package) 以及 Tailscale (com.tailscale.ipn) 加入電池最佳化豁免白名單。
      * 防止舊手機進入 Doze 模式時，系統殺死相機串流背景服務與 VPN 網路通道。
      */

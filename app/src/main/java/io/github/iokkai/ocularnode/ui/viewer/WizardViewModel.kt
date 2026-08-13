@@ -219,6 +219,10 @@ class WizardViewModel : ViewModel() {
                     io.github.iokkai.ocularnode.BuildConfig.GITHUB_REPO
                 )
 
+                // 1.6 Fetch APK Checksum (Required for Android 9+ DO provisioning)
+                val checksum = io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.getApkSha256Checksum(fetchedApkUrl)
+                    ?: throw Exception("無法取得 APK 的 Checksum (SHA-256)，這在 Android 9+ 以上版本的部署中是必須的。請確認網路連線或該網址有效。")
+
                 // 2. Build DO Provisioning JSON
                 val extrasBundle = JSONObject().apply {
                     put("tailscale_auth_key", authKey)
@@ -233,6 +237,10 @@ class WizardViewModel : ViewModel() {
                     put(
                         "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION",
                         fetchedApkUrl
+                    )
+                    put(
+                        "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_CHECKSUM",
+                        checksum
                     )
                     put("android.app.extra.PROVISIONING_WIFI_SSID", ssid)
                     put("android.app.extra.PROVISIONING_WIFI_PASSWORD", password)

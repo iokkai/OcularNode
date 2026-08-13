@@ -21,7 +21,7 @@ android {
 
   defaultConfig {
     applicationId = "io.github.iokkai.ocularnode"
-    minSdk = 28
+    minSdk = 26
     targetSdk = 36
     versionCode = computedVersionCode
     versionName = computedVersionName
