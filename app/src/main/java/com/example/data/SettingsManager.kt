@@ -26,6 +26,10 @@ class SettingsManager(context: Context) {
         get() = prefs.getString(KEY_TG_CHAT_ID, "") ?: ""
         set(value) = prefs.edit().putString(KEY_TG_CHAT_ID, value).apply()
 
+    var telegramSendMediaType: String // "photo", "video", or "both"
+        get() = prefs.getString(KEY_TG_SEND_MEDIA_TYPE, "photo") ?: "photo"
+        set(value) = prefs.edit().putString(KEY_TG_SEND_MEDIA_TYPE, value).apply()
+
     var motionDetectionEnabled: Boolean
         get() = prefs.getBoolean(KEY_MOTION_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_MOTION_ENABLED, value).apply()
@@ -82,8 +86,8 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_DEFAULT_QUALITY, 60)
         set(value) = prefs.edit().putInt(KEY_DEFAULT_QUALITY, value).apply()
 
-    var defaultResolution: String // "1080p", "720p", "480p", "360p"
-        get() = prefs.getString(KEY_DEFAULT_RESOLUTION, "720p") ?: "720p"
+    var defaultResolution: String // "Max", "1080p", "720p", "480p", "360p"
+        get() = prefs.getString(KEY_DEFAULT_RESOLUTION, "Max") ?: "Max"
         set(value) = prefs.edit().putString(KEY_DEFAULT_RESOLUTION, value).apply()
 
     var operatingMode: String // "monitor" (監看模式) or "detection" (自動偵測模式)
@@ -145,6 +149,7 @@ class SettingsManager(context: Context) {
         private const val KEY_DEVICE_NAME = "device_name"
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
         private const val KEY_TG_CHAT_ID = "tg_chat_id"
+        private const val KEY_TG_SEND_MEDIA_TYPE = "tg_send_media_type"
         private const val KEY_MOTION_ENABLED = "motion_enabled"
         private const val KEY_MOTION_SENSITIVITY = "motion_sensitivity"
         private const val KEY_MOTION_COOLDOWN = "motion_cooldown"

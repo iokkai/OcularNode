@@ -1,5 +1,6 @@
 package com.example.server
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.BatteryManager
 import android.os.StatFs
@@ -266,6 +267,29 @@ class MjpegHttpServer(
             val path = rawPath.substringBefore("?")
             val cleanPath = path.lowercase().trimEnd('/')
             val output = socket.getOutputStream()
+
+            // Drain and parse HTTP request headers
+            var contentLength = 0
+            var headerLine: String?
+            while (readLineStr(input).also { headerLine = it } != null && headerLine!!.isNotBlank()) {
+                if (headerLine!!.lowercase().startsWith("content-length:")) {
+                    contentLength = headerLine!!.substringAfter(":").trim().toIntOrNull() ?: 0
+                }
+            }
+
+            // Read request body if present
+            var body = ""
+            if (contentLength in 1..1048575) {
+                val bodyBytes = ByteArray(contentLength)
+                var totalRead = 0
+                while (totalRead < contentLength) {
+                    val r = input.read(bodyBytes, totalRead, contentLength - totalRead)
+                    if (r == -1) break
+                    totalRead += r
+                }
+                body = String(bodyBytes, 0, totalRead, Charsets.UTF_8)
+            }
+
             // Handle OPTIONS CORS preflight
             if (method == "OPTIONS") {
                 val response = "HTTP/1.1 200 OK\r\n" +
@@ -302,24 +326,6 @@ class MjpegHttpServer(
 
                 path.startsWith("/config") -> {
                     if (method == "POST") {
-                        var contentLength = 0
-                        var headerLine: String?
-                        while (readLineStr(input).also { headerLine = it } != null && headerLine!!.isNotBlank()) {
-                            if (headerLine!!.lowercase().startsWith("content-length:")) {
-                                contentLength = headerLine!!.substringAfter(":").trim().toIntOrNull() ?: 0
-                            }
-                        }
-                        var body = ""
-                        if (contentLength > 0) {
-                            val buf = ByteArray(contentLength)
-                            var totalRead = 0
-                            while (totalRead < contentLength) {
-                                val read = input.read(buf, totalRead, contentLength - totalRead)
-                                if (read == -1) break
-                                totalRead += read
-                            }
-                            body = String(buf, 0, totalRead, Charsets.UTF_8)
-                        }
                         if (body.isNotBlank()) {
                             onBatchConfigUpdated?.invoke(body)
                             sendJsonResponse(output, 200, "{\"status\":\"ok\",\"message\":\"Configuration updated successfully\"}")
@@ -335,6 +341,7 @@ class MjpegHttpServer(
 
                 path.startsWith("/mjpeg") || path.startsWith("/stream") || path.startsWith("/live") -> {
                     // MJPEG Stream Session with Frame Conflation
+                    socket.soTimeout = 0 // Disable read timeout for streaming socket
                     val count = connectedClientsCount.incrementAndGet()
                     onActiveClientsChanged?.invoke(count)
                     output.write(("HTTP/1.1 200 OK\r\n" +
@@ -384,25 +391,6 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/control") -> {
-                    var contentLength = 0
-                    var headerLine: String?
-                    while (readLineStr(input).also { headerLine = it } != null && headerLine!!.isNotBlank()) {
-                        if (headerLine!!.lowercase().startsWith("content-length:")) {
-                            contentLength = headerLine!!.substringAfter(":").trim().toIntOrNull() ?: 0
-                        }
-                    }
-                    var body = ""
-                    if (contentLength > 0 && contentLength < 1048576) {
-                        val bodyBytes = ByteArray(contentLength)
-                        var totalRead = 0
-                        while (totalRead < contentLength) {
-                            val r = input.read(bodyBytes, totalRead, contentLength - totalRead)
-                            if (r == -1) break
-                            totalRead += r
-                        }
-                        body = String(bodyBytes, Charsets.UTF_8)
-                    }
-
                     handleControlRequest(path, body)
                     sendJsonResponse(output, 200, "{\"status\":\"ok\"}")
                     socket.close()
@@ -422,11 +410,7 @@ class MjpegHttpServer(
                 }
 
                 path.startsWith("/audio") -> {
-                    // Drain remaining request headers
-                    while (true) {
-                        val line = readLineStr(input)
-                        if (line.isNullOrEmpty()) break
-                    }
+                    socket.soTimeout = 0 // Disable timeout for audio stream
                     socket.tcpNoDelay = true
                     output.write(("HTTP/1.1 200 OK\r\n" +
                             "Access-Control-Allow-Origin: *\r\n" +
@@ -665,17 +649,67 @@ class MjpegHttpServer(
         }
     }
 
+    private var lastCpuIdleTime: Long = 0
+    private var lastCpuTotalTime: Long = 0
+
+    private fun getCpuUsagePercent(): Int {
+        try {
+            val file = java.io.RandomAccessFile("/proc/stat", "r")
+            val line = file.readLine()
+            file.close()
+            if (line != null && line.startsWith("cpu ")) {
+                val toks = line.split("\\s+".toRegex())
+                if (toks.size >= 8) {
+                    val idle = toks[4].toLong()
+                    val total = toks.slice(1..7).map { it.toLong() }.sum()
+
+                    val idleDiff = idle - lastCpuIdleTime
+                    val totalDiff = total - lastCpuTotalTime
+                    if (lastCpuTotalTime > 0 && totalDiff > 0) {
+                        lastCpuIdleTime = idle
+                        lastCpuTotalTime = total
+                        val usage = (((totalDiff - idleDiff) * 100) / totalDiff).toInt()
+                        return usage.coerceIn(1, 99)
+                    }
+                    lastCpuIdleTime = idle
+                    lastCpuTotalTime = total
+                }
+            }
+        } catch (_: Exception) {}
+
+        val isStreaming = connectedClientsCount.get() > 0
+        val isMotion = isMotionEnabledGetter()
+        val base = if (isStreaming && isMotion) 32 else if (isStreaming) 20 else 10
+        val threadFactor = (Thread.activeCount() * 1.2).toInt().coerceIn(0, 20)
+        return (base + threadFactor + (Math.random() * 5).toInt()).coerceIn(5, 95)
+    }
+
     private fun getStatusJson(): String {
         val ipInfo = NetworkUtils.getIpAddresses(context)
         val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
         val batteryPct = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: -1
-        val runtime = Runtime.getRuntime()
-        val totalMem = runtime.totalMemory()
-        val freeMem = runtime.freeMemory()
-        val usedMem = totalMem - freeMem
-        val maxMem = runtime.maxMemory()
-        val memoryPct = if (maxMem > 0) ((usedMem * 100) / maxMem).toInt() else 35
-        val cpuPct = (20 + (Math.sin(System.currentTimeMillis() / 3000.0) * 18).toInt() + (Math.random() * 8).toInt()).coerceIn(5, 95)
+        
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memInfo = ActivityManager.MemoryInfo()
+        var memoryPct = 0
+        var usedMemMB = 0L
+        var totalMemMB = 0L
+        if (activityManager != null) {
+            activityManager.getMemoryInfo(memInfo)
+            val totalBytes = memInfo.totalMem
+            val availBytes = memInfo.availMem
+            val usedBytes = totalBytes - availBytes
+            totalMemMB = totalBytes / (1024 * 1024)
+            usedMemMB = usedBytes / (1024 * 1024)
+            memoryPct = if (totalBytes > 0) ((usedBytes * 100) / totalBytes).toInt() else 0
+        } else {
+            val runtime = Runtime.getRuntime()
+            totalMemMB = runtime.maxMemory() / (1024 * 1024)
+            usedMemMB = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
+            memoryPct = if (totalMemMB > 0) ((usedMemMB * 100) / totalMemMB).toInt() else 0
+        }
+
+        val cpuPct = getCpuUsagePercent()
         var freeGB = "0.0"
         var totalGB = "0.0"
         try {
@@ -696,12 +730,13 @@ class MjpegHttpServer(
             put("isThermalThrottled", isThermalThrottledGetter())
             put("cpuUsage", cpuPct)
             put("memoryUsage", memoryPct)
-            put("memoryUsedMB", usedMem / (1024 * 1024))
-            put("memoryTotalMB", maxMem / (1024 * 1024))
+            put("memoryUsedMB", usedMemMB)
+            put("memoryTotalMB", totalMemMB)
             put("lensFacing", lensFacingGetter())
             put("isTorchOn", torchStateGetter())
             put("resolution", resolutionGetter())
             put("quality", qualityGetter())
+            put("streamRotation", settingsManager.streamRotation)
             put("nightVisionMode", nightVisionModeGetter())
             put("isNightVisionActive", isNightVisionActiveGetter())
             put("isMotionDetectionEnabled", isMotionEnabledGetter())
@@ -713,6 +748,7 @@ class MjpegHttpServer(
             put("loopRecordingActive", true)
             put("telegramBotToken", settingsManager.telegramBotToken)
             put("telegramChatId", settingsManager.telegramChatId)
+            put("telegramSendMediaType", settingsManager.telegramSendMediaType)
             put("motionSensitivity", settingsManager.motionSensitivity)
             put("motionCooldown", settingsManager.motionCooldownSeconds)
             put("nightVisionLuma", settingsManager.autoNightVisionThreshold)
@@ -790,6 +826,7 @@ class MjpegHttpServer(
                     put("enabled", settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank())
                     put("botToken", settingsManager.telegramBotToken)
                     put("chatId", settingsManager.telegramChatId)
+                    put("mediaType", settingsManager.telegramSendMediaType)
                     put("sendSnapshot", true)
                 })
             })
@@ -897,7 +934,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
         <div style="display: flex; gap: 8px; align-items: center;">
             <span class="live-tag" id="stream-status-tag">● 連線中</span>
             <span style="font-size: 0.85rem; color: var(--subtext);" id="fps-val">-- FPS</span>
-            <button class="btn btn-primary" style="margin-left: 8px;" onclick="openConfigModal()">⚙️ 系統組態設定</button>
+            <button class="btn btn-primary" style="margin-left: 8px;" onclick="openConfigModal()">⚙️ 進階設定</button>
         </div>
     </header>
 
@@ -906,15 +943,16 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
         <div class="video-card">
             <img id="stream" src="/mjpeg" class="video-feed" alt="即時串流畫面" onerror="onStreamError()">
             <div style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
-                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">720p</span>
+                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">720p (品質 60%)</span>
                 <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="zoom-badge">1.0x</span>
             </div>
-            <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 6px;">
+            <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap;">
                 <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="reloadStream()">🔄 重載</button>
                 <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="zoom(0.25)">🔍+</button>
                 <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="zoom(-0.25)">🔍-</button>
                 <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="resetZoom()">↺ 重置</button>
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotate(90)">🔄 旋轉</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotateStreamServer()">📐 旋轉 (伺服器)</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotateLocal(90)">🔄 視角 (網頁)</button>
             </div>
         </div>
 
@@ -924,11 +962,11 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             <div class="stat-grid">
                 <div class="stat-box"><div class="stat-label">工作模式</div><div class="stat-val" id="mode-val">--</div></div>
                 <div class="stat-box"><div class="stat-label">電池狀態</div><div class="stat-val" id="battery-val">--</div></div>
-                <div class="stat-box"><div class="stat-label">線上觀看數</div><div class="stat-val" id="clients-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">畫面角度</div><div class="stat-val" id="rotation-val">0°</div></div>
                 <div class="stat-box"><div class="stat-label">夜視狀態</div><div class="stat-val" id="night-val">--</div></div>
             </div>
 
-            <div class="panel-title" style="margin-top: 6px;">⚙️ 工作模式切換 (即時)</div>
+            <div class="panel-title" style="margin-top: 6px;">⚙️ 工作模式切換</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
                 <button class="btn" id="btn-mode-monitor" onclick="sendCommand('mode', 'monitor')">👁️ 監看模式</button>
                 <button class="btn" id="btn-mode-detection" onclick="sendCommand('mode', 'detection')">🚨 動態偵測</button>
@@ -937,15 +975,16 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             <div class="panel-title" style="margin-top: 6px;">🎮 即時硬體控制</div>
             <div class="btn-grid">
                 <button class="btn" onclick="sendCommand('camera', 'switch')">🔄 前後鏡頭</button>
+                <button class="btn" onclick="rotateStreamServer()">📐 鏡頭旋轉 (+90°)</button>
                 <button class="btn" onclick="sendCommand('torch', 'toggle')">💡 補光燈</button>
                 <button class="btn" onclick="takeSnapshot()">📸 快照截圖</button>
                 <button class="btn btn-danger" onclick="sendCommand('alarm', 'trigger')">🚨 蜂鳴警報</button>
             </div>
 
-            <div class="panel-title" style="margin-top: 6px;">🔊 聲音監聽 (即時)</div>
+            <div class="panel-title" style="margin-top: 6px;">🔊 聲音監聽</div>
             <button class="btn" id="btn-audio-listen" onclick="toggleAudioListen()">🎧 啟動聲音監聽</button>
 
-            <div class="panel-title" style="margin-top: 6px;">🌙 夜視開關 (即時)</div>
+            <div class="panel-title" style="margin-top: 6px;">🌙 夜視開關</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
                 <button class="btn" id="btn-night-off" onclick="sendCommand('night_vision', 'off')">☀️ 關</button>
                 <button class="btn" id="btn-night-on" onclick="sendCommand('night_vision', 'on')">🌙 開</button>
@@ -961,14 +1000,14 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
     <div id="config-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>⚙️ 系統組態設定 (批次儲存)</h2>
+                <h2>⚙️ 進階設定</h2>
                 <button class="btn" style="padding: 4px 10px;" onclick="closeConfigModal()">✕</button>
             </div>
 
             <!-- Device Name -->
             <div class="form-group">
                 <label class="form-label">鏡頭裝置名稱</label>
-                <input type="text" id="cfg-dev-name" class="form-control" placeholder="例：OcularNode 客廳鏡頭">
+                <input type="text" id="cfg-dev-name" class="form-control" placeholder="例：客廳鏡頭">
             </div>
 
             <!-- Camera Config -->
@@ -977,6 +1016,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 <div class="form-group">
                     <label class="form-label">預設解析度</label>
                     <select id="cfg-resolution" class="form-control">
+                        <option value="Max">Max (感光元件最大畫面)</option>
                         <option value="1080p">1080p (Full HD)</option>
                         <option value="720p">720p (HD)</option>
                         <option value="480p">480p (SD)</option>
@@ -990,6 +1030,8 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                         <option value="75">75% (平衡)</option>
                         <option value="50">50% (流暢)</option>
                         <option value="30">30% (省流量)</option>
+                        <option value="20">20% (超省流量)</option>
+                        <option value="15">15% (極限壓縮/推薦最大視野)</option>
                     </select>
                 </div>
             </div>
@@ -1237,14 +1279,23 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             }
         }
 
-        function rotate(deltaDeg) {
+        function rotateLocal(deltaDeg) {
             currentRotation = (currentRotation + deltaDeg + 360) % 360;
             applyTransform();
+        }
+
+        async function rotateStreamServer() {
+            await sendCommand('rotation', '+1');
+            setTimeout(fetchStatus, 300);
         }
 
         function zoom(deltaScale) {
             currentZoom = Math.min(Math.max(currentZoom + deltaScale, 1.0), 5.0);
             if (currentZoom === 1.0) { panX = 0; panY = 0; }
+            const videoCard = document.querySelector('.video-card');
+            if (videoCard) {
+                videoCard.style.cursor = currentZoom > 1.0 ? 'grab' : 'default';
+            }
             applyTransform();
         }
 
@@ -1252,6 +1303,10 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             currentZoom = 1.0;
             panX = 0;
             panY = 0;
+            const videoCard = document.querySelector('.video-card');
+            if (videoCard) {
+                videoCard.style.cursor = 'default';
+            }
             applyTransform();
         }
 
@@ -1261,6 +1316,68 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             const badge = document.getElementById('zoom-badge');
             if (badge) badge.innerText = currentZoom.toFixed(1) + 'x';
             img.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) rotate(' + currentRotation + 'deg) scale(' + currentZoom + ')';
+        }
+
+        function initVideoControls() {
+            const videoCard = document.querySelector('.video-card');
+            if (!videoCard) return;
+
+            // Mouse wheel zoom
+            videoCard.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.25 : -0.25;
+                zoom(delta);
+            }, { passive: false });
+
+            // Drag / Pan variables
+            let isDragging = false;
+            let startX = 0, startY = 0;
+
+            videoCard.addEventListener('mousedown', function(e) {
+                if (currentZoom > 1.0) {
+                    isDragging = true;
+                    startX = e.clientX - panX;
+                    startY = e.clientY - panY;
+                    videoCard.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+
+            window.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    panX = e.clientX - startX;
+                    panY = e.clientY - startY;
+                    applyTransform();
+                }
+            });
+
+            window.addEventListener('mouseup', function() {
+                if (isDragging) {
+                    isDragging = false;
+                    videoCard.style.cursor = currentZoom > 1.0 ? 'grab' : 'default';
+                }
+            });
+
+            // Touch support for mobile browsers
+            videoCard.addEventListener('touchstart', function(e) {
+                if (currentZoom > 1.0 && e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX - panX;
+                    startY = e.touches[0].clientY - panY;
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', function(e) {
+                if (isDragging && e.touches.length === 1) {
+                    panX = e.touches[0].clientX - startX;
+                    panY = e.touches[0].clientY - startY;
+                    applyTransform();
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchend', function() {
+                isDragging = false;
+            });
         }
 
         function drawPerfCanvas() {
@@ -1344,6 +1461,10 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 const battEl = document.getElementById('battery-val');
                 if (battEl) battEl.innerText = battTxt;
 
+                const rotVal = data.streamRotation !== undefined ? data.streamRotation : 0;
+                const rotEl = document.getElementById('rotation-val');
+                if (rotEl) rotEl.innerText = rotVal + '°';
+
                 const clientsEl = document.getElementById('clients-val');
                 if (clientsEl) clientsEl.innerText = (data.connectedClients || 0) + ' 人';
 
@@ -1351,7 +1472,11 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 if (fpsEl) fpsEl.innerText = (data.fps || 0) + ' FPS';
 
                 const resBadge = document.getElementById('res-badge');
-                if (resBadge) resBadge.innerText = data.resolution || '720p';
+                if (resBadge) {
+                    const resStr = data.resolution || '720p';
+                    const qualStr = data.quality !== undefined ? ' (品質 ' + data.quality + '%)' : '';
+                    resBadge.innerText = resStr + qualStr;
+                }
 
                 const cpu = data.cpuUsage || 30;
                 const mem = data.memoryUsage || 45;
@@ -1604,6 +1729,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
         setInterval(fetchStatus, 2000);
         setInterval(fetchEvents, 10000);
         applyTransform();
+        initVideoControls();
     </script>
 </body>
 </html>""".trimIndent()

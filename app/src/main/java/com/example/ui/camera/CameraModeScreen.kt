@@ -99,7 +99,6 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val isBlackScreenActive by viewModel.isBlackScreenActive.collectAsState()
     val currentResolution by viewModel.currentResolution.collectAsState()
     val currentQuality by viewModel.currentQuality.collectAsState()
-    val streamRotation by viewModel.streamRotation.collectAsState()
     val isMotionEnabled by viewModel.isMotionEnabled.collectAsState()
     val isMlKitFilterEnabled by viewModel.isMlKitFilterEnabled.collectAsState()
     val tailscaleIp by viewModel.tailscaleIp.collectAsState()
@@ -516,36 +515,18 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         val cameraService = viewModel.getCameraService()
                         if (cameraService != null) {
-                            BoxWithConstraints(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val isRotated90or270 = (streamRotation == 90 || streamRotation == 270)
-                                val boxWidth = if (isRotated90or270) maxHeight else maxWidth
-                                val boxHeight = if (isRotated90or270) maxWidth else maxHeight
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(boxWidth, boxHeight)
-                                        .graphicsLayer {
-                                            rotationZ = streamRotation.toFloat()
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    AndroidView(
-                                        factory = { ctx ->
-                                            val previewView = PreviewView(ctx)
-                                            previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
-                                            cameraService.cameraHelper.attachPreviewSurface(
-                                                lifecycleOwner = lifecycleOwner,
-                                                previewSurface = previewView.surfaceProvider
-                                            )
-                                            previewView
-                                        },
-                                        modifier = Modifier.fillMaxSize()
+                            AndroidView(
+                                factory = { ctx ->
+                                    val previewView = PreviewView(ctx)
+                                    previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+                                    cameraService.cameraHelper.attachPreviewSurface(
+                                        lifecycleOwner = lifecycleOwner,
+                                        previewSurface = previewView.surfaceProvider
                                     )
-                                }
-                            }
+                                    previewView
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
                         } else {
                             Column(
                                 modifier = Modifier.fillMaxSize(),
@@ -569,13 +550,6 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 modifier = Modifier.background(Color(0xAA000000), CircleShape)
                             ) {
                                 Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Switch Camera", tint = Color.White)
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                onClick = { viewModel.rotateStream() },
-                                modifier = Modifier.background(Color(0xAA000000), CircleShape)
-                            ) {
-                                Icon(Icons.Default.RotateRight, contentDescription = "Rotate Stream", tint = Color.White)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
@@ -769,10 +743,11 @@ fun ResolutionSelectionDialog(
     onDismiss: () -> Unit
 ) {
     val options = listOf(
-        "1080p" to "1920x1080 • 超高畫質 (最清晰)",
-        "720p" to "1280x720 • 高畫質 (推薦預設)",
-        "480p" to "854x480 • 標準畫質 (順暢省流)",
-        "360p" to "640x360 • 流暢 (低延遲)"
+        "Max" to "全感光元件 • 最大畫面 (不限長寬比)",
+        "1080p" to "1920x1080 • 超高畫質 (16:9)",
+        "720p" to "1280x720 • 高畫質 (16:9)",
+        "480p" to "854x480 • 標準畫質",
+        "360p" to "640x360 • 流暢"
     )
 
     AlertDialog(

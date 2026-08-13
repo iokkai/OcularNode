@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -114,6 +115,7 @@ fun SettingsScreen(
     val roleMode by viewModel.roleMode.collectAsState()
     val botToken by viewModel.botToken.collectAsState()
     val chatId by viewModel.chatId.collectAsState()
+    val telegramSendMediaType by viewModel.telegramSendMediaType.collectAsState()
     val deviceName by viewModel.deviceName.collectAsState()
     val serverPort by viewModel.serverPort.collectAsState()
     val sensitivity by viewModel.sensitivity.collectAsState()
@@ -642,6 +644,33 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
+                    Text("告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 照片+影片")
+                        types.forEach { (typeKey, label) ->
+                            val isSelected = telegramSendMediaType == typeKey
+                            OutlinedButton(
+                                onClick = { viewModel.updateTelegramSendMediaType(typeKey) },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                    contentColor = if (isSelected) Color(0xFF6750A4) else Color(0xFF49454F)
+                                ),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
+                            ) {
+                                Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     OutlinedButton(
                         onClick = { showTelegramSetupDialog = true },
                         shape = RoundedCornerShape(20.dp),
@@ -649,6 +678,33 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("🤖 自動配對 Chat ID", fontWeight = FontWeight.Bold, color = Color(0xFF6750A4), fontSize = 13.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text("告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 照片+影片")
+                        types.forEach { (typeKey, label) ->
+                            val isSelected = telegramSendMediaType == typeKey
+                            OutlinedButton(
+                                onClick = { viewModel.updateTelegramSendMediaType(typeKey) },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                    contentColor = if (isSelected) Color(0xFF6750A4) else Color(0xFF49454F)
+                                ),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
+                            ) {
+                                Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -1016,6 +1072,33 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("🤖 自動配對 Chat ID", fontWeight = FontWeight.Bold, color = Color(0xFF6750A4), fontSize = 16.sp)
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text("告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 照片+影片")
+                        types.forEach { (typeKey, label) ->
+                            val isSelected = telegramSendMediaType == typeKey
+                            OutlinedButton(
+                                onClick = { viewModel.updateTelegramSendMediaType(typeKey) },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                    contentColor = if (isSelected) Color(0xFF6750A4) else Color(0xFF49454F)
+                                ),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
+                            ) {
+                                Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))

@@ -34,8 +34,10 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Nightlight
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -58,6 +60,8 @@ import androidx.compose.material3.TextButton
 import org.json.JSONObject
 import com.example.ui.camera.ResolutionSelectionDialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -125,13 +129,16 @@ fun LiveMonitorScreen(
 
     val isListening by viewModel.streamClient.isListeningAudio.collectAsState()
     val isSpeaking by viewModel.streamClient.isSpeakingAudio.collectAsState()
+    val adaptiveState by viewModel.adaptiveState.collectAsState()
 
     var torchOn by remember { mutableStateOf(false) }
     var showRemoteSettingsDialog by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+    val currentStreamRotation = cameraStatusJson?.optInt("streamRotation", 0) ?: 0
+
     var zoomScale by remember { mutableStateOf(1f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
-    var rotationAngle by remember { mutableStateOf(0f) }
 
     // Control panel collapse/expand state to avoid blocking video stream
     var isControlPanelExpanded by remember { mutableStateOf(false) }
@@ -176,7 +183,6 @@ fun LiveMonitorScreen(
                     .graphicsLayer(
                         scaleX = zoomScale,
                         scaleY = zoomScale,
-                        rotationZ = rotationAngle,
                         translationX = panOffset.x,
                         translationY = panOffset.y
                     )
@@ -195,11 +201,37 @@ fun LiveMonitorScreen(
             }
         }
 
+        // Top-Left Adaptive Mode Badge Overlay
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 68.dp, start = 12.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    if (adaptiveState.isDowngraded) Color(0xEEE65100)
+                    else if (adaptiveState.isEnabled) Color(0xEE4A148C)
+                    else Color(0xEE374151)
+                )
+                .clickable {
+                    viewModel.setAdaptiveModeEnabled(!adaptiveState.isEnabled)
+                }
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = adaptiveState.labelText,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp
+                )
+            }
+        }
+
         // Top-Left Zoom Overlay Controls
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 70.dp, start = 12.dp)
+                .padding(top = 108.dp, start = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color(0xAA0F172A))
                 .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -243,13 +275,21 @@ fun LiveMonitorScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { rotationAngle = (rotationAngle - 90f + 360f) % 360f },
+                onClick = {
+                    coroutineScope.launch {
+                        viewModel.sendControlCommandSuspend("rotation", "-1")
+                    }
+                },
                 modifier = Modifier.size(34.dp)
             ) {
                 Icon(Icons.Default.RotateLeft, contentDescription = "逆時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
             }
             IconButton(
-                onClick = { rotationAngle = (rotationAngle + 90f) % 360f },
+                onClick = {
+                    coroutineScope.launch {
+                        viewModel.sendControlCommandSuspend("rotation", "+1")
+                    }
+                },
                 modifier = Modifier.size(34.dp)
             ) {
                 Icon(Icons.Default.RotateRight, contentDescription = "順時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
@@ -275,8 +315,17 @@ fun LiveMonitorScreen(
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Column {
-                    Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text("IP: ${camera.ipAddress}", color = Color(0xFF6750A4), fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                    Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    val cpuVal = cameraStatusJson?.optInt("cpuUsage", -1) ?: -1
+                    val memVal = cameraStatusJson?.optInt("memoryUsage", -1) ?: -1
+                    val pingVal = cameraStatusJson?.optInt("pingMs", -1) ?: -1
+
+                    val cpuText = if (cpuVal >= 0) "CPU: $cpuVal%" else "CPU: --"
+                    val memText = if (memVal >= 0) "RAM: $memVal%" else "RAM: --"
+                    val pingText = if (pingVal >= 0) "Ping: ${pingVal}ms" else "Ping: --"
+                    val adaptiveStatusStr = if (adaptiveState.isDowngraded) "⚡ Adaptive: ${adaptiveState.currentResolution} (${adaptiveState.reasonText})" else if (adaptiveState.isEnabled) "⚡ Adaptive: ${adaptiveState.currentResolution}" else "⚡ Adaptive: Off"
+
+                    Text("$cpuText | $memText | $pingText\n$adaptiveStatusStr", color = Color(0xFF6750A4), fontWeight = FontWeight.SemiBold, fontSize = 10.sp)
                 }
             }
 
@@ -428,19 +477,43 @@ fun LiveMonitorScreen(
                         }
 
                         // Night Vision
-                        val isNightActive = nightMode.equals("on", ignoreCase = true) || nightMode.equals("auto", ignoreCase = true)
+                        val currentNightMode = nightMode.lowercase()
+                        val nightIcon = when (currentNightMode) {
+                            "auto" -> Icons.Default.BrightnessAuto
+                            else -> Icons.Default.Nightlight
+                        }
+                        val nightLabel = when (currentNightMode) {
+                            "on" -> "夜視：黑白"
+                            "auto" -> "夜視：自動"
+                            else -> "夜視：關閉"
+                        }
+                        val nightBgColor = when (currentNightMode) {
+                            "on" -> Color(0xFFEADDFF)
+                            "auto" -> Color(0xFFD0BCFF)
+                            else -> Color(0x33FFFFFF)
+                        }
+                        val nightIconTint = when (currentNightMode) {
+                            "on", "auto" -> Color(0xFF21005D)
+                            else -> Color.White
+                        }
+
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             IconButton(
                                 onClick = {
-                                    val nextMode = if (nightMode == "on") "off" else "on"
+                                    val (nextMode, toastMsg) = when (currentNightMode) {
+                                        "off" -> "on" to "已開啟黑白夜視模式"
+                                        "on" -> "auto" to "已切換至自動夜視模式"
+                                        "auto" -> "off" to "已關閉夜視模式"
+                                        else -> "on" to "已開啟黑白夜視模式"
+                                    }
                                     viewModel.sendControlCommand("night_vision", nextMode)
-                                    Toast.makeText(context, if (nextMode == "on") "已開啟黑白夜視模式" else "已關閉夜視模式", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.background(if (isNightActive) Color(0xFFEADDFF) else Color(0x33FFFFFF), CircleShape)
+                                modifier = Modifier.background(nightBgColor, CircleShape)
                             ) {
-                                Icon(Icons.Default.Nightlight, contentDescription = "Night Vision", tint = if (isNightActive) Color(0xFF21005D) else Color.White)
+                                Icon(nightIcon, contentDescription = nightLabel, tint = nightIconTint)
                             }
-                            Text("夜視", color = Color.White, fontSize = 10.sp)
+                            Text(nightLabel, color = Color.White, fontSize = 10.sp)
                         }
 
                         // Snapshot
@@ -456,6 +529,21 @@ fun LiveMonitorScreen(
                                 Icon(Icons.Default.CameraAlt, contentDescription = "Snapshot", tint = Color.White)
                             }
                             Text("快照", color = Color.White, fontSize = 10.sp)
+                        }
+
+                        // Adaptive Resolution Toggle
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(
+                                onClick = {
+                                    val nextState = !adaptiveState.isEnabled
+                                    viewModel.setAdaptiveModeEnabled(nextState)
+                                    Toast.makeText(context, if (nextState) "已開啟動態自適應解析度" else "已關閉自適應模式", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.background(if (adaptiveState.isEnabled) Color(0xFFD0BCFF) else Color(0x33FFFFFF), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Tune, contentDescription = "Adaptive Mode", tint = if (adaptiveState.isEnabled) Color(0xFF21005D) else Color.White)
+                            }
+                            Text(if (adaptiveState.isEnabled) "自適應: ON" else "自適應: OFF", color = Color.White, fontSize = 10.sp)
                         }
 
                         // Alarm

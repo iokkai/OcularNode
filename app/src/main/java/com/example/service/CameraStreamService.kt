@@ -448,6 +448,25 @@ class CameraStreamService : Service(), LifecycleOwner {
                     cameraHelper.setResolution(value, this@CameraStreamService)
                     settingsManager.defaultResolution = value
                 }
+                "fps", "target_fps", "fps_limit" -> {
+                    val fpsVal = value.toIntOrNull() ?: 15
+                    cameraHelper.targetFps = fpsVal
+                    cameraHelper.dynamicFpsAdjustmentEnabled = true
+                    Log.i("CameraStreamService", "Remote updated target FPS to $fpsVal")
+                }
+                "rotation", "stream_rotation" -> {
+                    val trimmedVal = value.trim()
+                    val currentRot = settingsManager.streamRotation
+                    val newRot = when (trimmedVal) {
+                        "1", "+1", "cw" -> (currentRot + 90) % 360
+                        "-1", "ccw" -> (currentRot - 90 + 360) % 360
+                        else -> {
+                            val rot = trimmedVal.toIntOrNull() ?: 0
+                            ((rot % 360) + 360) % 360
+                        }
+                    }
+                    settingsManager.streamRotation = newRot
+                }
                 "night_vision" -> {
                     cameraHelper.nightVisionMode = value
                     settingsManager.nightVisionMode = value
@@ -514,14 +533,20 @@ class CameraStreamService : Service(), LifecycleOwner {
                     settingsManager.telegramChatId = value
                     Log.i("CameraStreamService", "Remote updated Telegram Chat ID")
                 }
+                "telegram_media_type" -> {
+                    settingsManager.telegramSendMediaType = value
+                    Log.i("CameraStreamService", "Remote updated Telegram Media Type: $value")
+                }
                 "telegram_config" -> {
                     try {
                         val json = org.json.JSONObject(value)
                         val token = json.optString("token", "")
                         val chatId = json.optString("chatId", "")
+                        val mediaType = json.optString("mediaType", "")
                         if (token.isNotBlank()) settingsManager.telegramBotToken = token
                         if (chatId.isNotBlank()) settingsManager.telegramChatId = chatId
-                        Log.i("CameraStreamService", "Remote updated Telegram config: token length=${token.length}, chatId=$chatId")
+                        if (mediaType.isNotBlank()) settingsManager.telegramSendMediaType = mediaType
+                        Log.i("CameraStreamService", "Remote updated Telegram config: token length=${token.length}, chatId=$chatId, mediaType=$mediaType")
                     } catch (e: Exception) {
                         Log.e("CameraStreamService", "Error parsing telegram_config JSON", e)
                     }
@@ -633,6 +658,20 @@ class CameraStreamService : Service(), LifecycleOwner {
                             settingsManager.defaultResolution = res
                             cameraHelper.setResolution(res, this@CameraStreamService)
                         }
+                        if (camObj.has("rotation") || camObj.has("streamRotation")) {
+                            val rotOpt = if (camObj.has("rotation")) camObj.opt("rotation") else camObj.opt("streamRotation")
+                            val rotStr = rotOpt?.toString()?.trim() ?: "0"
+                            val currentRot = settingsManager.streamRotation
+                            val newRot = when (rotStr) {
+                                "1", "+1", "cw" -> (currentRot + 90) % 360
+                                "-1", "ccw" -> (currentRot - 90 + 360) % 360
+                                else -> {
+                                    val rot = rotStr.toIntOrNull() ?: 0
+                                    ((rot % 360) + 360) % 360
+                                }
+                            }
+                            settingsManager.streamRotation = newRot
+                        }
                         val quality = camObj.optInt("quality", -1)
                         if (quality in 10..100) {
                             settingsManager.defaultQuality = quality
@@ -737,8 +776,10 @@ class CameraStreamService : Service(), LifecycleOwner {
                             if (tgObj != null) {
                                 val token = tgObj.optString("botToken", "")
                                 val chatId = tgObj.optString("chatId", "")
+                                val mediaType = tgObj.optString("mediaType", "")
                                 if (token.isNotBlank()) settingsManager.telegramBotToken = token
                                 if (chatId.isNotBlank()) settingsManager.telegramChatId = chatId
+                                if (mediaType.isNotBlank()) settingsManager.telegramSendMediaType = mediaType
                             }
                         }
                     }
@@ -841,6 +882,31 @@ class CameraStreamService : Service(), LifecycleOwner {
             )
             val eventId = database.motionEventDao().insertEvent(event)
 
+            val botToken = settingsManager.telegramBotToken
+            val chatId = settingsManager.telegramChatId
+            val mediaType = settingsManager.telegramSendMediaType // "photo", "video", or "both"
+
+            val sendVideoAlertIfNeeded: suspend (java.io.File) -> Unit = { videoFile ->
+                if ((mediaType == "video" || mediaType == "both") &&
+                    botToken.isNotBlank() && chatId.isNotBlank() &&
+                    !shouldSuppressNotification
+                ) {
+                    val sent = TelegramNotifier.sendVideoAlert(
+                        botToken = botToken,
+                        chatId = chatId,
+                        deviceName = settingsManager.cameraDeviceName,
+                        motionPercentage = percentage,
+                        videoFile = videoFile,
+                        aiSummary = aiSummary
+                    )
+                    if (sent) {
+                        Log.i("CameraStreamService", "Telegram video alert sent successfully for event $eventId")
+                    } else {
+                        Log.e("CameraStreamService", "Telegram video alert failed for event $eventId")
+                    }
+                }
+            }
+
             // Video Recording Debounce & Prolonging Logic
             if (!shouldTriggerRecording) {
                 Log.i("CameraStreamService", "ML Kit Filter: Recording suppressed based on category settings or human-only rule.")
@@ -854,6 +920,7 @@ class CameraStreamService : Service(), LifecycleOwner {
                         if (success && savedFile != null) {
                             Log.i("CameraStreamService", "Event video recording saved to ${savedFile.absolutePath} for event $eventId")
                             database.motionEventDao().updateVideoPath(eventId, savedFile.absolutePath)
+                            sendVideoAlertIfNeeded(savedFile)
                         } else {
                             Log.e("CameraStreamService", "Event video recording failed for event $eventId")
                         }
@@ -878,6 +945,7 @@ class CameraStreamService : Service(), LifecycleOwner {
                                 if (success && videoPath != null) {
                                     Log.i("CameraStreamService", "Video recording saved to $videoPath for event $eventId")
                                     database.motionEventDao().updateVideoPath(eventId, videoPath)
+                                    sendVideoAlertIfNeeded(java.io.File(videoPath))
                                 } else {
                                     Log.e("CameraStreamService", "Video recording failed for event $eventId")
                                 }
@@ -914,9 +982,7 @@ class CameraStreamService : Service(), LifecycleOwner {
                 playAlarmSound()
             }
 
-            val botToken = settingsManager.telegramBotToken
-            val chatId = settingsManager.telegramChatId
-            if (botToken.isNotBlank() && chatId.isNotBlank()) {
+            if (botToken.isNotBlank() && chatId.isNotBlank() && (mediaType == "photo" || mediaType == "both")) {
                 val sent = TelegramNotifier.sendMotionAlert(
                     botToken = botToken,
                     chatId = chatId,

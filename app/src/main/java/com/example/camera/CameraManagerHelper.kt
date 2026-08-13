@@ -28,6 +28,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FileOutputOptions
 import androidx.camera.video.FallbackStrategy
@@ -79,7 +81,7 @@ class CameraManagerHelper(private val context: Context) {
     var isTorchOn: Boolean = false
         private set
     var jpegQuality: Int = 60
-    var currentResolutionString: String = "720p"
+    var currentResolutionString: String = "Max"
     var nightVisionMode: String = "auto" // "off", "on", "auto"
     var isNightVisionActive: Boolean = false
         private set
@@ -88,6 +90,11 @@ class CameraManagerHelper(private val context: Context) {
     var defaultJpegQuality: Int = 60
     private var lastProcessedFrameTime = 0L
     private var dynamicTargetFps = 15
+    var targetFps: Int
+        get() = dynamicTargetFps
+        set(value) {
+            dynamicTargetFps = value.coerceIn(5, 30)
+        }
     private var processTimesBuffer = mutableListOf<Long>()
     var isMotionDetectionEnabled: Boolean = false
     var motionSensitivity: Float = 5.0f // 1..10
@@ -168,9 +175,25 @@ class CameraManagerHelper(private val context: Context) {
 
         val targetSize = getTargetSize(currentResolutionString)
 
+        val resolutionSelector = if (currentResolutionString.equals("Max", ignoreCase = true) || targetSize == null) {
+            ResolutionSelector.Builder()
+                .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
+                .build()
+        } else {
+            ResolutionSelector.Builder()
+                .setResolutionStrategy(
+                    ResolutionStrategy(
+                        targetSize,
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                    )
+                )
+                .build()
+        }
+
         val imageAnalysisBuilder = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+            .setResolutionSelector(resolutionSelector)
 
         @OptIn(ExperimentalCamera2Interop::class)
         val camera2Extender = Camera2Interop.Extender(imageAnalysisBuilder)
@@ -183,10 +206,6 @@ class CameraManagerHelper(private val context: Context) {
             CaptureRequest.CONTROL_MODE_AUTO
         )
 
-        if (targetSize != null) {
-            imageAnalysisBuilder.setTargetResolution(targetSize)
-        }
-
         val imageAnalysis = imageAnalysisBuilder.build()
         imageAnalysis.setAnalyzer(executor) { imageProxy ->
             processImageProxy(imageProxy)
@@ -196,7 +215,9 @@ class CameraManagerHelper(private val context: Context) {
 
         try {
             if (surfaceToUse != null) {
-                val preview = Preview.Builder().build()
+                val preview = Preview.Builder()
+                    .setResolutionSelector(resolutionSelector)
+                    .build()
                 preview.setSurfaceProvider(surfaceToUse)
                 camera = provider.bindToLifecycle(owner, cameraSelector, preview, imageAnalysis, videoCapture)
             } else {
@@ -211,13 +232,16 @@ class CameraManagerHelper(private val context: Context) {
                 val fallbackAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .setResolutionSelector(resolutionSelector)
                     .build()
                 fallbackAnalysis.setAnalyzer(executor) { imageProxy ->
                     processImageProxy(imageProxy)
                 }
 
                 if (surfaceToUse != null) {
-                    val preview = Preview.Builder().build()
+                    val preview = Preview.Builder()
+                        .setResolutionSelector(resolutionSelector)
+                        .build()
                     preview.setSurfaceProvider(surfaceToUse)
                     camera = provider.bindToLifecycle(owner, cameraSelector, preview, fallbackAnalysis)
                 } else {
@@ -304,12 +328,13 @@ class CameraManagerHelper(private val context: Context) {
     }
 
     private fun getTargetSize(res: String): Size? {
-        return when (res) {
+        return when (res.lowercase(Locale.ROOT)) {
+            "max" -> null
             "1080p" -> Size(1920, 1080)
             "720p" -> Size(1280, 720)
             "480p" -> Size(854, 480)
             "360p" -> Size(640, 360)
-            else -> Size(1280, 720)
+            else -> null
         }
     }
 
@@ -388,7 +413,7 @@ class CameraManagerHelper(private val context: Context) {
                 // toBitmap() already handles rotation in CameraX!
                 val baseWidth = bitmap.width
                 val baseHeight = bitmap.height
-                val manualRotation = settingsManager.streamRotation
+                val manualRotation = ((settingsManager.streamRotation % 360) + 360) % 360
 
                 val isRotated90Or270 = manualRotation % 180 != 0
                 val rotatedBaseWidth = if (isRotated90Or270) baseHeight else baseWidth
@@ -512,7 +537,7 @@ class CameraManagerHelper(private val context: Context) {
                     
                     if (avgProcessTime > 80) { // Device struggling
                         dynamicTargetFps = (dynamicTargetFps - 2).coerceAtLeast(10)
-                        jpegQuality = (jpegQuality - 10).coerceAtLeast(30)
+                        jpegQuality = (jpegQuality - 10).coerceAtLeast(10)
                         dynamicScaleFactor = (dynamicScaleFactor - 0.1f).coerceAtLeast(0.4f)
                     } else if (avgProcessTime < 40) { // Device has headroom
                         dynamicTargetFps = (dynamicTargetFps + 1).coerceAtMost(30)

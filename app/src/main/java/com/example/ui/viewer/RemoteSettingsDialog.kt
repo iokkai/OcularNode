@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -132,6 +133,7 @@ fun RemoteSettingsScreen(
     val autoStartOnBoot = cameraStatusJson?.optBoolean("autoStartOnBoot", true) ?: true
     val powerCutAlertEnabled = cameraStatusJson?.optBoolean("powerCutAlertEnabled", true) ?: true
     val systemLogEnabled = cameraStatusJson?.optBoolean("systemLogEnabled", true) ?: true
+    val remoteSendMediaType = cameraStatusJson?.optString("telegramSendMediaType", "photo") ?: "photo"
 
     // Local DraftState
     var editingName by remember(deviceNameStr) { mutableStateOf(deviceNameStr) }
@@ -155,6 +157,7 @@ fun RemoteSettingsScreen(
     var localAutoStartOnBoot by remember(autoStartOnBoot) { mutableStateOf(autoStartOnBoot) }
     var localPowerCutAlert by remember(powerCutAlertEnabled) { mutableStateOf(powerCutAlertEnabled) }
     var localSystemLogEnabled by remember(systemLogEnabled) { mutableStateOf(systemLogEnabled) }
+    var localTelegramMediaType by remember(remoteSendMediaType) { mutableStateOf(remoteSendMediaType) }
 
     val categoryStates = remember(cameraStatusJson) {
         val catJson = cameraStatusJson?.optJSONObject("categoryFilters")
@@ -289,6 +292,9 @@ fun RemoteSettingsScreen(
                                         put("autoStartOnBoot", localAutoStartOnBoot)
                                         put("powerCutAlertEnabled", localPowerCutAlert)
                                         put("systemLogEnabled", localSystemLogEnabled)
+                                        put("telegram", JSONObject().apply {
+                                            put("mediaType", localTelegramMediaType)
+                                        })
                                     })
                                 }.toString()
 
@@ -1094,6 +1100,41 @@ fun RemoteSettingsScreen(
                                     Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("⚡ 同步觀看端 Telegram 設定至本鏡頭", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Text("告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("選擇遠端鏡頭觸發告警時傳送至 Telegram 的媒體種類：", fontSize = 12.sp, color = textSecondaryColor)
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 照片+影片")
+                                    types.forEach { (typeKey, label) ->
+                                        val isSelected = localTelegramMediaType == typeKey
+                                        OutlinedButton(
+                                            onClick = {
+                                                localTelegramMediaType = typeKey
+                                                coroutineScope.launch {
+                                                    onSendCommand("telegram_media_type", typeKey)
+                                                }
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            border = BorderStroke(1.dp, if (isSelected) brandPrimaryColor else cardBorderColor),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                                contentColor = if (isSelected) brandPrimaryColor else textSecondaryColor
+                                            ),
+                                            modifier = Modifier.weight(1f),
+                                            contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
+                                        ) {
+                                            Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                        }
+                                    }
                                 }
                             }
                         }

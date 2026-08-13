@@ -7,7 +7,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 object TelegramNotifier {
@@ -77,6 +79,50 @@ object TelegramNotifier {
             }
         } catch (e: Exception) {
             Log.e("TelegramNotifier", "Error sending Telegram notification", e)
+            return@withContext false
+        }
+    }
+
+    suspend fun sendVideoAlert(
+        botToken: String,
+        chatId: String,
+        deviceName: String,
+        motionPercentage: Float,
+        videoFile: File,
+        aiSummary: String = ""
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (botToken.isBlank() || chatId.isBlank() || !videoFile.exists() || videoFile.length() == 0L) {
+            return@withContext false
+        }
+
+        try {
+            val aiLine = if (aiSummary.isNotBlank()) "🤖 *ML Kit AI:* $aiSummary\n" else ""
+            val caption = "📹 *【動態錄影告警】*\n" +
+                    "📱 裝置: *$deviceName*\n" +
+                    "⚠️ 動態差異: *${"%.1f".format(motionPercentage)}%*\n" +
+                    aiLine +
+                    "⏰ 時間: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
+
+            val url = "https://api.telegram.org/bot$botToken/sendVideo"
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("chat_id", chatId)
+                .addFormDataPart("caption", caption)
+                .addFormDataPart("parse_mode", "Markdown")
+                .addFormDataPart(
+                    "video",
+                    videoFile.name,
+                    videoFile.asRequestBody("video/mp4".toMediaType())
+                )
+                .build()
+
+            val request = Request.Builder().url(url).post(requestBody).build()
+            val response = client.newCall(request).execute()
+            val success = response.isSuccessful
+            response.close()
+            return@withContext success
+        } catch (e: Exception) {
+            Log.e("TelegramNotifier", "Error sending Telegram video notification", e)
             return@withContext false
         }
     }

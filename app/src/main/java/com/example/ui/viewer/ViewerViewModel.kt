@@ -7,6 +7,9 @@ import com.example.audio.AudioEngine
 import com.example.client.CameraStreamClient
 import com.example.data.AppDatabase
 import com.example.data.CameraDevice
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,6 +19,18 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class AdaptiveModeState(
+    val isEnabled: Boolean = true,
+    val isDowngraded: Boolean = false,
+    val currentResolution: String = "720p",
+    val currentQuality: Int = 60,
+    val targetFps: Int = 30,
+    val labelText: String = "⚡ Adaptive: Auto",
+    val reasonText: String = "",
+    val pingMs: Int = -1,
+    val fps: Int = 0
+)
+
 class ViewerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
@@ -24,6 +39,11 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     val audioEngine = AudioEngine()
     val streamClient = CameraStreamClient(audioEngine)
+
+    private val _adaptiveState = MutableStateFlow(AdaptiveModeState())
+    val adaptiveState: StateFlow<AdaptiveModeState> = _adaptiveState.asStateFlow()
+
+    private var adaptiveJob: Job? = null
 
     private val _isTailscaleConnected = MutableStateFlow(false)
     val isTailscaleConnected: StateFlow<Boolean> = _isTailscaleConnected.asStateFlow()
@@ -92,6 +112,171 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         val botToken = settingsManager.telegramBotToken
         val chatId = settingsManager.telegramChatId
         streamClient.connect(camera, viewModelScope, botToken, chatId)
+        if (_adaptiveState.value.isEnabled) {
+            startAdaptiveResolutionMonitor()
+        }
+    }
+
+    fun setAdaptiveModeEnabled(enabled: Boolean) {
+        _adaptiveState.value = _adaptiveState.value.copy(
+            isEnabled = enabled,
+            labelText = if (enabled) "⚡ Adaptive Mode: Auto" else "⚡ Adaptive: Off"
+        )
+        if (enabled) {
+            startAdaptiveResolutionMonitor()
+        } else {
+            adaptiveJob?.cancel()
+            adaptiveJob = null
+        }
+    }
+
+    private fun startAdaptiveResolutionMonitor() {
+        adaptiveJob?.cancel()
+        adaptiveJob = viewModelScope.launch(Dispatchers.IO) {
+            var lagConsecutiveCount = 0
+            var severeConsecutiveCount = 0
+            var recoveryConsecutiveCount = 0
+            var lastDowngradeTime = 0L
+
+            while (isActive) {
+                delay(2000L)
+
+                val camera = _selectedCamera.value ?: continue
+                val isConnected = streamClient.isConnected.value
+                val isAdaptiveEnabled = _adaptiveState.value.isEnabled
+
+                if (!isConnected || !isAdaptiveEnabled) {
+                    recoveryConsecutiveCount = 0
+                    lagConsecutiveCount = 0
+                    severeConsecutiveCount = 0
+                    continue
+                }
+
+                val statusJson = streamClient.cameraStatusJson.value
+                val pingMs = statusJson?.optInt("pingMs", -1) ?: -1
+                val currentFps = streamClient.fps.value
+                val lastFrameTs = streamClient.lastFrameTimestamp.value
+                val now = System.currentTimeMillis()
+                val timeSinceLastFrame = if (lastFrameTs > 0) now - lastFrameTs else 0L
+
+                val serverRes = statusJson?.optString("resolution", "720p") ?: "720p"
+                val serverQual = statusJson?.optInt("quality", 60) ?: 60
+
+                // Dynamic Adaptive FPS & Resolution Trigger Conditions
+                val isSevereLowFps = (currentFps in 1..5 && lastFrameTs > 0) || (currentFps == 0 && isConnected && now - lastDowngradeTime > 3000)
+                val isModerateLowFps = currentFps in 6..12 && lastFrameTs > 0
+                val isHighPing = pingMs > 280
+                val isSeverePing = pingMs > 450
+                val isFrameLag = lastFrameTs > 0 && timeSinceLastFrame > 1500
+                val isSevereFrameLag = lastFrameTs > 0 && timeSinceLastFrame > 2500
+
+                val needsLagAction = isModerateLowFps || isHighPing || isFrameLag
+                val needsSevereAction = isSevereLowFps || isSeverePing || isSevereFrameLag
+
+                if (needsSevereAction) {
+                    severeConsecutiveCount++
+                    lagConsecutiveCount++
+                    recoveryConsecutiveCount = 0
+                } else if (needsLagAction) {
+                    lagConsecutiveCount++
+                    severeConsecutiveCount = 0
+                    recoveryConsecutiveCount = 0
+                } else {
+                    lagConsecutiveCount = 0
+                    severeConsecutiveCount = 0
+                    if (pingMs in 1..200 && currentFps >= 15 && timeSinceLastFrame < 1000) {
+                        recoveryConsecutiveCount++
+                    } else {
+                        recoveryConsecutiveCount = 0
+                    }
+                }
+
+                // Severe Downgrade: FPS <= 5 or High Ping > 450ms -> Switch to 360p Quality 20% & Target 15 FPS
+                if (severeConsecutiveCount >= 1 && (serverRes != "360p" || serverQual > 20) && (now - lastDowngradeTime > 3000)) {
+                    lastDowngradeTime = now
+                    streamClient.sendControlCommand(camera, "resolution", "360p")
+                    streamClient.sendControlCommand(camera, "quality", "20")
+                    streamClient.sendControlCommand(camera, "fps", "15")
+
+                    val reason = when {
+                        isSevereLowFps -> "FPS極低 ($currentFps FPS)"
+                        isSeverePing -> "高Ping (${pingMs}ms)"
+                        isSevereFrameLag -> "卡頓 (${timeSinceLastFrame}ms)"
+                        else -> "網路與FPS嚴重流失"
+                    }
+                    _adaptiveState.value = AdaptiveModeState(
+                        isEnabled = true,
+                        isDowngraded = true,
+                        currentResolution = "360p",
+                        currentQuality = 20,
+                        targetFps = 15,
+                        labelText = "⚡ Adaptive: 360p ($reason / 品質20%)",
+                        reasonText = reason,
+                        pingMs = pingMs,
+                        fps = currentFps
+                    )
+                }
+                // Moderate Downgrade: FPS 6..12 or Ping > 280ms -> Switch to 480p Quality 30% & Target 20 FPS
+                else if (lagConsecutiveCount >= 2 && !_adaptiveState.value.isDowngraded && (now - lastDowngradeTime > 3000)) {
+                    lastDowngradeTime = now
+                    streamClient.sendControlCommand(camera, "resolution", "480p")
+                    streamClient.sendControlCommand(camera, "quality", "30")
+                    streamClient.sendControlCommand(camera, "fps", "20")
+
+                    val reason = when {
+                        isModerateLowFps -> "FPS偏低 ($currentFps FPS)"
+                        isHighPing -> "Ping偏高 (${pingMs}ms)"
+                        isFrameLag -> "影格延遲"
+                        else -> "網路與FPS波動"
+                    }
+                    _adaptiveState.value = AdaptiveModeState(
+                        isEnabled = true,
+                        isDowngraded = true,
+                        currentResolution = "480p",
+                        currentQuality = 30,
+                        targetFps = 20,
+                        labelText = "⚡ Adaptive: 480p ($reason / 品質30%)",
+                        reasonText = reason,
+                        pingMs = pingMs,
+                        fps = currentFps
+                    )
+                }
+                // Auto Recovery: Restore to 720p Quality 60% & 30 FPS after 5 consecutive stable checks (10s)
+                else if (recoveryConsecutiveCount >= 5 && _adaptiveState.value.isDowngraded) {
+                    recoveryConsecutiveCount = 0
+                    lastDowngradeTime = now
+                    streamClient.sendControlCommand(camera, "resolution", "720p")
+                    streamClient.sendControlCommand(camera, "quality", "60")
+                    streamClient.sendControlCommand(camera, "fps", "30")
+
+                    _adaptiveState.value = AdaptiveModeState(
+                        isEnabled = true,
+                        isDowngraded = false,
+                        currentResolution = "720p",
+                        currentQuality = 60,
+                        targetFps = 30,
+                        labelText = "⚡ Adaptive: Auto (${serverRes} / $currentFps FPS)",
+                        reasonText = "FPS與網路恢復平順",
+                        pingMs = pingMs,
+                        fps = currentFps
+                    )
+                } else {
+                    val cur = _adaptiveState.value
+                    val label = if (cur.isDowngraded) {
+                        "⚡ Adaptive: ${serverRes} (${cur.reasonText})"
+                    } else {
+                        "⚡ Adaptive: Auto (${serverRes} / ${currentFps} FPS)"
+                    }
+                    _adaptiveState.value = cur.copy(
+                        currentResolution = serverRes,
+                        currentQuality = serverQual,
+                        labelText = label,
+                        pingMs = pingMs,
+                        fps = currentFps
+                    )
+                }
+            }
+        }
     }
 
     fun syncTelegramToCurrentCamera() {
@@ -172,12 +357,16 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun disconnectCamera() {
+        adaptiveJob?.cancel()
+        adaptiveJob = null
         streamClient.disconnect()
         _selectedCamera.value = null
     }
 
     override fun onCleared() {
         super.onCleared()
+        adaptiveJob?.cancel()
+        adaptiveJob = null
         streamClient.disconnect()
         audioEngine.release()
     }

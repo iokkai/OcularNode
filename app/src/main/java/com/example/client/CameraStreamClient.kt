@@ -32,6 +32,15 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         .writeTimeout(10, TimeUnit.SECONDS)
         .build()
 
+    private val mjpegClient = client.newBuilder()
+        .readTimeout(0, TimeUnit.MILLISECONDS) // Unlimited read timeout for continuous stream
+        .build()
+
+    private val heartbeatClient = client.newBuilder()
+        .readTimeout(3, TimeUnit.SECONDS)
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .build()
+
     private var streamJob: Job? = null
     private var heartbeatJob: Job? = null
     private var audioListenJob: Job? = null
@@ -57,6 +66,9 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
 
     private val _fps = MutableStateFlow(0)
     val fps: StateFlow<Int> = _fps.asStateFlow()
+
+    private val _lastFrameTimestamp = MutableStateFlow(0L)
+    val lastFrameTimestamp: StateFlow<Long> = _lastFrameTimestamp.asStateFlow()
 
     private val _statusMessage = MutableStateFlow("Unconnected")
     val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
@@ -142,7 +154,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                         .url(cameraDevice.getMjpegUrl())
                         .build()
 
-                    val call = client.newCall(request)
+                    val call = mjpegClient.newCall(request)
                     streamCall = call
                     val response = call.execute()
                     if (!response.isSuccessful || response.body == null) {
@@ -183,44 +195,59 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
             val buffer = ByteArray(16384)
             val streamBuffer = ByteArrayOutputStream()
 
+            val soi = byteArrayOf(0xFF.toByte(), 0xD8.toByte())
+            val eoi = byteArrayOf(0xFF.toByte(), 0xD9.toByte())
+
             var read: Int
             while (inputStream.read(buffer).also { read = it } != -1) {
                 streamBuffer.write(buffer, 0, read)
-                val bytes = streamBuffer.toByteArray()
 
-                // Find the LAST completed JPEG frame (0xFF 0xD8 to 0xFF 0xD9) in the current buffer
-                val lastEndIndex = findLastSequence(bytes, byteArrayOf(0xFF.toByte(), 0xD9.toByte()))
-                if (lastEndIndex != -1) {
-                    val startIndex = findSequenceBefore(bytes, byteArrayOf(0xFF.toByte(), 0xD8.toByte()), lastEndIndex)
-                    if (startIndex != -1 && lastEndIndex > startIndex) {
-                        val jpegLength = (lastEndIndex + 2) - startIndex
-                        val jpegBytes = ByteArray(jpegLength)
-                        System.arraycopy(bytes, startIndex, jpegBytes, 0, jpegLength)
-
-                        val options = BitmapFactory.Options().apply {
-                            inPreferredConfig = Bitmap.Config.ARGB_8888
+                while (true) {
+                    val bytes = streamBuffer.toByteArray()
+                    val startIndex = findSequence(bytes, soi, 0)
+                    if (startIndex == -1) {
+                        if (bytes.size > 100000) {
+                            streamBuffer.reset()
                         }
-                        val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, options)
-                        if (bitmap != null) {
-                            _currentFrame.value = bitmap
-                            frameCount++
-                            val now = System.currentTimeMillis()
-                            if (now - lastFpsTime >= 1000) {
-                                _fps.value = frameCount
-                                frameCount = 0
-                                lastFpsTime = now
-                            }
-                        }
+                        break
+                    }
 
-                        // Reset buffer discarding everything up to lastEndIndex + 2 to guarantee zero frame delay
-                        val remainingLen = bytes.size - (lastEndIndex + 2)
-                        streamBuffer.reset()
-                        if (remainingLen > 0) {
-                            streamBuffer.write(bytes, lastEndIndex + 2, remainingLen)
+                    val endIndex = findSequence(bytes, eoi, startIndex + 2)
+                    if (endIndex == -1) {
+                        if (startIndex > 0) {
+                            val remaining = bytes.size - startIndex
+                            streamBuffer.reset()
+                            streamBuffer.write(bytes, startIndex, remaining)
+                        }
+                        break
+                    }
+
+                    val jpegLength = (endIndex + 2) - startIndex
+                    val jpegBytes = ByteArray(jpegLength)
+                    System.arraycopy(bytes, startIndex, jpegBytes, 0, jpegLength)
+
+                    val options = BitmapFactory.Options().apply {
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, options)
+                    if (bitmap != null) {
+                        val now = System.currentTimeMillis()
+                        _currentFrame.value = bitmap
+                        _lastFrameTimestamp.value = now
+                        frameCount++
+                        if (now - lastFpsTime >= 1000) {
+                            _fps.value = frameCount
+                            frameCount = 0
+                            lastFpsTime = now
                         }
                     }
-                } else if (bytes.size > 1000000) {
+
+                    val consumed = endIndex + 2
+                    val remainingLen = bytes.size - consumed
                     streamBuffer.reset()
+                    if (remainingLen > 0) {
+                        streamBuffer.write(bytes, consumed, remainingLen)
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -228,9 +255,9 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         }
     }
 
-    private fun findSequence(data: ByteArray, sequence: ByteArray): Int {
-        if (data.size < sequence.size) return -1
-        for (i in 0..data.size - sequence.size) {
+    private fun findSequence(data: ByteArray, sequence: ByteArray, startOffset: Int = 0): Int {
+        if (data.size - startOffset < sequence.size) return -1
+        for (i in startOffset..data.size - sequence.size) {
             var match = true
             for (j in sequence.indices) {
                 if (data[i + j] != sequence[j]) {
@@ -319,24 +346,41 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
 
     private fun startHeartbeatLoop(cameraDevice: CameraDevice, scope: CoroutineScope) {
         heartbeatJob = scope.launch(Dispatchers.IO) {
+            var failCount = 0
             while (isActive) {
+                val start = System.currentTimeMillis()
                 try {
-                    val request = Request.Builder().url(cameraDevice.getStatusUrl()).get().build()
-                    val call = client.newCall(request)
+                    val request = Request.Builder()
+                        .url(cameraDevice.getStatusUrl())
+                        .header("Connection", "close")
+                        .get()
+                        .build()
+                    val call = heartbeatClient.newCall(request)
                     heartbeatCall = call
                     val response = call.execute()
                     if (response.isSuccessful && response.body != null) {
                         val bodyStr = response.body!!.string()
                         val json = JSONObject(bodyStr)
+                        val ping = (System.currentTimeMillis() - start).toInt().coerceAtLeast(1)
+                        json.put("pingMs", ping)
                         _cameraStatusJson.value = json
+                        failCount = 0
+                    } else {
+                        failCount++
                     }
                     response.close()
                 } catch (e: Exception) {
-                    _cameraStatusJson.value = null
+                    failCount++
+                    Log.w("CameraStreamClient", "Heartbeat error ($failCount): ${e.message}")
                 } finally {
                     heartbeatCall = null
                 }
-                delay(3000L) // Poll status every 3s
+
+                if (failCount >= 3) {
+                    _cameraStatusJson.value = null
+                }
+
+                delay(2000L) // Poll status every 2s
             }
         }
     }

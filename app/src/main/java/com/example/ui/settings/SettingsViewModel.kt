@@ -37,6 +37,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _chatId = MutableStateFlow(settingsManager.telegramChatId)
     val chatId: StateFlow<String> = _chatId.asStateFlow()
 
+    private val _telegramSendMediaType = MutableStateFlow(settingsManager.telegramSendMediaType)
+    val telegramSendMediaType: StateFlow<String> = _telegramSendMediaType.asStateFlow()
+
     private val _deviceName = MutableStateFlow(settingsManager.cameraDeviceName)
     val deviceName: StateFlow<String> = _deviceName.asStateFlow()
 
@@ -122,6 +125,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _eventVideoRecordingEnabled.value = settingsManager.eventVideoRecordingEnabled
         _botToken.value = settingsManager.telegramBotToken
         _chatId.value = settingsManager.telegramChatId
+        _telegramSendMediaType.value = settingsManager.telegramSendMediaType
+    }
+
+    fun updateTelegramSendMediaType(type: String) {
+        _telegramSendMediaType.value = type
+        settingsManager.telegramSendMediaType = type
     }
 
     fun updateRoleMode(mode: String) {
@@ -191,6 +200,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val configJson = JSONObject().apply {
                     put("token", token)
                     put("chatId", id)
+                    put("mediaType", _telegramSendMediaType.value)
                 }.toString()
 
                 var syncedCount = 0

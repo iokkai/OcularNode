@@ -47,6 +47,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -433,40 +434,55 @@ fun CameraDeviceCard(
     var currentBitmap by remember(camera.id) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     var isLoading by remember(camera.id) { mutableStateOf(true) }
 
-    var cpuUsage by remember { mutableStateOf(0) }
-    var memoryUsage by remember { mutableStateOf(0) }
-    var memoryUsedMB by remember { mutableStateOf(0) }
-    var pingMs by remember { mutableStateOf(0) }
-    var isOnlineStatus by remember { mutableStateOf(true) }
+    var cpuUsage by remember(camera.id) { mutableIntStateOf(0) }
+    var memoryUsage by remember(camera.id) { mutableIntStateOf(0) }
+    var memoryUsedMB by remember(camera.id) { mutableIntStateOf(0) }
+    var pingMs by remember(camera.id) { mutableIntStateOf(0) }
+    var isOnlineStatus by remember(camera.id) { mutableStateOf<Boolean?>(null) }
 
-    LaunchedEffect(camera.id) {
+    LaunchedEffect(camera.id, camera.ipAddress, camera.port) {
+        var failCount = 0
         while (true) {
             val startTime = System.currentTimeMillis()
             try {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val url = java.net.URL("http://${camera.ipAddress}:${camera.port}/status")
+                    val cleanIp = camera.ipAddress.trim()
+                    val urlStr = "http://$cleanIp:${camera.port}/status"
+                    val url = java.net.URL(urlStr)
                     val conn = url.openConnection() as java.net.HttpURLConnection
-                    conn.connectTimeout = 2000
-                    conn.readTimeout = 2000
-                    if (conn.responseCode == 200) {
-                        pingMs = (System.currentTimeMillis() - startTime).toInt()
-                        isOnlineStatus = true
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.useCaches = false
+                    conn.setRequestProperty("Connection", "close")
+                    
+                    val responseCode = conn.responseCode
+                    val duration = (System.currentTimeMillis() - startTime).toInt().coerceAtLeast(1)
+                    if (responseCode == 200) {
                         val text = conn.inputStream.bufferedReader().readText()
+                        conn.disconnect()
                         val json = org.json.JSONObject(text)
-                        cpuUsage = json.optInt("cpuUsage", 30)
-                        memoryUsage = json.optInt("memoryUsage", 45)
+                        
+                        pingMs = duration
+                        cpuUsage = json.optInt("cpuUsage", 0)
+                        memoryUsage = json.optInt("memoryUsage", 0)
                         memoryUsedMB = json.optInt("memoryUsedMB", 0)
+                        isOnlineStatus = true
+                        failCount = 0
                     } else {
-                        isOnlineStatus = false
-                        pingMs = 999
+                        conn.disconnect()
+                        failCount++
                     }
-                    conn.disconnect()
                 }
             } catch (e: Exception) {
+                failCount++
+            }
+
+            if (failCount >= 2) {
                 isOnlineStatus = false
                 pingMs = 999
             }
-            delay(10000)
+
+            delay(2000)
         }
     }
 
@@ -608,15 +624,20 @@ fun CameraDeviceCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    val (statusColor, statusText) = when (isOnlineStatus) {
+                        true -> Color(0xFF4CAF50) to "Online"
+                        false -> Color(0xFFB3261E) to "Offline"
+                        null -> Color(0xFF79747E) to "檢測中..."
+                    }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        androidx.compose.foundation.layout.Box(
+                        Box(
                             modifier = Modifier
                                 .size(10.dp)
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(if (isOnlineStatus) Color(0xFF4CAF50) else Color(0xFF9E9E9E))
+                                .clip(CircleShape)
+                                .background(statusColor)
                         )
                         Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                        Text(if (isOnlineStatus) "Online" else "Offline", color = if (isOnlineStatus) Color(0xFF4CAF50) else Color(0xFF9E9E9E), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(statusText, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Text("${camera.ipAddress}:${camera.port}", color = Color(0xFF6750A4), fontWeight = FontWeight.Medium, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(4.dp))
@@ -624,30 +645,44 @@ fun CameraDeviceCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val isCpuHigh = cpuUsage > 80
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("CPU: $cpuUsage%", fontSize = 11.sp, color = if (isCpuHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
-                            if (isCpuHigh) {
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Icon(Icons.Default.Warning, contentDescription = "CPU過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                        if (isOnlineStatus == true) {
+                            val isCpuHigh = cpuUsage > 80
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("CPU: $cpuUsage%", fontSize = 11.sp, color = if (isCpuHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
+                                if (isCpuHigh) {
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = "CPU過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                }
                             }
-                        }
-                        val isMemHigh = memoryUsage > 85
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            val memText = if (memoryUsedMB > 0) "記憶體: $memoryUsage% (${memoryUsedMB}MB)" else "記憶體: $memoryUsage%"
-                            Text(memText, fontSize = 11.sp, color = if (isMemHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
-                            if (isMemHigh) {
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Icon(Icons.Default.Warning, contentDescription = "記憶體過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                            val isMemHigh = memoryUsage > 85
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val memText = if (memoryUsedMB > 0) "記憶體: $memoryUsage% (${memoryUsedMB}MB)" else "記憶體: $memoryUsage%"
+                                Text(memText, fontSize = 11.sp, color = if (isMemHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
+                                if (isMemHigh) {
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = "記憶體過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                }
                             }
-                        }
-                        val isPingHigh = pingMs > 250 || !isOnlineStatus
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Ping: ${if (isOnlineStatus) "${pingMs}ms" else "逾時"}", fontSize = 11.sp, color = if (isPingHigh) Color(0xFFB3261E) else Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
-                            if (isPingHigh) {
-                                Spacer(modifier = Modifier.width(2.dp))
-                                Icon(Icons.Default.Warning, contentDescription = "連線品質差警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                            val isPingHigh = pingMs > 250
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Ping: ${pingMs}ms", fontSize = 11.sp, color = if (isPingHigh) Color(0xFFB3261E) else Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                                if (isPingHigh) {
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = "連線品質差警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                }
                             }
+                        } else if (isOnlineStatus == false) {
+                            Text("CPU: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("記憶體: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Ping: 離線", fontSize = 11.sp, color = Color(0xFFB3261E), fontWeight = FontWeight.SemiBold)
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(Icons.Default.Warning, contentDescription = "連線斷開", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                            }
+                        } else {
+                            Text("CPU: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("記憶體: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("Ping: 檢測中", fontSize = 11.sp, color = Color(0xFF79747E))
                         }
                     }
                 }
