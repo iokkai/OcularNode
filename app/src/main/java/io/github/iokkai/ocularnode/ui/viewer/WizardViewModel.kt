@@ -26,7 +26,6 @@ data class WizardUiState(
     val currentStep: Int = 1,
     val wifiSsid: String = "",
     val wifiPassword: String = "",
-    val apkUrl: String = "https://example.com/app-debug.apk",
     val apiKey: String = "",
     val isApiKeyVerified: Boolean = false,
     val isVerifyingApiKey: Boolean = false,
@@ -86,10 +85,6 @@ class WizardViewModel : ViewModel() {
 
     fun setWifiPassword(pwd: String) {
         _uiState.update { it.copy(wifiPassword = pwd) }
-    }
-
-    fun setApkUrl(url: String) {
-        _uiState.update { it.copy(apkUrl = url) }
     }
 
     fun setApiKey(key: String) {
@@ -169,7 +164,6 @@ class WizardViewModel : ViewModel() {
         val apiKey = _uiState.value.apiKey.trim()
         val ssid = _uiState.value.wifiSsid.trim()
         val password = _uiState.value.wifiPassword
-        val apkUrl = _uiState.value.apkUrl.trim()
 
         viewModelScope.launch {
             _uiState.update {
@@ -219,6 +213,12 @@ class WizardViewModel : ViewModel() {
                     }
                 }
 
+                // 1.5 Fetch Latest APK URL from GitHub
+                val fetchedApkUrl = io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.getLatestReleaseApkUrl(
+                    io.github.iokkai.ocularnode.BuildConfig.GITHUB_OWNER,
+                    io.github.iokkai.ocularnode.BuildConfig.GITHUB_REPO
+                )
+
                 // 2. Build DO Provisioning JSON
                 val extrasBundle = JSONObject().apply {
                     put("tailscale_auth_key", authKey)
@@ -232,7 +232,7 @@ class WizardViewModel : ViewModel() {
                     )
                     put(
                         "android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION",
-                        apkUrl
+                        fetchedApkUrl
                     )
                     put("android.app.extra.PROVISIONING_WIFI_SSID", ssid)
                     put("android.app.extra.PROVISIONING_WIFI_PASSWORD", password)

@@ -1,0 +1,91 @@
+name: OcularNode Release CI/CD
+
+# 觸發條件：當推送到 main 分支的標籤 (Tag) 為 v 開頭時 (例如 v1.0)，或手動觸發
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: 
+
+jobs:
+  build-and-release:
+    name: Build and Publish Signed APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 允許 GitHub Actions 建立 Release 並上傳檔案
+
+    steps:
+      - name: 📥 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: ☕ 設定 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: ⚙️ 賦予 Gradle 執行權限
+        run: chmod +x gradlew
+
+      - name: 🔢 計算語意版本號 (SemVer to versionCode)
+        id: parse_version
+        run: |
+          # 取得觸發這次 Action 的 Tag 名稱 (例如 v0.2.1)
+          TAG_NAME="${{ github.ref_name }}"
+          
+          # 移除開頭的 'v' (變成 0.2.1)
+          CLEAN_VERSION="${TAG_NAME#v}"
+          
+          # 決定 Release 的 Tag 名稱：如果是手動觸發 (沒有 v 開頭)，則使用 run_number
+          if [[ "$TAG_NAME" != v* ]]; then
+            RELEASE_TAG="build-${{ github.run_number }}"
+            VERSION_CODE=${{ github.run_number }}
+          else
+            RELEASE_TAG="$TAG_NAME"
+            # 假設版號格式為 主版.次版.修訂版 (例如 0.2.1)
+            MAJOR=$(echo "$CLEAN_VERSION" | awk -F. '{print $1}')
+            MINOR=$(echo "$CLEAN_VERSION" | awk -F. '{print $2}')
+            PATCH=$(echo "$CLEAN_VERSION" | awk -F. '{print $3}')
+            
+            # 防呆：如果沒有 patch 或 minor 預設為 0
+            MAJOR=${MAJOR:-0}
+            MINOR=${MINOR:-0}
+            PATCH=${PATCH:-0}
+            
+            VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          fi
+          
+          echo "當前 Tag: $TAG_NAME"
+          echo "目標 Release Tag: $RELEASE_TAG"
+          echo "計算出的 versionCode = $VERSION_CODE"
+          
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+
+      - name: 🔑 準備 Keystore 檔案
+        run: |
+          # 將 GitHub Secrets 中的 BASE64 Keystore 解碼並存入檔案
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/keystore.jks
+
+      - name: 🔨 編譯與簽名 Release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew assembleRelease -PversionCode=${{ steps.parse_version.outputs.version_code }}
+
+      - name: 📦 上傳 APK 到 Action Artifacts (備份)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ocularnode-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 7
+
+      - name: 🚀 發布至 GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.parse_version.outputs.release_tag }}
+          name: OcularNode Release ${{ steps.parse_version.outputs.release_tag }}
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true

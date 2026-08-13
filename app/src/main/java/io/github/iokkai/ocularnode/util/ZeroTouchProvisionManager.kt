@@ -33,10 +33,60 @@ object ZeroTouchProvisionManager {
 
     private const val TAG = "ZeroTouchProvision"
     private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
-    private const val DEFAULT_TAILSCALE_APK_URL = "https://pkgs.tailscale.com/stable/tailscale-v1.80.0-arm64.apk"
+    private val DEFAULT_TAILSCALE_APK_URL = io.github.iokkai.ocularnode.BuildConfig.TAILSCALE_APK_URL.ifBlank { "https://pkgs.tailscale.com/stable/tailscale-v1.80.0-arm64.apk" }
 
     fun getAdminComponent(context: Context): ComponentName {
         return ComponentName(context, AdminReceiver::class.java)
+    }
+
+    /**
+     * 動態從 GitHub Releases API 取得最新版 APK 的真實下載網址
+     * @param githubOwner GitHub 擁有者
+     * @param githubRepo GitHub 儲存庫名稱
+     * @return 最新 APK 的下載網址字串
+     * @throws Exception 當網路連線失敗或找不到 APK 時拋出異常
+     */
+    suspend fun getLatestReleaseApkUrl(githubOwner: String, githubRepo: String): String = withContext(Dispatchers.IO) {
+        if (githubOwner.isBlank() || githubRepo.isBlank()) {
+            throw Exception("GitHub Owner 或 Repo 未設定，無法動態獲取更新網址")
+        }
+
+        val apiUrl = "https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest"
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+
+        val request = Request.Builder()
+            .url(apiUrl)
+            .header("User-Agent", "OcularNode-App")
+            .header("Accept", "application/vnd.github.v3+json")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw Exception("GitHub Releases API 請求失敗，HTTP Code: ${response.code}")
+            }
+
+            val jsonStr = response.body?.string() ?: throw Exception("回傳內容為空")
+            val jsonObject = JSONObject(jsonStr)
+
+            val assets = jsonObject.optJSONArray("assets")
+            if (assets == null || assets.length() == 0) {
+                throw Exception("該 Release 內沒有包含任何可下載的檔案 (Assets)")
+            }
+
+            // 尋找第一個以 .apk 結尾的檔案
+            for (i in 0 until assets.length()) {
+                val asset = assets.getJSONObject(i)
+                val downloadUrl = asset.optString("browser_download_url", "")
+                if (downloadUrl.endsWith(".apk", ignoreCase = true)) {
+                    Log.i(TAG, "成功取得動態 APK 網址: $downloadUrl")
+                    return@withContext downloadUrl
+                }
+            }
+            throw Exception("在 Release Assets 中找不到副檔名為 .apk 的檔案")
+        }
     }
 
     /**

@@ -12,12 +12,20 @@ android {
 
   defaultConfig {
     applicationId = "io.github.iokkai.ocularnode"
-    minSdk = 24
+    minSdk = 28
     targetSdk = 36
-    versionCode = 1
-    versionName = "0.1.0"
+    val runNumber = project.findProperty("versionCode") as? String
+    val code = runNumber?.toIntOrNull() ?: 1
+    versionCode = code
+    versionName = "1.$code"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    setProperty("archivesBaseName", "OcularNode")
+
+    // Default configuration for OTA updates and Tailscale download (can be overridden by .env)
+    buildConfigField("String", "GITHUB_OWNER", "\"iokkai\"")
+    buildConfigField("String", "GITHUB_REPO", "\"OcularNode\"")
+    buildConfigField("String", "TAILSCALE_APK_URL", "\"https://pkgs.tailscale.com/stable/tailscale-android-universal-1.102.2.apk\"")
   }
 
   signingConfigs {

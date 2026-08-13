@@ -17,8 +17,8 @@ object UpdateManager {
      */
     suspend fun checkAndSilentUpdate(
         context: Context,
-        githubOwner: String,
-        githubRepo: String
+        githubOwner: String = io.github.iokkai.ocularnode.BuildConfig.GITHUB_OWNER,
+        githubRepo: String = io.github.iokkai.ocularnode.BuildConfig.GITHUB_REPO
     ) {
         ZeroTouchProvisionManager.checkAndSilentUpdate(context, githubOwner, githubRepo)
     }
