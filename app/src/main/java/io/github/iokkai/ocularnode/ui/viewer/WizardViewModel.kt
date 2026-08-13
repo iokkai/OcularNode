@@ -183,7 +183,6 @@ class WizardViewModel : ViewModel() {
                                 put("reusable", false)
                                 put("ephemeral", false)
                                 put("preauthorized", true)
-                                put("tags", org.json.JSONArray().put("tag:kiosk"))
                             }
                             put("create", createObj)
                         }
