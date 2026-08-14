@@ -8,8 +8,6 @@
     <string name="tab_settings">設定</string>
     <string name="role_camera_title">鏡頭節點</string>
     <string name="role_viewer_title">觀看節點</string>
-    <string name="switch_to_camera">切換為鏡頭端</string>
-    <string name="switch_to_viewer">切換為觀看端</string>
     <string name="onboarding_welcome">歡迎使用 OcularNode</string>
     <string name="onboarding_select_role_desc">請選擇此裝置的主要用途：\n(後續可隨時於「設定」頁面進行修改)</string>
     <string name="role_camera_option">鏡頭端 (攝影機)</string>
@@ -21,18 +19,9 @@
     <!-- 2. 通用操作與對話框 -->
     <string name="btn_save">儲存</string>
     <string name="btn_cancel">取消</string>
-    <string name="btn_delete">刪除</string>
-    <string name="btn_confirm">確認</string>
     <string name="btn_close">關閉</string>
-    <string name="btn_next">下一步</string>
-    <string name="btn_previous">上一步</string>
-    <string name="btn_retry">重新嘗試</string>
-    <string name="btn_edit">編輯</string>
-    <string name="btn_copy">複製</string>
     <string name="btn_refresh">🔄 重新整理</string>
-    <string name="btn_paste_clipboard">📋 貼上剪貼簿</string>
     <string name="copied_to_clipboard">已複製到剪貼簿</string>
-    <string name="clipboard_empty">剪貼簿無內容</string>
     <string name="permission_required_title">啟動鏡頭端需要權限</string>
     <string name="permission_required_desc">請授權相機與麥克風權限，以建立 MJPEG 影像與雙向語音串流伺服器。</string>
     <string name="btn_grant_permissions">授權並啟動鏡頭端</string>
@@ -40,23 +29,13 @@
     <!-- 3. 鏡頭端模式與省電 -->
     <string name="camera_status_streaming">鏡頭端運作中 (LIVE)</string>
     <string name="camera_status_stopped">鏡頭端已停止</string>
-    <string name="camera_status_starting">正在啟動串流服務…</string>
     <string name="camera_btn_start">啟用</string>
     <string name="camera_btn_stop">停用</string>
-    <string name="camera_stream_url">串流網址</string>
     <string name="camera_local_ip">區網 IP (僅限相同 Wi-Fi 下連線)</string>
     <string name="camera_tailscale_ip">Tailscale IP (可遠端穿透)</string>
     <string name="camera_tailscale_connected">Tailscale VPN 已連線</string>
     <string name="camera_tailscale_disconnected">Tailscale VPN 未連線</string>
-    <string name="camera_port">連接埠</string>
-    <string name="camera_fps">幀率 (FPS)</string>
-    <string name="camera_bitrate">位元率</string>
-    <string name="camera_resolution">解析度</string>
-    <string name="camera_flash">閃光燈</string>
-    <string name="camera_switch">切換鏡頭</string>
     <string name="camera_black_screen">進入省電模式 (持續背景運作)</string>
-    <string name="camera_kiosk_lock">Kiosk 死鎖運行中</string>
-    <string name="camera_tap_to_wake">連續點擊 5 次喚醒</string>
     <string name="power_saving_active">省電模式運作中</string>
     <string name="power_saving_double_tap">連按兩下 (Double Tap) 解除省電模式</string>
     <string name="thermal_throttling_title">高溫降載機制啟動中 (%1$.1f°C)</string>
@@ -88,27 +67,15 @@
     <string name="btn_edit_camera">編輯鏡頭裝置</string>
     <string name="btn_provision_device">製作專用設備</string>
     <string name="camera_name_label">鏡頭名稱 (如 客廳鏡頭)</string>
-    <string name="camera_name_hint">例如：客廳、大門口</string>
     <string name="camera_ip_label">IP 或 完整 URL (如 100.x.x.x)</string>
-    <string name="camera_ip_hint">100.x.y.z 或 192.168.x.x</string>
     <string name="camera_port_label">Port 通訊埠 (預設 8080)</string>
-    <string name="btn_connect">連線</string>
-    <string name="btn_disconnect">中斷連線</string>
-    <string name="btn_remote_settings">遠端設定</string>
     <string name="device_online">在線</string>
     <string name="device_offline">離線</string>
     <string name="camera_added_success">已成功加入鏡頭: %1$s</string>
 
     <!-- 5. 即時監控畫面 -->
-    <string name="monitor_connecting">正在連線至鏡頭…</string>
-    <string name="monitor_disconnected">串流已中斷</string>
     <string name="monitor_reconnecting">中斷重連中</string>
     <string name="monitor_btn_snapshot">快照</string>
-    <string name="monitor_btn_listen">收聽</string>
-    <string name="monitor_btn_talk">對講</string>
-    <string name="monitor_btn_record">手動錄影</string>
-    <string name="monitor_audio_listening">即時聲音串流中</string>
-    <string name="monitor_audio_talking">正在傳送語音…</string>
     <string name="monitor_btn_zoom_out">縮小</string>
     <string name="monitor_btn_zoom_in">放大</string>
     <string name="monitor_btn_rotate_left">逆時鐘旋轉</string>
@@ -134,16 +101,10 @@
     <string name="monitor_btn_alarm">警報</string>
 
     <!-- 6. 專用設備部署精靈 -->
-    <string name="wizard_title">專用設備部署精靈</string>
     <string name="wizard_step_prep">1. 準備</string>
     <string name="wizard_step_reset">2. 重置</string>
     <string name="wizard_step_config">3. 參數</string>
     <string name="wizard_step_provision">4. 部署</string>
-    <string name="wizard_wifi_ssid">Wi-Fi 無線網路名稱 (SSID)</string>
-    <string name="wizard_wifi_password">Wi-Fi 連線密碼</string>
-    <string name="wizard_btn_autofill_wifi">📥 帶入當前 Wi-Fi</string>
-    <string name="wizard_tailscale_key">Tailscale Auth / API Key</string>
-    <string name="wizard_tailscale_key_hint">tskey-auth-… 或 tskey-api-…</string>
     <string name="wizard_waiting_scan">等待舊手機掃描並完成部署…</string>
     <string name="wizard_btn_finish">已完成掃描，返回主畫面</string>
     <string name="wizard_nav_title_1">專用設備部署 (1/4)</string>
@@ -328,7 +289,6 @@
     <string name="events_empty">目前尚無任何紀錄</string>
     <string name="events_filter_all">全部</string>
     <string name="events_filter_motion">動態</string>
-    <string name="events_filter_person">人物</string>
     <string name="events_filter_pet">寵物</string>
     <string name="events_filter_ai">已過濾</string>
     <string name="events_sync_title">從鏡頭端同步紀錄:</string>
@@ -427,29 +387,8 @@
     <string name="remote_ai_mlkit_title">Google ML Kit AI 智慧物件過濾</string>
     <string name="remote_ai_allow_push">允許推播通知</string>
     <string name="remote_ai_trigger_rec">觸發事件錄影</string>
-    <string name="remote_ai_filter_footer">💡 提示：關閉推播的項目仍會靜默記錄，不會打擾您的手機。</string>
-    <string name="remote_storage_title">💾 儲存容量限制與自動清理</string>
     <string name="remote_storage_max_title">最大歷史儲存容量上限 (GB)</string>
-    <string name="remote_storage_max_desc">超過此容量將自動清理最舊的錄影與歷史截圖</string>
-    <string name="remote_storage_cam_clean_title">清理鏡頭端儲存空間</string>
-    <string name="remote_storage_btn_clean">🧹 清理鏡頭端最舊 50 筆紀錄</string>
-    <string name="remote_storage_toast_clean_success">已成功向鏡頭端發送清理請求</string>
-    <string name="remote_storage_toast_clean_fail">清理失敗</string>
-    <string name="remote_kiosk_title">🔒 專用設備與 Kiosk 設定</string>
-    <string name="remote_kiosk_reboot_title">每天凌晨 04:00 自動重啟維護</string>
-    <string name="remote_kiosk_reboot_desc">Device Owner 模式每日凌晨四點自動重開機釋放記憶體確保穩定</string>
-    <string name="remote_kiosk_auto_stream_title">啟動 App 時自動開啟鏡頭串流</string>
-    <string name="remote_kiosk_auto_stream_desc">開機或開啟 App 後自動進入前景監控服務</string>
-    <string name="remote_kiosk_screen_off_title">背景持續運作時黑屏省電</string>
-    <string name="remote_kiosk_screen_off_desc">進入全黑節能畫面，避免螢幕烙印並降低發熱</string>
-    <string name="remote_tg_title">✈️ Telegram 警報機器人</string>
-    <string name="remote_tg_desc">設定鏡頭端直接推播警報訊息至 Telegram</string>
-    <string name="remote_tg_token">Telegram Bot Token</string>
-    <string name="remote_tg_chat_id">Telegram Chat ID</string>
     <string name="remote_tg_media_type">告警媒體類型</string>
-    <string name="remote_tg_toast_test_sent">已向 Telegram 發送測試訊息</string>
-    <string name="remote_tg_toast_test_fail">Telegram 測試發送失敗，請確認 Token 與 Chat ID</string>
-    <string name="remote_tg_btn_test">測試發送 Telegram 訊息</string>
     <string name="remote_ai_mlkit_desc">自動辨識人體、寵物與車輛並智慧分類，大幅減少風吹草動無效誤報</string>
     <string name="remote_tg_media_type_title">📡 Telegram 告警媒體類型</string>
     <string name="remote_tg_media_type_desc">選擇動態偵測觸發時傳送的媒體形式：</string>

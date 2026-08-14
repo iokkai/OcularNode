@@ -8,8 +8,6 @@
     <string name="tab_settings">Settings</string>
     <string name="role_camera_title">Camera Node</string>
     <string name="role_viewer_title">Viewer Node</string>
-    <string name="switch_to_camera">Switch to Camera</string>
-    <string name="switch_to_viewer">Switch to Viewer</string>
     <string name="onboarding_welcome">Welcome to OcularNode</string>
     <string name="onboarding_select_role_desc">Please select the primary role for this device:\n(You can change this anytime in Settings)</string>
     <string name="role_camera_option">Camera Node (Broadcaster)</string>
@@ -21,18 +19,9 @@
     <!-- 2. Common Actions & Dialogs -->
     <string name="btn_save">Save</string>
     <string name="btn_cancel">Cancel</string>
-    <string name="btn_delete">Delete</string>
-    <string name="btn_confirm">Confirm</string>
     <string name="btn_close">Close</string>
-    <string name="btn_next">Next</string>
-    <string name="btn_previous">Previous</string>
-    <string name="btn_retry">Retry</string>
-    <string name="btn_edit">Edit</string>
-    <string name="btn_copy">Copy</string>
     <string name="btn_refresh">🔄 Refresh</string>
-    <string name="btn_paste_clipboard">📋 Paste Clipboard</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
-    <string name="clipboard_empty">Clipboard is empty</string>
     <string name="permission_required_title">Permissions Required</string>
     <string name="permission_required_desc">Camera and microphone permissions are required to establish streaming servers and two-way audio.</string>
     <string name="btn_grant_permissions">Grant Permissions &amp; Start</string>
@@ -40,23 +29,13 @@
     <!-- 3. Camera Mode & Power Saving -->
     <string name="camera_status_streaming">Streaming Live (LIVE)</string>
     <string name="camera_status_stopped">Camera Node Stopped</string>
-    <string name="camera_status_starting">Starting Service…</string>
     <string name="camera_btn_start">Start</string>
     <string name="camera_btn_stop">Stop</string>
-    <string name="camera_stream_url">Stream URL</string>
     <string name="camera_local_ip">Local IP (Same Wi-Fi)</string>
     <string name="camera_tailscale_ip">Tailscale IP (Remote Access)</string>
     <string name="camera_tailscale_connected">Tailscale VPN Connected</string>
     <string name="camera_tailscale_disconnected">Tailscale VPN Disconnected</string>
-    <string name="camera_port">Port</string>
-    <string name="camera_fps">FPS</string>
-    <string name="camera_bitrate">Bitrate</string>
-    <string name="camera_resolution">Resolution</string>
-    <string name="camera_flash">Flashlight</string>
-    <string name="camera_switch">Switch Lens</string>
     <string name="camera_black_screen">Enter Power Saving Mode (Background Active)</string>
-    <string name="camera_kiosk_lock">Kiosk Mode Locked</string>
-    <string name="camera_tap_to_wake">Tap 5 times to wake</string>
     <string name="power_saving_active">Power Saving Mode Active</string>
     <string name="power_saving_double_tap">Double tap to exit power saving mode</string>
     <string name="thermal_throttling_title">Thermal Throttling Active (%1$.1f°C)</string>
@@ -88,27 +67,15 @@
     <string name="btn_edit_camera">Edit Camera Device</string>
     <string name="btn_provision_device">Deploy Dedicated Device</string>
     <string name="camera_name_label">Camera Name (e.g. Living Room)</string>
-    <string name="camera_name_hint">e.g. Living Room, Front Door</string>
     <string name="camera_ip_label">IP or Full URL (e.g. 100.x.x.x)</string>
-    <string name="camera_ip_hint">100.x.y.z or 192.168.x.x</string>
     <string name="camera_port_label">Port (Default 8080)</string>
-    <string name="btn_connect">Connect</string>
-    <string name="btn_disconnect">Disconnect</string>
-    <string name="btn_remote_settings">Remote Settings</string>
     <string name="device_online">Online</string>
     <string name="device_offline">Offline</string>
     <string name="camera_added_success">Successfully added camera: %1$s</string>
 
     <!-- 5. Live Monitor Screen -->
-    <string name="monitor_connecting">Connecting to camera…</string>
-    <string name="monitor_disconnected">Stream Disconnected</string>
     <string name="monitor_reconnecting">Reconnecting…</string>
     <string name="monitor_btn_snapshot">Snapshot</string>
-    <string name="monitor_btn_listen">Listen</string>
-    <string name="monitor_btn_talk">Talk (PTT)</string>
-    <string name="monitor_btn_record">Manual Record</string>
-    <string name="monitor_audio_listening">Audio streaming active</string>
-    <string name="monitor_audio_talking">Transmitting voice…</string>
     <string name="monitor_btn_zoom_out">Zoom Out</string>
     <string name="monitor_btn_zoom_in">Zoom In</string>
     <string name="monitor_btn_rotate_left">Rotate CCW</string>
@@ -134,16 +101,10 @@
     <string name="monitor_btn_alarm">Alarm</string>
 
     <!-- 6. Dedicated Device Provisioning Wizard -->
-    <string name="wizard_title">Dedicated Device Setup</string>
     <string name="wizard_step_prep">1. Prepare</string>
     <string name="wizard_step_reset">2. Reset</string>
     <string name="wizard_step_config">3. Config</string>
     <string name="wizard_step_provision">4. Provision</string>
-    <string name="wizard_wifi_ssid">Wi-Fi Network Name (SSID)</string>
-    <string name="wizard_wifi_password">Wi-Fi Password</string>
-    <string name="wizard_btn_autofill_wifi">📥 Auto-fill Current Wi-Fi</string>
-    <string name="wizard_tailscale_key">Tailscale Auth / API Key</string>
-    <string name="wizard_tailscale_key_hint">tskey-auth-… or tskey-api-…</string>
     <string name="wizard_waiting_scan">Waiting for old device to scan and provision…</string>
     <string name="wizard_btn_finish">Completed Scan, Return to Home</string>
     <string name="wizard_nav_title_1">Dedicated Device Setup (1/4)</string>
@@ -328,7 +289,6 @@
     <string name="events_empty">No event logs recorded</string>
     <string name="events_filter_all">All</string>
     <string name="events_filter_motion">Motion</string>
-    <string name="events_filter_person">Person</string>
     <string name="events_filter_pet">Pet</string>
     <string name="events_filter_ai">Filtered</string>
     <string name="events_sync_title">Sync records from camera:</string>
@@ -427,29 +387,8 @@
     <string name="remote_ai_mlkit_title">Google ML Kit AI Smart Object Filter</string>
     <string name="remote_ai_allow_push">Allow Push Notifications</string>
     <string name="remote_ai_trigger_rec">Trigger Event Recording</string>
-    <string name="remote_ai_filter_footer">💡 Tip: Items with Push turned off will be recorded quietly without waking your phone with alerts.</string>
-    <string name="remote_storage_title">💾 Storage Limits &amp; Cleanup</string>
     <string name="remote_storage_max_title">Max Storage Limit (GB)</string>
-    <string name="remote_storage_max_desc">Auto-deletes oldest recordings and snapshots when storage exceeds this limit</string>
-    <string name="remote_storage_cam_clean_title">Clean Camera Storage</string>
-    <string name="remote_storage_btn_clean">🧹 Clean Oldest 50 Records</string>
-    <string name="remote_storage_toast_clean_success">Successfully requested camera cleanup</string>
-    <string name="remote_storage_toast_clean_fail">Cleanup request failed</string>
-    <string name="remote_kiosk_title">🔒 Dedicated Device &amp; Kiosk Settings</string>
-    <string name="remote_kiosk_reboot_title">Daily Auto-Reboot at 04:00 AM</string>
-    <string name="remote_kiosk_reboot_desc">Device Owner mode automatically performs maintenance reboot at 4 AM daily to prevent memory leaks</string>
-    <string name="remote_kiosk_auto_stream_title">Auto-Start Camera on App Launch</string>
-    <string name="remote_kiosk_auto_stream_desc">Automatically starts foreground camera service when app opens</string>
-    <string name="remote_kiosk_screen_off_title">Turn Screen Black to Save Power</string>
-    <string name="remote_kiosk_screen_off_desc">Shows black energy-saver overlay to prevent screen burn-in and reduce heat</string>
-    <string name="remote_tg_title">✈️ Telegram Alert Bot</string>
-    <string name="remote_tg_desc">Configure camera to push instant alerts directly to Telegram</string>
-    <string name="remote_tg_token">Telegram Bot Token</string>
-    <string name="remote_tg_chat_id">Telegram Chat ID</string>
     <string name="remote_tg_media_type">Alert Media Type</string>
-    <string name="remote_tg_toast_test_sent">Test message sent to Telegram</string>
-    <string name="remote_tg_toast_test_fail">Telegram test failed, check Bot Token and Chat ID</string>
-    <string name="remote_tg_btn_test">Test Telegram Alert</string>
     <string name="remote_ai_mlkit_desc">Automatically recognizes people, pets, and vehicles to drastically reduce false alarms</string>
     <string name="remote_tg_media_type_title">📡 Telegram Alert Media Type</string>
     <string name="remote_tg_media_type_desc">Select media format to send when motion is triggered:</string>
