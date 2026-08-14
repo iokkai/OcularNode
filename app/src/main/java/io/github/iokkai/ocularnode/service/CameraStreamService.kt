@@ -22,6 +22,7 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.MainActivity
 import io.github.iokkai.ocularnode.audio.AudioEngine
 import io.github.iokkai.ocularnode.camera.CameraManagerHelper
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 
 class CameraStreamService : Service(), LifecycleOwner {
 
@@ -196,20 +198,6 @@ class CameraStreamService : Service(), LifecycleOwner {
         
         cameraHelper.onFrameEncoded = { jpegBytes ->
             httpServer.updateFrame(jpegBytes)
-        }
-
-        // 定期自動檢查 GitHub Releases 靜默更新 (每 24 小時一次)
-        serviceScope.launch(Dispatchers.IO) {
-            kotlinx.coroutines.delay(60_000L) // 服務啟動 1 分鐘後進行初次檢查
-            while (kotlinx.coroutines.isActive) {
-                try {
-                    Log.i("CameraStreamService", "執行例行性 GitHub Releases 靜默更新檢查...")
-                    io.github.iokkai.ocularnode.util.UpdateManager.checkAndSilentUpdate(this@CameraStreamService)
-                } catch (e: Exception) {
-                    Log.e("CameraStreamService", "例行性靜默更新檢查異常", e)
-                }
-                kotlinx.coroutines.delay(24 * 3600 * 1000L)
-            }
         }
 
         cameraHelper.onLumaMeasured = { luma ->

@@ -1292,7 +1292,7 @@ fun RemoteSettingsScreen(
                                 Button(
                                     onClick = {
                                         onSyncTelegram()
-                                        Toast.makeText(context, context.getString(R.string.remote_tg_toast_synced), Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.remote_settings_toast_success), Toast.LENGTH_SHORT).show()
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
                                     shape = RoundedCornerShape(12.dp),
@@ -1307,7 +1307,7 @@ fun RemoteSettingsScreen(
 
                                 Text(stringResource(R.string.remote_tg_media_type), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(stringResource(R.string.remote_tg_media_select_desc), fontSize = 12.sp, color = textSecondaryColor)
+                                Text(stringResource(R.string.remote_tg_media_type_desc), fontSize = 12.sp, color = textSecondaryColor)
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Row(

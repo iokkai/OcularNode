@@ -126,7 +126,6 @@ class CameraManagerHelper(private val context: Context) {
         previewSurface: Preview.SurfaceProvider? = null,
         onReady: () -> Unit = {}
     ) {
-        prevLumaMatrix = null
         lastMotionTime = System.currentTimeMillis()
         cameraStartTime = System.currentTimeMillis()
         this.currentLifecycleOwner = lifecycleOwner

@@ -38,7 +38,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -54,8 +53,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.layout.Arrangement
 import io.github.iokkai.ocularnode.data.CameraDevice
 import io.github.iokkai.ocularnode.ui.camera.CameraModeScreen
 import io.github.iokkai.ocularnode.ui.camera.CameraServerViewModel

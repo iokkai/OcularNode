@@ -9,7 +9,7 @@ plugins {
 val runNumber = project.findProperty("versionCode") as? String
 val computedVersionCode = runNumber?.toIntOrNull() ?: 1
 val runName = project.findProperty("versionName") as? String
-val computedVersionName = if (!runName.isNullOrBlank()) runName else "1.$computedVersionCode"
+val computedVersionName = if (!runName.isNullOrBlank()) runName else "0.$computedVersionCode"
 
 base {
   archivesName.set("OcularNode-v$computedVersionName")
