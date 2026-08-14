@@ -1,6 +1,6 @@
 # OcularNode 👁️
 
-[English](README_en.md) | [繁體中文](README.md)
+[English](README_en.md) | [正體中文](README.md)
 
 [![Android CI](https://github.com/iokkai/OcularNode/actions/workflows/android.yml/badge.svg)](https://github.com/iokkai/OcularNode/actions)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -13,10 +13,10 @@
 
 ## 🌟 核心特色 (Core Features)
 
-- 🔒 **全內網安全串流 (Tailscale Integration)**：內建 Tailscale CGNAT (100.64.0.0/10) 網段識別與遠端安全穿透，不需暴露公網 IP 或設定 Port Forwarding。
+- 🔒 **全內網安全串流 (Tailscale 整合支援)**：支援搭配 Tailscale 使用，自動識別 Tailscale CGNAT (100.64.0.0/10) 網段與遠端安全穿透，不需暴露公網 IP 或設定 Port Forwarding（需於裝置上手動安裝 Tailscale App）。
 - 🪄 **Device Owner 專用設備部署精靈 (Zero-Touch Provisioning)**：
   - 支援專用 QR Code 掃描快速配網。
-  - 自動背景安裝並配置 Tailscale VPN。
+  - 支援注入 Tailscale Auth Key 自動配置並啟用 VPN（需已安裝 Tailscale）。
   - 鎖定 Kiosk 模式、開機自啟動、自訂省電黑屏監控。
 - ⚡ **雙模式架構 (Dual-Mode Architecture)**：
   - **Camera (節點模式)**：低功耗後台 MJPEG HTTP 串流服務、雙向即時對講、鏡頭自動夜視切換。

@@ -1,6 +1,6 @@
 # OcularNode 👁️
 
-[English](README_en.md) | [繁體中文](README.md)
+[English](README_en.md) | [正體中文](README.md)
 
 [![Android CI](https://github.com/iokkai/OcularNode/actions/workflows/android.yml/badge.svg)](https://github.com/iokkai/OcularNode/actions)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -12,10 +12,10 @@
 
 ## 🌟 Core Features
 
-- 🔒 **Secure Private Mesh Streaming (Tailscale Integration)**: Built-in Tailscale CGNAT (`100.64.0.0/10`) subnet recognition and secure NAT traversal. No public IP exposure or port forwarding required.
+- 🔒 **Secure Private Mesh Streaming (Tailscale Support)**: Supports Tailscale VPN mesh network, with automatic Tailscale CGNAT (`100.64.0.0/10`) subnet recognition and secure NAT traversal. No public IP exposure or port forwarding required (Tailscale app installation required on the device).
 - 🪄 **Device Owner Zero-Touch Provisioning Wizard**:
   - Fast network setup via dedicated QR code scanning.
-  - Silent background installation and automated authentication for Tailscale VPN.
+  - Supports automatic Tailscale Auth Key configuration and VPN connection (with Tailscale installed).
   - Dedicated Kiosk lock mode, auto-start on boot, and customized screen-off power-saving monitoring.
 - ⚡ **Dual-Mode Architecture**:
   - **Camera (Node Mode)**: Low-power background MJPEG HTTP streaming service, two-way live intercom, auto night vision switching.
