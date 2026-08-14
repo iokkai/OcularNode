@@ -7,11 +7,11 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,34 +29,37 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -81,12 +84,27 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.iokkai.ocularnode.R
 
+private val WizardBackgroundColor = Color(0xFFFDF8FF)
+private val WizardSurfaceCardColor = Color.White
+private val WizardBorderColor = Color(0xFFCAC4D0)
+private val WizardPrimaryColor = Color(0xFF6750A4)
+private val WizardPrimaryContainerColor = Color(0xFFE8DEF8)
+private val WizardTextPrimaryColor = Color(0xFF1C1B1F)
+private val WizardTextSecondaryColor = Color(0xFF49454F)
+private val WizardTextMutedColor = Color(0xFF79747E)
+private val WizardWarningContainerColor = Color(0xFFFFDAD6)
+private val WizardWarningTextColor = Color(0xFF410002)
+private val WizardErrorColor = Color(0xFFB3261E)
+private val WizardSuccessColor = Color(0xFF2E7D32)
+private val WizardSuccessContainerColor = Color(0xFFE8F5E9)
+
 /**
- * 觀看端專用設備 (Device Owner) 部署引導精靈
- * 支援 4 個步驟導引、Tailscale API Key 加密儲存與動態 Auth Key 原生 DO QR Code 渲染
+ * 專用監控設備部署精靈主畫面 (Dedicated Device Wizard)
+ * 統一採用乾淨俐落的 Light Theme (紫白質感配色)，與主 App 其他頁面一致。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +114,8 @@ fun DedicatedDeviceWizardScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    var showWifiPermissionRationaleDialog by remember { mutableStateOf(false) }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -120,14 +140,73 @@ fun DedicatedDeviceWizardScreen(
                 Toast.makeText(context, context.getString(R.string.wizard_wifi_autofill_failed), Toast.LENGTH_SHORT).show()
             }
         } else {
-            Toast.makeText(context, context.getString(R.string.wizard_wifi_permission_prompt), Toast.LENGTH_SHORT).show()
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
+            // 不使用 Toast，跳出說明對話框解釋權限原因後再請求
+            showWifiPermissionRationaleDialog = true
         }
+    }
+
+    if (showWifiPermissionRationaleDialog) {
+        AlertDialog(
+            onDismissRequest = { showWifiPermissionRationaleDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = WizardPrimaryColor,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = stringResource(R.string.wizard_wifi_permission_dialog_title),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    textAlign = TextAlign.Center,
+                    color = WizardTextPrimaryColor
+                )
+            },
+            text = {
+                Text(
+                    text = stringResource(R.string.wizard_wifi_permission_dialog_msg),
+                    fontSize = 13.sp,
+                    color = WizardTextSecondaryColor,
+                    lineHeight = 19.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showWifiPermissionRationaleDialog = false
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = WizardPrimaryColor, contentColor = Color.White),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.wizard_wifi_permission_btn_grant),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showWifiPermissionRationaleDialog = false },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.wizard_wifi_permission_btn_cancel),
+                        color = WizardTextMutedColor
+                    )
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White
+        )
     }
 
     LaunchedEffect(Unit) {
@@ -147,7 +226,8 @@ fun DedicatedDeviceWizardScreen(
                             else -> stringResource(R.string.wizard_nav_title_default)
                         },
                         fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        fontSize = 18.sp,
+                        color = WizardTextPrimaryColor
                     )
                 },
                 navigationIcon = {
@@ -162,20 +242,23 @@ fun DedicatedDeviceWizardScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.wizard_btn_back)
+                            contentDescription = stringResource(R.string.wizard_btn_back),
+                            tint = WizardTextPrimaryColor
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = WizardBackgroundColor
                 )
             )
-        }
+        },
+        containerColor = WizardBackgroundColor
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .background(WizardBackgroundColor)
         ) {
             // 頂部視覺化進度指示器 (Stepper)
             WizardStepper(currentStep = uiState.currentStep)
@@ -242,7 +325,8 @@ private fun WizardStepper(currentStep: Int) {
     )
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        color = Color(0xFFF3EDF7),
+        border = BorderStroke(1.dp, Color(0xFFE7E0EC)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -266,9 +350,9 @@ private fun WizardStepper(currentStep: Int) {
                             .size(22.dp)
                             .background(
                                 color = when {
-                                    isCompleted -> Color(0xFF2E7D32)
-                                    isCurrent -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.outlineVariant
+                                    isCompleted -> WizardSuccessColor
+                                    isCurrent -> WizardPrimaryColor
+                                    else -> Color(0xFFCAC4D0)
                                 },
                                 shape = CircleShape
                             ),
@@ -286,7 +370,7 @@ private fun WizardStepper(currentStep: Int) {
                                 text = stepNum.toString(),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCurrent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isCurrent) Color.White else Color(0xFF49454F)
                             )
                         }
                     }
@@ -295,7 +379,7 @@ private fun WizardStepper(currentStep: Int) {
                         text = title.substringAfter(". "),
                         fontSize = 11.sp,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isCurrent) WizardPrimaryColor else WizardTextSecondaryColor
                     )
                 }
 
@@ -303,9 +387,9 @@ private fun WizardStepper(currentStep: Int) {
                     Box(
                         modifier = Modifier
                             .width(16.dp)
-                            .height(1.dp)
+                            .height(1.5.dp)
                             .background(
-                                if (stepNum < currentStep) Color(0xFF2E7D32) else MaterialTheme.colorScheme.outlineVariant
+                                if (stepNum < currentStep) WizardSuccessColor else Color(0xFFCAC4D0)
                             )
                     )
                 }
@@ -328,44 +412,45 @@ fun StepWarningScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         // 標題與說明
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = stringResource(R.string.wizard_s1_header),
-                style = MaterialTheme.typography.headlineMedium,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = WizardTextPrimaryColor
             )
             Text(
                 text = stringResource(R.string.wizard_s1_desc),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 22.sp
+                fontSize = 13.sp,
+                color = WizardTextSecondaryColor,
+                lineHeight = 20.sp
             )
         }
 
-        // 警告卡片 (Card，警告色 ContainerColor)
+        // 警告卡片 (Soft Red Tint)
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                containerColor = WizardWarningContainerColor,
+                contentColor = WizardWarningTextColor
             ),
+            border = BorderStroke(1.dp, Color(0xFFFFB4AB)),
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(20.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.Top
             ) {
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.2f),
+                            color = WizardErrorColor.copy(alpha = 0.15f),
                             shape = CircleShape
                         ),
                     contentAlignment = Alignment.Center
@@ -373,26 +458,26 @@ fun StepWarningScreen(
                     Icon(
                         imageVector = Icons.Default.WarningAmber,
                         contentDescription = stringResource(R.string.wizard_s1_warn_icon),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(24.dp)
+                        tint = WizardErrorColor,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = stringResource(R.string.wizard_s1_warn_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onErrorContainer
+                        color = WizardWarningTextColor
                     )
                     Text(
                         text = stringResource(R.string.wizard_s1_warn_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
-                        lineHeight = 20.sp
+                        fontSize = 12.sp,
+                        color = WizardWarningTextColor.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
                     )
                 }
             }
@@ -400,12 +485,11 @@ fun StepWarningScreen(
 
         Spacer(modifier = Modifier.weight(1f, fill = false))
 
-        // 防呆勾選框 (Checkbox)
+        // 防呆勾選框 (Checkbox Card)
         Card(
             onClick = { isConfirmed = !isConfirmed },
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ),
+            colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
+            border = BorderStroke(1.dp, WizardBorderColor),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -415,14 +499,18 @@ fun StepWarningScreen(
             ) {
                 Checkbox(
                     checked = isConfirmed,
-                    onCheckedChange = { isConfirmed = it }
+                    onCheckedChange = { isConfirmed = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = WizardPrimaryColor,
+                        uncheckedColor = WizardTextSecondaryColor
+                    )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.wizard_s1_chk_erase),
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = WizardTextPrimaryColor
                 )
             }
         }
@@ -431,14 +519,20 @@ fun StepWarningScreen(
         Button(
             onClick = onNext,
             enabled = isConfirmed,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = WizardPrimaryColor,
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFE0E0E0),
+                disabledContentColor = Color(0xFF9E9E9E)
+            ),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp),
+                .height(50.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
                 text = stringResource(R.string.wizard_s1_btn_next),
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -465,19 +559,19 @@ fun StepResetScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 標題
         Text(
             text = stringResource(R.string.wizard_s2_header),
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = WizardTextPrimaryColor
         )
 
         // 步驟清單
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             resetSteps.forEachIndexed { index, stepText ->
                 StepNumberItem(
                     number = index + 1,
@@ -491,14 +585,15 @@ fun StepResetScreen(
         // 按鈕
         Button(
             onClick = onNext,
+            colors = ButtonDefaults.buttonColors(containerColor = WizardPrimaryColor, contentColor = Color.White),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp),
+                .height(50.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
                 text = stringResource(R.string.wizard_s2_btn_next),
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -522,34 +617,32 @@ fun StepNetworkAndApiKeyScreen(
     val scrollState = rememberScrollState()
     var isApiKeyVisible by rememberSaveable { mutableStateOf(false) }
 
-    val canProceed = uiState.wifiSsid.isNotBlank() &&
-            uiState.isApiKeyVerified
+    val canProceed = uiState.wifiSsid.isNotBlank() && uiState.isApiKeyVerified
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text(
             text = stringResource(R.string.wizard_s3_header),
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = WizardTextPrimaryColor
         )
 
-        // UI 區塊 1：網路資訊
+        // UI 區塊 1：網路資訊 (White Card)
         Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            ),
+            colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
+            border = BorderStroke(1.dp, WizardBorderColor),
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -563,12 +656,13 @@ fun StepNetworkAndApiKeyScreen(
                         Icon(
                             imageVector = Icons.Default.Wifi,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = WizardPrimaryColor
                         )
                         Text(
                             text = stringResource(R.string.wizard_s3_wifi_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WizardTextPrimaryColor
                         )
                     }
 
@@ -576,7 +670,7 @@ fun StepNetworkAndApiKeyScreen(
                         onClick = onAutoFillWifi,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(stringResource(R.string.wizard_s3_wifi_btn_autofill), fontSize = 12.sp)
+                        Text(stringResource(R.string.wizard_s3_wifi_btn_autofill), fontSize = 12.sp, color = WizardPrimaryColor, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -586,7 +680,12 @@ fun StepNetworkAndApiKeyScreen(
                     label = { Text(stringResource(R.string.wizard_s3_wifi_ssid_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = WizardPrimaryColor,
+                        unfocusedBorderColor = WizardBorderColor,
+                        focusedLabelColor = WizardPrimaryColor
+                    )
                 )
 
                 OutlinedTextField(
@@ -595,28 +694,33 @@ fun StepNetworkAndApiKeyScreen(
                     label = { Text(stringResource(R.string.wizard_s3_wifi_pwd_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = WizardPrimaryColor,
+                        unfocusedBorderColor = WizardBorderColor,
+                        focusedLabelColor = WizardPrimaryColor
+                    )
                 )
 
                 Text(
                     text = stringResource(R.string.wizard_s3_wifi_hint),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = WizardTextSecondaryColor,
+                    lineHeight = 16.sp
                 )
             }
         }
 
-        // UI 區塊 2：Tailscale Key 設定
+        // UI 區塊 2：Tailscale Key 設定 (White Card)
         Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            ),
+            colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
+            border = BorderStroke(1.dp, WizardBorderColor),
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -625,19 +729,20 @@ fun StepNetworkAndApiKeyScreen(
                     Icon(
                         imageVector = Icons.Default.Key,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = WizardPrimaryColor
                     )
                     Text(
                         text = stringResource(R.string.wizard_s3_ts_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WizardTextPrimaryColor
                     )
                 }
 
                 Text(
                     text = stringResource(R.string.wizard_s3_ts_prompt),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = WizardTextSecondaryColor
                 )
 
                 OutlinedButton(
@@ -648,16 +753,19 @@ fun StepNetworkAndApiKeyScreen(
                         )
                         context.startActivity(intent)
                     },
+                    border = BorderStroke(1.dp, WizardPrimaryColor),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = WizardPrimaryColor),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = WizardPrimaryColor
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.wizard_s3_ts_btn_web))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.wizard_s3_ts_btn_web), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
 
                 OutlinedTextField(
@@ -672,56 +780,76 @@ fun StepNetworkAndApiKeyScreen(
                         IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
                             Icon(
                                 imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (isApiKeyVisible) stringResource(R.string.wizard_s3_ts_key_hide) else stringResource(R.string.wizard_s3_ts_key_show)
+                                contentDescription = if (isApiKeyVisible) stringResource(R.string.wizard_s3_ts_key_hide) else stringResource(R.string.wizard_s3_ts_key_show),
+                                tint = WizardTextSecondaryColor
                             )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = WizardPrimaryColor,
+                        unfocusedBorderColor = WizardBorderColor,
+                        focusedLabelColor = WizardPrimaryColor
+                    )
                 )
 
                 Button(
                     onClick = onVerifyApiKey,
                     enabled = uiState.apiKey.isNotBlank() && !uiState.isVerifyingApiKey,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = WizardPrimaryColor,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFFE0E0E0),
+                        disabledContentColor = Color(0xFF9E9E9E)
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     if (uiState.isVerifyingApiKey) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.wizard_s3_ts_btn_verifying))
+                        Text(stringResource(R.string.wizard_s3_ts_btn_verifying), fontSize = 13.sp)
                     } else {
-                        Text(stringResource(R.string.wizard_s3_ts_btn_verify))
+                        Text(stringResource(R.string.wizard_s3_ts_btn_verify), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
                 // 狀態反饋
                 if (uiState.isApiKeyVerified) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        color = WizardSuccessContainerColor,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = stringResource(R.string.wizard_s3_ts_success_icon),
-                            tint = Color(0xFF2E7D32)
-                        )
-                        Text(
-                            text = stringResource(R.string.wizard_s3_ts_success_text),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF2E7D32),
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = stringResource(R.string.wizard_s3_ts_success_icon),
+                                tint = WizardSuccessColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.wizard_s3_ts_success_text),
+                                fontSize = 12.sp,
+                                color = WizardSuccessColor,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 } else if (!uiState.apiKeyVerifyError.isNullOrBlank()) {
                     Text(
                         text = uiState.apiKeyVerifyError,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 12.sp,
+                        color = WizardErrorColor,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -734,14 +862,20 @@ fun StepNetworkAndApiKeyScreen(
         Button(
             onClick = onNext,
             enabled = canProceed,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = WizardPrimaryColor,
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFE0E0E0),
+                disabledContentColor = Color(0xFF9E9E9E)
+            ),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp),
+                .height(50.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
                 text = stringResource(R.string.wizard_s3_btn_gen_qr),
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -769,16 +903,16 @@ fun StepScanScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 標題
         Text(
             text = stringResource(R.string.wizard_s4_header),
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = WizardTextPrimaryColor,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -800,10 +934,10 @@ fun StepScanScreen(
             modifier = Modifier
                 .size(220.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(Color.White)
                 .border(
-                    width = 2.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
+                    width = 1.5.dp,
+                    color = WizardBorderColor,
                     shape = RoundedCornerShape(20.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -818,12 +952,12 @@ fun StepScanScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(36.dp),
                             strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = WizardPrimaryColor
                         )
                         Text(
                             text = stringResource(R.string.wizard_s4_req_ts_key),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp,
+                            color = WizardTextSecondaryColor,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -847,17 +981,19 @@ fun StepScanScreen(
                     ) {
                         Text(
                             text = stringResource(R.string.wizard_s4_qr_error, uiState.qrCodeError ?: ""),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            color = WizardErrorColor,
                             textAlign = TextAlign.Center
                         )
                         Button(
                             onClick = onRetryGenQrCode,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
+                                containerColor = WizardErrorColor,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(stringResource(R.string.wizard_s4_btn_retry))
+                            Text(stringResource(R.string.wizard_s4_btn_retry), fontSize = 12.sp)
                         }
                     }
                 }
@@ -872,13 +1008,13 @@ fun StepScanScreen(
                             imageVector = Icons.Default.QrCode2,
                             contentDescription = null,
                             modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = WizardPrimaryColor
                         )
                         Text(
                             text = stringResource(R.string.wizard_s4_qr_placeholder),
-                            style = MaterialTheme.typography.bodyMedium,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = WizardTextSecondaryColor,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -886,9 +1022,10 @@ fun StepScanScreen(
             }
         }
 
-        // 連線狀態區
+        // 連線狀態區 (Lavender Soft Surface)
         Surface(
-            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+            color = WizardPrimaryContainerColor.copy(alpha = 0.5f),
+            border = BorderStroke(1.dp, WizardPrimaryContainerColor),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -898,16 +1035,16 @@ fun StepScanScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                     strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = WizardPrimaryColor
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.wizard_waiting_scan),
-                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = Color(0xFF21005D)
                 )
             }
         }
@@ -917,10 +1054,11 @@ fun StepScanScreen(
             onClick = onFinish,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
+                .height(50.dp),
             shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
+                containerColor = WizardPrimaryColor,
+                contentColor = Color.White
             )
         ) {
             Icon(
@@ -936,36 +1074,35 @@ fun StepScanScreen(
             )
         }
 
-        // 貼心常見問題與排錯卡片 (FAQ Accordion)
+        // 貼心常見問題與排錯卡片 (FAQ Card)
         Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            ),
+            colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
+            border = BorderStroke(1.dp, WizardBorderColor),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = stringResource(R.string.wizard_s4_faq_header),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.primary
+                    color = WizardPrimaryColor
                 )
 
                 Text(
                     text = stringResource(R.string.wizard_s4_faq1),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = WizardTextSecondaryColor,
                     lineHeight = 16.sp
                 )
 
                 Text(
                     text = stringResource(R.string.wizard_s4_faq2),
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = WizardTextSecondaryColor,
                     lineHeight = 16.sp
                 )
             }
@@ -974,7 +1111,7 @@ fun StepScanScreen(
 }
 
 /**
- * 通用的帶數字圖標清單項目 Component
+ * 通用的帶數字圖標清單項目 Component (White Card + Purple Badge)
  */
 @Composable
 private fun StepNumberItem(
@@ -982,9 +1119,8 @@ private fun StepNumberItem(
     text: String
 ) {
     Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        ),
+        colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
+        border = BorderStroke(1.dp, WizardBorderColor),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -997,24 +1133,23 @@ private fun StepNumberItem(
                 modifier = Modifier
                     .size(26.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.primary,
+                        color = WizardPrimaryColor,
                         shape = CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = number.toString(),
-                    style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White,
                     fontSize = 12.sp
                 )
             }
 
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 13.sp,
+                color = WizardTextPrimaryColor,
                 lineHeight = 20.sp,
                 modifier = Modifier.weight(1f)
             )

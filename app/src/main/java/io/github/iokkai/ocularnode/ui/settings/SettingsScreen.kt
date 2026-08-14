@@ -3,6 +3,7 @@ package io.github.iokkai.ocularnode.ui.settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,16 +24,21 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Visibility
+import io.github.iokkai.ocularnode.BuildConfig
+import io.github.iokkai.ocularnode.ui.about.AboutScreen
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -72,6 +78,7 @@ fun SettingsScreen(
     var showNotificationSettings by remember { mutableStateOf(false) }
     var showTelegramSetupDialog by remember { mutableStateOf(false) }
     var showSystemLogs by remember { mutableStateOf(false) }
+    var showAboutScreen by remember { mutableStateOf(false) }
 
     val telegramSetupUiState by telegramSetupViewModel.uiState.collectAsState()
     LaunchedEffect(telegramSetupUiState) {
@@ -80,7 +87,11 @@ fun SettingsScreen(
         }
     }
 
-
+    if (showAboutScreen) {
+        BackHandler { showAboutScreen = false }
+        AboutScreen(onBack = { showAboutScreen = false })
+        return
+    }
     if (showSystemLogs) {
         BackHandler { showSystemLogs = false }
         SystemLogScreen(onBack = { showSystemLogs = false })
@@ -219,9 +230,9 @@ fun SettingsScreen(
         }
 
         if (isCamera) {
-            // ==================== 📷 鏡頭端專用設定 ====================
+            // ==================== 📷 鏡頭端專用設定 (5 大模組整合) ====================
 
-            // Camera Device Config Card
+            // 1. ⚙️ 基本與連線設定 (General & Network)
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -268,7 +279,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Auto-Start on Boot Card (開機/復電自動啟動)
+            // 2. ⚡ 電源與系統運作管理 (Power & System Management)
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -276,25 +287,28 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color(0xFF6750A4))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.settings_power_system_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Auto-Start on Boot
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color(0xFF6750A4))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(stringResource(R.string.settings_auto_start_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    if (autoStartOnBoot) stringResource(R.string.settings_auto_start_desc_on) else stringResource(R.string.settings_auto_start_desc_off),
-                                    color = Color(0xFF49454F),
-                                    fontSize = 10.sp
-                                )
-                            }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_auto_start_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                if (autoStartOnBoot) stringResource(R.string.settings_auto_start_desc_on) else stringResource(R.string.settings_auto_start_desc_off),
+                                color = Color(0xFF49454F),
+                                fontSize = 11.sp
+                            )
                         }
-
                         Switch(
                             checked = autoStartOnBoot,
                             onCheckedChange = { viewModel.updateAutoStartOnBoot(it) },
@@ -304,36 +318,24 @@ fun SettingsScreen(
                             )
                         )
                     }
-                }
-            }
 
-            // Power Cut & Low Battery Telegram Alert Card (斷電與低電量推播)
-            Card(
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+
+                    // Power Cut Alert
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = Color(0xFFB3261E))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(stringResource(R.string.settings_power_alert_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    if (powerCutAlertEnabled) stringResource(R.string.settings_power_alert_desc_on) else stringResource(R.string.settings_power_alert_desc_off),
-                                    color = Color(0xFF49454F),
-                                    fontSize = 10.sp
-                                )
-                            }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_power_alert_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                if (powerCutAlertEnabled) stringResource(R.string.settings_power_alert_desc_on) else stringResource(R.string.settings_power_alert_desc_off),
+                                color = Color(0xFF49454F),
+                                fontSize = 11.sp
+                            )
                         }
-
                         Switch(
                             checked = powerCutAlertEnabled,
                             onCheckedChange = { viewModel.updatePowerCutAlertEnabled(it) },
@@ -343,10 +345,45 @@ fun SettingsScreen(
                             )
                         )
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+
+                    // System Log
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_logs_enable_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_logs_enable_desc), fontSize = 11.sp, color = Color(0xFF49454F))
+                        }
+                        Switch(
+                            checked = systemLogEnabled,
+                            onCheckedChange = { viewModel.updateSystemLogEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4),
+                                uncheckedThumbColor = Color(0xFF49454F),
+                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { showSystemLogs = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Color(0xFF6750A4))
+                    ) {
+                        Text(stringResource(R.string.settings_logs_btn_view), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
                 }
             }
 
-            // Motion Sensitivity Card
+            // 3. 🎯 偵測與排程警報 (Motion Detection & Schedules)
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -361,6 +398,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    // Motion Sensitivity Slider
                     Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -399,8 +437,9 @@ fun SettingsScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
+                    // Motion Cooldown
                     OutlinedTextField(
                         value = cooldown,
                         onValueChange = { viewModel.updateCooldown(it) },
@@ -415,17 +454,18 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    // Event Video Recording
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_event_recording_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text(stringResource(R.string.settings_event_recording_desc), fontSize = 10.sp, color = Color.Gray)
+                            Text(stringResource(R.string.settings_event_recording_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_event_recording_desc), fontSize = 11.sp, color = Color(0xFF49454F))
                         }
                         Switch(
                             checked = eventVideoRecordingEnabled,
@@ -439,15 +479,18 @@ fun SettingsScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+
+                    // Dynamic FPS Adjustment
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_dynamic_fps_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text(stringResource(R.string.settings_dynamic_fps_desc), fontSize = 10.sp, color = Color.Gray)
+                            Text(stringResource(R.string.settings_dynamic_fps_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_dynamic_fps_desc), fontSize = 11.sp, color = Color(0xFF49454F))
                         }
                         Switch(
                             checked = dynamicFpsAdjustmentEnabled,
@@ -461,12 +504,17 @@ fun SettingsScreen(
                         )
                     }
 
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+
+                    // Alarm Buzzer
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(stringResource(R.string.settings_alarm_sound), color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_alarm_sound), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
                         Switch(
                             checked = playAlarm,
                             onCheckedChange = { viewModel.updatePlayAlarm(it) },
@@ -479,16 +527,18 @@ fun SettingsScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
 
+                    // Motion Schedule
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_motion_schedule_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text(stringResource(R.string.settings_motion_schedule_desc), fontSize = 10.sp, color = Color.Gray)
+                            Text(stringResource(R.string.settings_motion_schedule_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_motion_schedule_desc), fontSize = 11.sp, color = Color(0xFF49454F))
                         }
                         Switch(
                             checked = motionScheduleEnabled,
@@ -503,7 +553,7 @@ fun SettingsScreen(
                     }
 
                     AnimatedVisibility(visible = motionScheduleEnabled) {
-                        Column(modifier = Modifier.padding(top = 10.dp)) {
+                        Column(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 val context = androidx.compose.ui.platform.LocalContext.current
                                 OutlinedButton(
@@ -515,9 +565,10 @@ fun SettingsScreen(
                                             viewModel.updateMotionScheduleStartTime(String.format("%02d:%02d", hourOfDay, minute))
                                         }, h, m, true).show()
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_schedule_start, motionScheduleStartTime))
+                                    Text(stringResource(R.string.settings_schedule_start, motionScheduleStartTime), fontSize = 12.sp)
                                 }
 
                                 OutlinedButton(
@@ -529,24 +580,27 @@ fun SettingsScreen(
                                             viewModel.updateMotionScheduleEndTime(String.format("%02d:%02d", hourOfDay, minute))
                                         }, h, m, true).show()
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_schedule_end, motionScheduleEndTime))
+                                    Text(stringResource(R.string.settings_schedule_end, motionScheduleEndTime), fontSize = 12.sp)
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
 
+                    // Notification Schedule
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_notif_schedule_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                            Text(stringResource(R.string.settings_notif_schedule_desc), fontSize = 10.sp, color = Color.Gray)
+                            Text(stringResource(R.string.settings_notif_schedule_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_notif_schedule_desc), fontSize = 11.sp, color = Color(0xFF49454F))
                         }
                         Switch(
                             checked = notificationScheduleEnabled,
@@ -561,7 +615,7 @@ fun SettingsScreen(
                     }
 
                     AnimatedVisibility(visible = notificationScheduleEnabled) {
-                        Column(modifier = Modifier.padding(top = 10.dp)) {
+                        Column(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 val context = androidx.compose.ui.platform.LocalContext.current
                                 OutlinedButton(
@@ -573,9 +627,10 @@ fun SettingsScreen(
                                             viewModel.updateNotificationScheduleStartTime(String.format("%02d:%02d", hourOfDay, minute))
                                         }, h, m, true).show()
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_schedule_start, notificationScheduleStartTime))
+                                    Text(stringResource(R.string.settings_schedule_start, notificationScheduleStartTime), fontSize = 12.sp)
                                 }
 
                                 OutlinedButton(
@@ -587,9 +642,10 @@ fun SettingsScreen(
                                             viewModel.updateNotificationScheduleEndTime(String.format("%02d:%02d", hourOfDay, minute))
                                         }, h, m, true).show()
                                     },
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Text(stringResource(R.string.settings_schedule_end, notificationScheduleEndTime))
+                                    Text(stringResource(R.string.settings_schedule_end, notificationScheduleEndTime), fontSize = 12.sp)
                                 }
                             }
                         }
@@ -597,7 +653,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Telegram Bot Card (Camera Mode)
+            // 4. 🤖 AI 智慧過濾與 Telegram 告警 (AI Filter & Telegram Notifications)
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -605,10 +661,53 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
+                    // AI Section Header
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.settings_ai_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_ai_smart_filter_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_ai_smart_filter_desc), color = Color(0xFF49454F), fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = mlKitFilterEnabled,
+                            onCheckedChange = { viewModel.updateMlKitFilterEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = Color(0xFF6750A4),
+                                uncheckedThumbColor = Color(0xFF49454F),
+                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { showNotificationSettings = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B))
+                    ) {
+                        Text(stringResource(R.string.settings_ai_btn_categories), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFE7E0EC))
+
+                    // Telegram Subhead
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_telegram_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_telegram_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -642,7 +741,7 @@ fun SettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(stringResource(R.string.settings_telegram_media_type), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
                     Spacer(modifier = Modifier.height(6.dp))
@@ -673,11 +772,11 @@ fun SettingsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedButton(
                         onClick = { showTelegramSetupDialog = true },
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(1.dp, Color(0xFF6750A4)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -690,7 +789,7 @@ fun SettingsScreen(
                         onClick = { viewModel.testTelegram() },
                         enabled = !isTesting && botToken.isNotBlank() && chatId.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (isTesting) {
@@ -711,62 +810,12 @@ fun SettingsScreen(
                 }
             }
 
-            // Notification Category Settings Card (Camera Mode)
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(24.dp),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_ai_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(stringResource(R.string.settings_ai_subtitle), fontSize = 10.sp, color = Color(0xFF49454F))
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_ai_smart_filter_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text(stringResource(R.string.settings_ai_smart_filter_desc), color = Color(0xFF49454F), fontSize = 10.sp)
-                        }
-                        Switch(
-                            checked = mlKitFilterEnabled,
-                            onCheckedChange = { viewModel.updateMlKitFilterEnabled(it) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Button(
-                        onClick = { showNotificationSettings = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B))
-                    ) {
-                        Text(stringResource(R.string.settings_ai_btn_categories), fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            // Storage & Auto Cleanup Card
+            // 5. 💾 儲存空間與清理維護 (Storage Space & Auto-Cleanup)
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -783,7 +832,8 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(stringResource(R.string.settings_auto_cleanup_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text(stringResource(R.string.settings_auto_cleanup_desc), color = Color(0xFF49454F), fontSize = 10.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(stringResource(R.string.settings_auto_cleanup_desc), color = Color(0xFF49454F), fontSize = 11.sp)
                         }
                         Switch(
                             checked = autoCleanupEnabled,
@@ -797,59 +847,60 @@ fun SettingsScreen(
                         )
                     }
 
-                    if (autoCleanupEnabled) {
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Storage Limit GB
-                        Column {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(stringResource(R.string.settings_storage_limit_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                Text(String.format("%.1f GB", localStorageGB), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            }
-                            Slider(
-                                value = localStorageGB,
-                                onValueChange = {
-                                    localStorageGB = it
-                                    viewModel.updateStorageLimitGB(it)
-                                },
-                                valueRange = 0.5f..10.0f,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = brandPrimaryColor,
-                                    activeTrackColor = brandPrimaryColor,
-                                    inactiveTrackColor = Color(0xFFE8DEF8)
+                    AnimatedVisibility(visible = autoCleanupEnabled) {
+                        Column(modifier = Modifier.padding(top = 14.dp)) {
+                            // Storage Limit GB
+                            Column {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(stringResource(R.string.settings_storage_limit_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                    Text(String.format("%.1f GB", localStorageGB), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                                Slider(
+                                    value = localStorageGB,
+                                    onValueChange = {
+                                        localStorageGB = it
+                                        viewModel.updateStorageLimitGB(it)
+                                    },
+                                    valueRange = 0.5f..10.0f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = brandPrimaryColor,
+                                        activeTrackColor = brandPrimaryColor,
+                                        inactiveTrackColor = Color(0xFFE8DEF8)
+                                    )
                                 )
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Max Events Limit
-                        Column {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(stringResource(R.string.settings_events_limit_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                Text(stringResource(R.string.settings_events_count, localMaxEvents.toInt()), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
-                            Slider(
-                                value = localMaxEvents,
-                                onValueChange = {
-                                    localMaxEvents = it
-                                    viewModel.updateMaxEventCount(it.toInt())
-                                },
-                                valueRange = 50f..500f,
-                                steps = 8,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = brandPrimaryColor,
-                                    activeTrackColor = brandPrimaryColor,
-                                    inactiveTrackColor = Color(0xFFE8DEF8)
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Max Events Limit
+                            Column {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(stringResource(R.string.settings_events_limit_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                    Text(stringResource(R.string.settings_events_count, localMaxEvents.toInt()), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                }
+                                Slider(
+                                    value = localMaxEvents,
+                                    onValueChange = {
+                                        localMaxEvents = it
+                                        viewModel.updateMaxEventCount(it.toInt())
+                                    },
+                                    valueRange = 50f..500f,
+                                    steps = 8,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = brandPrimaryColor,
+                                        activeTrackColor = brandPrimaryColor,
+                                        inactiveTrackColor = Color(0xFFE8DEF8)
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = Color(0xFFE7E0EC))
 
                     OutlinedButton(
                         onClick = { viewModel.performManualCleanup() },
-                        shape = RoundedCornerShape(20.dp),
+                        shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(1.5.dp, Color(0xFFB3261E)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -865,41 +916,6 @@ fun SettingsScreen(
                         }
                     }
                 }
-            }
-
-            // System Logs (Only for Camera)
-            if (isCamera) {
-                Spacer(modifier = Modifier.height(32.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.settings_logs_enable_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium)
-                        Text(stringResource(R.string.settings_logs_enable_desc), fontSize = 10.sp, color = Color.Gray)
-                    }
-                    Switch(
-                        checked = systemLogEnabled,
-                        onCheckedChange = { viewModel.updateSystemLogEnabled(it) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF6750A4),
-                            uncheckedThumbColor = Color(0xFF49454F),
-                            uncheckedTrackColor = Color(0xFFE8DEF8)
-                        )
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = { showSystemLogs = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color(0xFF6750A4))
-                ) {
-                    Text(stringResource(R.string.settings_logs_btn_view), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(32.dp))
             }
         } else {
             // ==================== 觀看端專用設定 ====================
@@ -1239,6 +1255,48 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // ==================== ℹ️ 關於 OcularNode ====================
+        Spacer(modifier = Modifier.height(4.dp))
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showAboutScreen = true }
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF6750A4))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            stringResource(R.string.about_title),
+                            color = Color(0xFF1C1B1F),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            "v${BuildConfig.VERSION_NAME}",
+                            color = Color(0xFF79747E),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = "Open About",
+                    tint = Color(0xFF79747E),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }

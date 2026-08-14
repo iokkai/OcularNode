@@ -135,6 +135,10 @@
     <string name="wizard_wifi_permission_prompt">Requesting location permission to automatically read the current Wi-Fi name</string>
     <string name="wizard_wifi_permission_denied">Due to Android privacy restrictions, please enter the Wi-Fi name manually</string>
     <string name="wizard_wifi_autofill_failed">Unable to read Wi-Fi name (please verify Wi-Fi and GPS are enabled), or enter manually</string>
+    <string name="wizard_wifi_permission_dialog_title">Location Permission Required</string>
+    <string name="wizard_wifi_permission_dialog_msg">According to Android privacy and security policies, apps must be granted location permission to detect and read the currently connected Wi-Fi SSID.\n\nThis permission will strictly be used to auto-fill the Wi-Fi name and will NOT track or store your location data.</string>
+    <string name="wizard_wifi_permission_btn_grant">Grant &amp; Continue</string>
+    <string name="wizard_wifi_permission_btn_cancel">Enter Manually</string>
     <string name="wizard_s3_ts_title">Tailscale Auth Key Configuration</string>
     <string name="wizard_s3_ts_prompt">Supports entering Auth Key (tskey-auth-...) or API Key (tskey-api-...):</string>
     <string name="wizard_s3_ts_btn_web">Get Key from Tailscale (Opens Browser)</string>
@@ -181,6 +185,7 @@
     <string name="settings_title">System Settings</string>
     <string name="settings_device_role">Device Role Mode</string>
     <string name="settings_general_group">Local Camera Device Settings</string>
+    <string name="settings_power_system_group">Power &amp; System Management</string>
     <string name="settings_camera_name">Device Display Name (e.g. Living Room)</string>
     <string name="settings_camera_port">HTTP Streaming Port (Default 8080)</string>
     <string name="settings_auto_start_title">Auto-Start on Boot</string>
@@ -576,4 +581,39 @@
     <string name="web_js_cmd_fail">Failed to send command: </string>
     <string name="web_js_audio_unsupported">Browser does not support audio streaming</string>
     <string name="web_js_audio_fail">Unable to start audio streaming: </string>
+
+    <!-- 15. About Screen -->
+    <string name="about_title">About OcularNode</string>
+    <string name="about_slogan">Smart Upcycling Security Node</string>
+    <string name="about_section_author">Project &amp; Author</string>
+    <string name="about_author_label">Author</string>
+    <string name="about_author_name">iokkai</string>
+    <string name="about_license_label">Software License</string>
+    <string name="about_license_name">GNU GPL v3.0</string>
+    <string name="about_license_dialog_title">GNU General Public License v3.0</string>
+    <string name="about_disclaimer_title">Warranty &amp; Liability Disclaimer</string>
+    <string name="about_disclaimer_content">This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. The author assumes no liability for monitoring interruptions or equipment malfunction.</string>
+    <string name="about_btn_view_license">View Full License (GitHub) ↗</string>
+    <string name="about_github_repo">GitHub Repository</string>
+    <string name="about_github_issues">Report Issues &amp; Feedback</string>
+    <string name="about_github_releases">Releases &amp; Changelog</string>
+    <string name="about_section_highlights">Key Capabilities</string>
+    <string name="about_hl_kiosk_title">24/7 Dedicated Device</string>
+    <string name="about_hl_kiosk_desc">Android Device Owner kiosk mode ensuring continuous monitoring without sleeping.</string>
+    <string name="about_hl_tailscale_title">Tailscale Zero-Config Mesh VPN</string>
+    <string name="about_hl_tailscale_desc">P2P encrypted remote access anywhere without port forwarding.</string>
+    <string name="about_hl_ai_title">On-Device Edge AI</string>
+    <string name="about_hl_ai_desc">Google ML Kit offline object and pet detection to filter false alarms.</string>
+    <string name="about_section_oss">Open Source Libraries</string>
+    <string name="about_oss_desc">OcularNode is built with the following open source software:</string>
+    <string name="about_footer_copyright">Copyright © 2026 iokkai. Released under GNU GPL v3.0.</string>
+    <string name="about_btn_view">ℹ️ About OcularNode</string>
+    <string name="about_btn_check_update">🔄 Check for Updates</string>
+    <string name="about_checking_update">Checking for updates…</string>
+    <string name="about_update_latest_toast">OcularNode is up to date (%1$s)</string>
+    <string name="about_update_found_title">🎉 New Version Available</string>
+    <string name="about_update_found_desc">A new version of OcularNode is available on GitHub:</string>
+    <string name="about_update_notes_title">Release Notes:</string>
+    <string name="about_btn_download_now">Download Update (GitHub) ↗</string>
+    <string name="about_update_failed">Failed to check updates: %1$s</string>
 </resources>

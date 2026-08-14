@@ -135,6 +135,10 @@
     <string name="wizard_wifi_permission_prompt">正在請求定位權限以自動讀取當前連線的 Wi-Fi 名稱</string>
     <string name="wizard_wifi_permission_denied">因 Android 隱私限制，請直接手動輸入 Wi-Fi 名稱</string>
     <string name="wizard_wifi_autofill_failed">無法讀取 Wi-Fi 名稱（請確認已連線 Wi-Fi 且開啟 GPS 定位），或請直接手動輸入</string>
+    <string name="wizard_wifi_permission_dialog_title">需要定位權限以讀取 Wi-Fi</string>
+    <string name="wizard_wifi_permission_dialog_msg">依據 Android 系統安全性與隱私政策規範，應用程式必須獲得定位權限才能偵測並讀取目前已連線的 Wi-Fi 名稱 (SSID)。\n\n此權限僅用於自動填入名稱以加速設定，OcularNode 絕不會記錄或上傳您的任何地理位置資料。</string>
+    <string name="wizard_wifi_permission_btn_grant">允許並繼續</string>
+    <string name="wizard_wifi_permission_btn_cancel">手動輸入</string>
     <string name="wizard_s3_ts_title">Tailscale 授權金鑰設定</string>
     <string name="wizard_s3_ts_prompt">支援直接輸入 Auth Key (tskey-auth-...) 或輸入 API Key (tskey-api-...)：</string>
     <string name="wizard_s3_ts_btn_web">前往 Tailscale 取得金鑰 (跳轉網頁)</string>
@@ -181,6 +185,7 @@
     <string name="settings_title">系統設定</string>
     <string name="settings_device_role">裝置角色模式</string>
     <string name="settings_general_group">本機鏡頭裝置設定</string>
+    <string name="settings_power_system_group">電源與系統運作管理</string>
     <string name="settings_camera_name">裝置顯示名稱 (如 客廳鏡頭)</string>
     <string name="settings_camera_port">HTTP 串流 Port (預設 8080)</string>
     <string name="settings_auto_start_title">開機自動啟動</string>
@@ -574,6 +579,41 @@
     <string name="web_js_clear_confirm">確定要清除所有動態事件紀錄嗎？</string>
     <string name="web_js_clear_fail">清除失敗: </string>
     <string name="web_js_cmd_fail">發送控制指令失敗: </string>
-    <string name="web_js_audio_unsupported">瀏覽器不支援串流音訊</string>
-    <string name="web_js_audio_fail">無法啟動聲音監聽: </string>
+    <string name="web_js_audio_unsupported">瀏覽器不支援音訊傳輸</string>
+    <string name="web_js_audio_fail">無法啟動即時音訊：</string>
+
+    <!-- 15. 關於頁面 -->
+    <string name="about_title">關於 OcularNode</string>
+    <string name="about_slogan">智慧舊機轉生・專業安全監控</string>
+    <string name="about_section_author">專案與製作者</string>
+    <string name="about_author_label">製作者</string>
+    <string name="about_author_name">iokkai</string>
+    <string name="about_license_label">應用程式授權</string>
+    <string name="about_license_name">GNU GPL v3.0</string>
+    <string name="about_license_dialog_title">GNU 通用公共授權條款 (GPL v3.0)</string>
+    <string name="about_disclaimer_title">免責與保固聲明</string>
+    <string name="about_disclaimer_content">本程式為自由軟體；您可在自由軟體基金會發布的 GNU 通用公共授權條款（第 3 版或其後版本）規範下重新散布或修改本軟體。\n\n本軟體依「現狀 (AS-IS)」提供，不提供任何形式之保證（包括適銷性或特定用途適用性）。作者不對因網路中斷、設備老化或監控中斷所導致之任何直接或間接損害承擔賠償責任。</string>
+    <string name="about_btn_view_license">在 GitHub 上查看授權全文 ↗</string>
+    <string name="about_github_repo">GitHub 專案倉庫</string>
+    <string name="about_github_issues">問題回報與建議</string>
+    <string name="about_github_releases">版本發布與更新記錄</string>
+    <string name="about_section_highlights">核心特色</string>
+    <string name="about_hl_kiosk_title">24/7 專用設備模式</string>
+    <string name="about_hl_kiosk_desc">Android Device Owner 權限，確保常駐運作不休眠、開機自動復原。</string>
+    <string name="about_hl_tailscale_title">Tailscale 極速私網穿透</string>
+    <string name="about_hl_tailscale_desc">免公網 IP 與 Port Forwarding，隨時隨地安全點對點連線。</string>
+    <string name="about_hl_ai_title">On-Device 邊緣 AI 辨識</string>
+    <string name="about_hl_ai_desc">Google ML Kit 本地端即時過濾人、車、寵物，智慧防誤報。</string>
+    <string name="about_section_oss">開源函式庫致謝</string>
+    <string name="about_oss_desc">OcularNode 感謝並使用以下開源專案與函式庫：</string>
+    <string name="about_footer_copyright">Copyright © 2026 iokkai. 本專案採用 GNU GPL v3.0 開源協議。</string>
+    <string name="about_btn_view">ℹ️ 關於 OcularNode</string>
+    <string name="about_btn_check_update">🔄 檢查更新</string>
+    <string name="about_checking_update">正在檢查更新中…</string>
+    <string name="about_update_latest_toast">目前已是最新版本 (%1$s)</string>
+    <string name="about_update_found_title">🎉 發現新版本</string>
+    <string name="about_update_found_desc">OcularNode 在 GitHub 上已推出新版本：</string>
+    <string name="about_update_notes_title">更新內容與日誌：</string>
+    <string name="about_btn_download_now">前往 GitHub 下載更新 ↗</string>
+    <string name="about_update_failed">檢查更新失敗：%1$s</string>
 </resources>
