@@ -134,8 +134,11 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(hasCameraPermission) {
         viewModel.refreshNetworkInfo()
+        if (hasCameraPermission && !isServiceRunning) {
+            viewModel.startStreamService()
+        }
     }
 
     // Auto enter power-saving mode (black screen) after 1 minute in camera mode

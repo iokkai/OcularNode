@@ -56,6 +56,24 @@ object NetworkUtils {
         return false
     }
 
+    /**
+     * 取得當前已連線的 Wi-Fi SSID (若有)
+     */
+    fun getCurrentWifiSsid(context: Context): String? {
+        return try {
+            val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+            val wifiInfo = wifiManager?.connectionInfo
+            val ssid = wifiInfo?.ssid
+            if (ssid == null || ssid == "<unknown ssid>" || ssid.isBlank()) {
+                null
+            } else {
+                ssid.removePrefix("\"").removeSuffix("\"")
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun isVpnActive(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false

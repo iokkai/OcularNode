@@ -137,6 +137,17 @@ fun MainAppScreen(
             }
             val activity = context as? MainActivity
             val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager(context)
+            
+            // 確保 Tailscale 處於安裝與連線狀態
+            val authKey = settingsManager.tailscaleAuthKey
+            if (authKey.isNotBlank()) {
+                if (io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context)) {
+                    io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
+                } else {
+                    io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.startZeroTouchPipeline(context, authKey)
+                }
+            }
+
             if (settingsManager.isKioskModeActive && activity != null) {
                 io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.enableKioskMode(activity)
             }

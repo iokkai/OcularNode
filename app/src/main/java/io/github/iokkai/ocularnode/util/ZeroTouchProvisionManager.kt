@@ -424,9 +424,9 @@ object ZeroTouchProvisionManager {
     /**
      * 啟動 Kiosk 螢幕死鎖模式
      */
-    fun enableKioskMode(activity: Activity) {
+    fun enableKioskMode(activity: Activity): Boolean {
         val context = activity.applicationContext
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager ?: return
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager ?: return false
         val admin = getAdminComponent(context)
 
         try {

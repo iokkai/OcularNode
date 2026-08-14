@@ -80,6 +80,13 @@ class WizardViewModel : ViewModel() {
         }
     }
 
+    fun autoFillCurrentWifi(context: Context) {
+        val currentSsid = io.github.iokkai.ocularnode.util.NetworkUtils.getCurrentWifiSsid(context)
+        if (!currentSsid.isNullOrBlank()) {
+            _uiState.update { it.copy(wifiSsid = currentSsid) }
+        }
+    }
+
     fun setWifiSsid(ssid: String) {
         _uiState.update { it.copy(wifiSsid = ssid) }
     }
@@ -105,7 +112,24 @@ class WizardViewModel : ViewModel() {
     fun verifyApiKey(context: Context) {
         val apiKey = _uiState.value.apiKey.trim()
         if (apiKey.isBlank()) {
-            _uiState.update { it.copy(apiKeyVerifyError = "請輸入 API Key") }
+            _uiState.update { it.copy(apiKeyVerifyError = "請輸入 Auth Key 或 API Key") }
+            return
+        }
+
+        // 若使用者直接輸入 Tailscale Auth Key (tskey-auth-...)，格式正確即可直接使用
+        if (apiKey.startsWith("tskey-auth")) {
+            viewModelScope.launch(Dispatchers.IO) {
+                getEncryptedPrefs(context).edit()
+                    .putString("tailscale_api_key", apiKey)
+                    .apply()
+                _uiState.update {
+                    it.copy(
+                        isVerifyingApiKey = false,
+                        isApiKeyVerified = true,
+                        apiKeyVerifyError = null
+                    )
+                }
+            }
             return
         }
 
@@ -176,39 +200,43 @@ class WizardViewModel : ViewModel() {
             }
 
             try {
-                // 1. POST https://api.tailscale.com/api/v2/tailnet/-/keys to generate Auth Key
-                val authKey = withContext(Dispatchers.IO) {
-                    val jsonBody = JSONObject().apply {
-                        val devicesObj = JSONObject().apply {
-                            val createObj = JSONObject().apply {
-                                put("reusable", false)
-                                put("ephemeral", false)
-                                put("preauthorized", true)
+                // 1. 取得 Auth Key (若已是 tskey-auth 則直接使用，否則透過 API 向 Tailscale 申請)
+                val authKey = if (apiKey.startsWith("tskey-auth")) {
+                    apiKey
+                } else {
+                    withContext(Dispatchers.IO) {
+                        val jsonBody = JSONObject().apply {
+                            val devicesObj = JSONObject().apply {
+                                val createObj = JSONObject().apply {
+                                    put("reusable", false)
+                                    put("ephemeral", false)
+                                    put("preauthorized", true)
+                                }
+                                put("create", createObj)
                             }
-                            put("create", createObj)
+                            put("capabilities", JSONObject().put("devices", devicesObj))
+                            put("expirySeconds", 86400)
+                            put("description", "OcularNode Camera Provisioning Key")
                         }
-                        put("capabilities", JSONObject().put("devices", devicesObj))
-                        put("expirySeconds", 86400)
-                        put("description", "OcularNode Camera Provisioning Key")
-                    }
 
-                    val mediaType = "application/json; charset=utf-8".toMediaType()
-                    val requestBody = jsonBody.toString().toRequestBody(mediaType)
+                        val mediaType = "application/json; charset=utf-8".toMediaType()
+                        val requestBody = jsonBody.toString().toRequestBody(mediaType)
 
-                    val request = Request.Builder()
-                        .url("https://api.tailscale.com/api/v2/tailnet/-/keys")
-                        .header("Authorization", "Bearer $apiKey")
-                        .post(requestBody)
-                        .build()
+                        val request = Request.Builder()
+                            .url("https://api.tailscale.com/api/v2/tailnet/-/keys")
+                            .header("Authorization", "Bearer $apiKey")
+                            .post(requestBody)
+                            .build()
 
-                    httpClient.newCall(request).execute().use { response ->
-                        val respStr = response.body?.string() ?: ""
-                        if (!response.isSuccessful) {
-                            throw Exception("申請 Auth Key 失敗 (HTTP ${response.code}): $respStr")
-                        }
-                        val respJson = JSONObject(respStr)
-                        respJson.optString("key").ifBlank {
-                            throw Exception("無法從回應解析 Auth Key")
+                        httpClient.newCall(request).execute().use { response ->
+                            val respStr = response.body?.string() ?: ""
+                            if (!response.isSuccessful) {
+                                throw Exception("申請 Auth Key 失敗 (HTTP ${response.code}): $respStr")
+                            }
+                            val respJson = JSONObject(respStr)
+                            respJson.optString("key").ifBlank {
+                                throw Exception("無法從回應解析 Auth Key")
+                            }
                         }
                     }
                 }

@@ -101,7 +101,7 @@ fun DedicatedDeviceWizardScreen(
                             1 -> "專用設備部署 (1/4)"
                             2 -> "專用設備部署 (2/4)"
                             3 -> "連線參數與金鑰 (3/4)"
-                            4 -> "掃碼部署專用設備 (4/4)"
+                            4 -> "掃描部署專用設備 (4/4)"
                             else -> "製作專用設備"
                         },
                         fontWeight = FontWeight.Bold,
@@ -130,42 +130,136 @@ fun DedicatedDeviceWizardScreen(
             )
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AnimatedContent(
-                targetState = uiState.currentStep,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "step_transition"
-            ) { step ->
-                when (step) {
-                    1 -> StepWarningScreen(
-                        onNext = { viewModel.goToStep(2) }
-                    )
+            // 頂部視覺化進度指示器 (Stepper)
+            WizardStepper(currentStep = uiState.currentStep)
 
-                    2 -> StepResetScreen(
-                        onNext = { viewModel.goToStep(3) }
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                AnimatedContent(
+                    targetState = uiState.currentStep,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "step_transition"
+                ) { step ->
+                    when (step) {
+                        1 -> StepWarningScreen(
+                            onNext = { viewModel.goToStep(2) }
+                        )
 
-                    3 -> StepNetworkAndApiKeyScreen(
-                        uiState = uiState,
-                        onSsidChange = { viewModel.setWifiSsid(it) },
-                        onPasswordChange = { viewModel.setWifiPassword(it) },
-                        onApiKeyChange = { viewModel.setApiKey(it) },
-                        onVerifyApiKey = { viewModel.verifyApiKey(context) },
-                        onNext = {
-                            viewModel.goToStep(4)
-                            viewModel.generateProvisioningQrCode(context)
+                        2 -> StepResetScreen(
+                            onNext = {
+                                viewModel.autoFillCurrentWifi(context)
+                                viewModel.goToStep(3)
+                            }
+                        )
+
+                        3 -> StepNetworkAndApiKeyScreen(
+                            uiState = uiState,
+                            onSsidChange = { viewModel.setWifiSsid(it) },
+                            onPasswordChange = { viewModel.setWifiPassword(it) },
+                            onAutoFillWifi = { viewModel.autoFillCurrentWifi(context) },
+                            onApiKeyChange = { viewModel.setApiKey(it) },
+                            onVerifyApiKey = { viewModel.verifyApiKey(context) },
+                            onNext = {
+                                viewModel.goToStep(4)
+                                viewModel.generateProvisioningQrCode(context)
+                            }
+                        )
+
+                        4 -> StepScanScreen(
+                            uiState = uiState,
+                            onRetryGenQrCode = {
+                                viewModel.generateProvisioningQrCode(context)
+                            },
+                            onFinish = onBack
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 頂部視覺化 Stepper 進度指示器
+ */
+@Composable
+private fun WizardStepper(currentStep: Int) {
+    val steps = listOf("1. 準備", "2. 重置", "3. 參數", "4. 部署")
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            steps.forEachIndexed { index, title ->
+                val stepNum = index + 1
+                val isCompleted = stepNum < currentStep
+                val isCurrent = stepNum == currentStep
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .background(
+                                color = when {
+                                    isCompleted -> Color(0xFF2E7D32)
+                                    isCurrent -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outlineVariant
+                                },
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isCompleted) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        } else {
+                            Text(
+                                text = stepNum.toString(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isCurrent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
+                    }
 
-                    4 -> StepScanScreen(
-                        uiState = uiState,
-                        onRetryGenQrCode = {
-                            viewModel.generateProvisioningQrCode(context)
-                        }
+                    Text(
+                        text = title.substringAfter(". "),
+                        fontSize = 11.sp,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (index < steps.size - 1) {
+                    Box(
+                        modifier = Modifier
+                            .width(16.dp)
+                            .height(1.dp)
+                            .background(
+                                if (stepNum < currentStep) Color(0xFF2E7D32) else MaterialTheme.colorScheme.outlineVariant
+                            )
                     )
                 }
             }
@@ -318,7 +412,7 @@ fun StepResetScreen(
             "拿起您的舊手機（準備當監視器的那台）。",
             "進入舊手機的「設定」>「系統」>「重置選項」。",
             "選擇「清除所有資料（恢復原廠設定）」並等待手機重新開機。",
-            "當舊手機出現「Hello」或「歡迎」的初始設定畫面時，請不要進行任何設定！"
+            "當舊手機出現「Hello」或「歡迎」的初始設定畫面時，請先停在此畫面！"
         )
     }
 
@@ -374,6 +468,7 @@ fun StepNetworkAndApiKeyScreen(
     uiState: WizardUiState,
     onSsidChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
+    onAutoFillWifi: () -> Unit,
     onApiKeyChange: (String) -> Unit,
     onVerifyApiKey: () -> Unit,
     onNext: () -> Unit
@@ -413,18 +508,31 @@ fun StepNetworkAndApiKeyScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Wifi,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "舊手機預設 Wi-Fi 連線",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Wifi,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "舊手機 Wi-Fi 連線設定",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    TextButton(
+                        onClick = onAutoFillWifi,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("📥 帶入當前 Wi-Fi", fontSize = 12.sp)
+                    }
                 }
 
                 OutlinedTextField(
@@ -439,15 +547,21 @@ fun StepNetworkAndApiKeyScreen(
                 OutlinedTextField(
                     value = uiState.wifiPassword,
                     onValueChange = onPasswordChange,
-                    label = { Text("Wi-Fi 密碼 (可為空)") },
+                    label = { Text("Wi-Fi 密碼 (無密碼可留空)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                Text(
+                    text = "💡 建議：請確認 Wi-Fi 支援 2.4GHz 頻段，以確保舊款手機連線順暢。",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
 
-        // UI 區塊 2：Tailscale API Key 設定
+        // UI 區塊 2：Tailscale Key 設定
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
@@ -469,11 +583,17 @@ fun StepNetworkAndApiKeyScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Tailscale API Key 設定",
+                        text = "Tailscale 授權金鑰設定",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                Text(
+                    text = "支援直接輸入 Auth Key (tskey-auth-...) 或輸入 API Key (tskey-api-...)：",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
                 OutlinedButton(
                     onClick = {
@@ -492,13 +612,14 @@ fun StepNetworkAndApiKeyScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("取得 Tailscale API Key (跳轉網頁)")
+                    Text("前往 Tailscale 取得金鑰 (跳轉網頁)")
                 }
 
                 OutlinedTextField(
                     value = uiState.apiKey,
                     onValueChange = onApiKeyChange,
-                    label = { Text("貼上 API Key (tskey-api-...)") },
+                    label = { Text("貼上 Auth Key 或 API Key") },
+                    placeholder = { Text("tskey-auth-... 或 tskey-api-...") },
                     singleLine = true,
                     visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -506,7 +627,7 @@ fun StepNetworkAndApiKeyScreen(
                         IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
                             Icon(
                                 imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (isApiKeyVisible) "隱藏 API Key" else "顯示 API Key"
+                                contentDescription = if (isApiKeyVisible) "隱藏金鑰" else "顯示金鑰"
                             )
                         }
                     },
@@ -529,7 +650,7 @@ fun StepNetworkAndApiKeyScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("驗證中...")
                     } else {
-                        Text("驗證並儲存 API Key")
+                        Text("驗證並儲存金鑰")
                     }
                 }
 
@@ -545,7 +666,7 @@ fun StepNetworkAndApiKeyScreen(
                             tint = Color(0xFF2E7D32)
                         )
                         Text(
-                            text = "API Key 驗證成功，已加密安全儲存！",
+                            text = "金鑰驗證成功，已安全儲存！",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF2E7D32),
                             fontWeight = FontWeight.Bold
@@ -588,14 +709,16 @@ fun StepNetworkAndApiKeyScreen(
 @Composable
 fun StepScanScreen(
     uiState: WizardUiState,
-    onRetryGenQrCode: () -> Unit
+    onRetryGenQrCode: () -> Unit,
+    onFinish: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
     val secretSteps = remember {
         listOf(
-            "在舊手機的「Hello / 歡迎」畫面上，對著空白處「連續快速點擊 6 次」。",
-            "舊手機會啟動隱藏相機，請用它掃描下方的 QR Code。"
+            "【步驟 1：點擊 6 次】在舊手機「Hello / 歡迎」畫面的空白處連續快速點擊 6 次喚醒相機。",
+            "【步驟 2：連線 Wi-Fi】若舊手機提示「需要連線 Wi-Fi 以下載條碼讀取器」，請直接在舊手機上點選 Wi-Fi 連線（此為 Android 官方自動下載 Google 掃描模組所需）。",
+            "【步驟 3：自動開啟相機掃描】下載完成後舊手機相機會自動開啟，請對準下方 QR Code 進行掃描。"
         )
     }
 
@@ -605,7 +728,7 @@ fun StepScanScreen(
             .verticalScroll(scrollState)
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 標題
         Text(
@@ -618,7 +741,7 @@ fun StepScanScreen(
 
         // 步驟清單
         Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             secretSteps.forEachIndexed { index, stepText ->
@@ -628,8 +751,6 @@ fun StepScanScreen(
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         // QR Code 顯示區 (220x220 dp Box)
         Box(
@@ -722,8 +843,6 @@ fun StepScanScreen(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f, fill = false))
-
         // 連線狀態區
         Surface(
             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
@@ -736,16 +855,75 @@ fun StepScanScreen(
                 horizontalArrangement = Arrangement.Center
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.primary
                 )
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "等待設備連線中...",
+                    text = "等待舊手機掃描並完成部署...",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+
+        // 完成並返回按鈕
+        Button(
+            onClick = onFinish,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "已完成掃描，返回主畫面",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // 貼心常見問題與排錯卡片 (FAQ Accordion)
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            ),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "💡 貼心提醒與常見問題",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Text(
+                    text = "• 為什麼舊手機點 6 次後會要求先連 Wi-Fi？\n這是 Android 原廠官方機制！出廠重置後舊手機尚未內建條碼掃描模組，連上 Wi-Fi 後約 3~5 秒會由 Google 自動下載並開啟相機。",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+
+                Text(
+                    text = "• 連續點擊 6 次沒有反應？\n請在「Hello / 歡迎」文字上方的純空白區域，以每秒 2~3 次的頻率快速連點 6 次。",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
                 )
             }
         }
@@ -768,13 +946,13 @@ private fun StepNumberItem(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(26.dp)
                     .background(
                         color = MaterialTheme.colorScheme.primary,
                         shape = CircleShape
@@ -785,15 +963,16 @@ private fun StepNumberItem(
                     text = number.toString(),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 12.sp
                 )
             }
 
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 22.sp,
+                lineHeight = 20.sp,
                 modifier = Modifier.weight(1f)
             )
         }
