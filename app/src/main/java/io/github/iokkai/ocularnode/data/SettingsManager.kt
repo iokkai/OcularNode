@@ -1,11 +1,162 @@
+@file:Suppress("DEPRECATION") // EncryptedSharedPreferences & MasterKey 在 security-crypto:1.1.0 被標記 deprecated，但目前無替代 API
 package io.github.iokkai.ocularnode.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
+/**
+ * 應用程式設定管理器 (SettingsManager)
+ *
+ * - 一般設定：使用普通 SharedPreferences（效能優先）
+ * - 敏感憑證 (Telegram Bot Token, Chat ID, Tailscale Auth Key)：
+ *   使用 EncryptedSharedPreferences（AES256-SIV + AES256-GCM 加密）
+ *
+ * 首次建立時會自動執行一次性遷移：將舊版明文 SharedPreferences 中的
+ * 敏感欄位搬移至加密存儲，並從明文存儲中移除。
+ */
 class SettingsManager(context: Context) {
 
-    private val prefs: SharedPreferences = context.getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE)
+    companion object {
+        private const val TAG = "SettingsManager"
+
+        // --- 一般設定 Key ---
+        private const val KEY_DEVICE_ROLE_MODE = "device_role_mode"
+        private const val KEY_PORT = "server_port"
+        private const val KEY_DEVICE_NAME = "device_name"
+        private const val KEY_TG_SEND_MEDIA_TYPE = "tg_send_media_type"
+        private const val KEY_MOTION_ENABLED = "motion_enabled"
+        private const val KEY_MOTION_SENSITIVITY = "motion_sensitivity"
+        private const val KEY_MOTION_COOLDOWN = "motion_cooldown"
+        private const val KEY_NIGHT_VISION = "night_vision"
+        private const val KEY_NIGHT_VISION_LUMA = "night_vision_luma"
+        private const val KEY_NIGHT_VISION_HYSTERESIS = "night_vision_hysteresis"
+        private const val KEY_DEFAULT_QUALITY = "default_quality"
+        private const val KEY_STREAM_ROTATION = "stream_rotation"
+        private const val KEY_DEFAULT_RESOLUTION = "default_resolution"
+        private const val KEY_OPERATING_MODE = "operating_mode"
+        private const val KEY_PLAY_ALARM = "play_alarm"
+        private const val KEY_MLKIT_FILTER = "mlkit_filter"
+        private const val KEY_AUTO_CLEANUP_ENABLED = "auto_cleanup_enabled"
+        private const val KEY_STORAGE_LIMIT_GB = "storage_limit_gb"
+        private const val KEY_MAX_EVENT_COUNT = "max_event_count"
+        private const val KEY_LIVE_PREVIEW_IN_LIST = "live_preview_in_list"
+        private const val KEY_MOTION_SCHEDULE_ENABLED = "motion_schedule_enabled"
+        private const val KEY_MOTION_SCHEDULE_START = "motion_schedule_start"
+        private const val KEY_MOTION_SCHEDULE_END = "motion_schedule_end"
+        private const val KEY_NOTIFICATION_SCHEDULE_ENABLED = "notification_schedule_enabled"
+        private const val KEY_NOTIFICATION_SCHEDULE_START = "notification_schedule_start"
+        private const val KEY_NOTIFICATION_SCHEDULE_END = "notification_schedule_end"
+        private const val KEY_AUTO_START_BOOT = "auto_start_boot"
+        private const val KEY_POWER_CUT_ALERT = "power_cut_alert"
+        private const val KEY_LOW_BATTERY_THRESHOLD = "low_battery_threshold"
+        private const val KEY_SYSTEM_LOG_ENABLED = "system_log_enabled"
+        private const val KEY_DYNAMIC_FPS_ENABLED = "dynamic_fps_enabled"
+        private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
+
+        // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
+        private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
+        private const val KEY_TG_CHAT_ID = "tg_chat_id"
+        private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
+
+        // 遷移標記
+        private const val KEY_SECRETS_MIGRATED = "secrets_migrated_to_encrypted"
+    }
+
+    /** 一般設定（明文，效能優先） */
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE)
+
+    /** 敏感憑證（AES256 加密） */
+    private val secretPrefs: SharedPreferences = createEncryptedPrefs(context)
+
+    init {
+        migrateSecretsIfNeeded()
+    }
+
+    /**
+     * 建立 EncryptedSharedPreferences 實例。
+     * 若加密存儲損毀（極罕見），則刪除損毀檔案並重新建立，避免 App 崩潰。
+     */
+    private fun createEncryptedPrefs(context: Context): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return try {
+            EncryptedSharedPreferences.create(
+                context,
+                "ocularnode_secrets",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "EncryptedSharedPreferences corrupted, recreating...", e)
+            // 刪除損毀的加密檔案並重新建立
+            context.getSharedPreferences("ocularnode_secrets", Context.MODE_PRIVATE).edit().clear().apply()
+            try {
+                val file = java.io.File(context.filesDir.parent, "shared_prefs/ocularnode_secrets.xml")
+                if (file.exists()) file.delete()
+            } catch (_: Exception) { }
+            EncryptedSharedPreferences.create(
+                context,
+                "ocularnode_secrets",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
+    }
+
+    /**
+     * 一次性遷移：將舊版明文 SharedPreferences 中的敏感欄位
+     * 搬移至 EncryptedSharedPreferences，然後從明文中刪除。
+     */
+    private fun migrateSecretsIfNeeded() {
+        if (prefs.getBoolean(KEY_SECRETS_MIGRATED, false)) return
+
+        val oldToken = prefs.getString(KEY_TG_BOT_TOKEN, null)
+        val oldChatId = prefs.getString(KEY_TG_CHAT_ID, null)
+        val oldAuthKey = prefs.getString(KEY_TAILSCALE_AUTH_KEY, null)
+
+        val secretEditor = secretPrefs.edit()
+        val plainEditor = prefs.edit()
+
+        if (!oldToken.isNullOrBlank()) {
+            secretEditor.putString(KEY_TG_BOT_TOKEN, oldToken)
+            plainEditor.remove(KEY_TG_BOT_TOKEN)
+        }
+        if (!oldChatId.isNullOrBlank()) {
+            secretEditor.putString(KEY_TG_CHAT_ID, oldChatId)
+            plainEditor.remove(KEY_TG_CHAT_ID)
+        }
+        if (!oldAuthKey.isNullOrBlank()) {
+            secretEditor.putString(KEY_TAILSCALE_AUTH_KEY, oldAuthKey)
+            plainEditor.remove(KEY_TAILSCALE_AUTH_KEY)
+        }
+
+        secretEditor.apply()
+        plainEditor.putBoolean(KEY_SECRETS_MIGRATED, true).apply()
+        Log.i(TAG, "Sensitive credentials migrated to EncryptedSharedPreferences")
+    }
+
+    // ===== 敏感憑證（加密存儲）=====
+
+    var telegramBotToken: String
+        get() = secretPrefs.getString(KEY_TG_BOT_TOKEN, "") ?: ""
+        set(value) = secretPrefs.edit().putString(KEY_TG_BOT_TOKEN, value).apply()
+
+    var telegramChatId: String
+        get() = secretPrefs.getString(KEY_TG_CHAT_ID, "") ?: ""
+        set(value) = secretPrefs.edit().putString(KEY_TG_CHAT_ID, value).apply()
+
+    var tailscaleAuthKey: String
+        get() = secretPrefs.getString(KEY_TAILSCALE_AUTH_KEY, "") ?: ""
+        set(value) = secretPrefs.edit().putString(KEY_TAILSCALE_AUTH_KEY, value).apply()
+
+    // ===== 一般設定（明文存儲）=====
 
     var deviceRoleMode: String // "UNSET", "CAMERA", "VIEWER"
         get() = prefs.getString(KEY_DEVICE_ROLE_MODE, "UNSET") ?: "UNSET"
@@ -18,14 +169,6 @@ class SettingsManager(context: Context) {
     var cameraDeviceName: String
         get() = prefs.getString(KEY_DEVICE_NAME, android.os.Build.MODEL) ?: "Android Camera"
         set(value) = prefs.edit().putString(KEY_DEVICE_NAME, value).apply()
-
-    var telegramBotToken: String
-        get() = prefs.getString(KEY_TG_BOT_TOKEN, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TG_BOT_TOKEN, value).apply()
-
-    var telegramChatId: String
-        get() = prefs.getString(KEY_TG_CHAT_ID, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TG_CHAT_ID, value).apply()
 
     var telegramSendMediaType: String // "photo", "video", or "both"
         get() = prefs.getString(KEY_TG_SEND_MEDIA_TYPE, "photo") ?: "photo"
@@ -130,7 +273,6 @@ class SettingsManager(context: Context) {
         get() = prefs.getBoolean(KEY_POWER_CUT_ALERT, true)
         set(value) = prefs.edit().putBoolean(KEY_POWER_CUT_ALERT, value).apply()
 
-
     var eventVideoRecordingEnabled: Boolean
         get() = prefs.getBoolean("pref_event_video_recording_enabled", true)
         set(value) = prefs.edit().putBoolean("pref_event_video_recording_enabled", value).apply()
@@ -147,49 +289,7 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_LOW_BATTERY_THRESHOLD, 60)
         set(value) = prefs.edit().putInt(KEY_LOW_BATTERY_THRESHOLD, value).apply()
 
-    var tailscaleAuthKey: String
-        get() = prefs.getString(KEY_TAILSCALE_AUTH_KEY, "") ?: ""
-        set(value) = prefs.edit().putString(KEY_TAILSCALE_AUTH_KEY, value).apply()
-
     var isKioskModeActive: Boolean
         get() = prefs.getBoolean(KEY_KIOSK_MODE_ACTIVE, false)
         set(value) = prefs.edit().putBoolean(KEY_KIOSK_MODE_ACTIVE, value).apply()
-
-    companion object {
-        private const val KEY_DEVICE_ROLE_MODE = "device_role_mode"
-        private const val KEY_PORT = "server_port"
-        private const val KEY_DEVICE_NAME = "device_name"
-        private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
-        private const val KEY_TG_CHAT_ID = "tg_chat_id"
-        private const val KEY_TG_SEND_MEDIA_TYPE = "tg_send_media_type"
-        private const val KEY_MOTION_ENABLED = "motion_enabled"
-        private const val KEY_MOTION_SENSITIVITY = "motion_sensitivity"
-        private const val KEY_MOTION_COOLDOWN = "motion_cooldown"
-        private const val KEY_NIGHT_VISION = "night_vision"
-        private const val KEY_NIGHT_VISION_LUMA = "night_vision_luma"
-        private const val KEY_NIGHT_VISION_HYSTERESIS = "night_vision_hysteresis"
-        private const val KEY_DEFAULT_QUALITY = "default_quality"
-        private const val KEY_STREAM_ROTATION = "stream_rotation"
-        private const val KEY_DEFAULT_RESOLUTION = "default_resolution"
-        private const val KEY_OPERATING_MODE = "operating_mode"
-        private const val KEY_PLAY_ALARM = "play_alarm"
-        private const val KEY_MLKIT_FILTER = "mlkit_filter"
-        private const val KEY_AUTO_CLEANUP_ENABLED = "auto_cleanup_enabled"
-        private const val KEY_STORAGE_LIMIT_GB = "storage_limit_gb"
-        private const val KEY_MAX_EVENT_COUNT = "max_event_count"
-        private const val KEY_LIVE_PREVIEW_IN_LIST = "live_preview_in_list"
-        private const val KEY_MOTION_SCHEDULE_ENABLED = "motion_schedule_enabled"
-        private const val KEY_MOTION_SCHEDULE_START = "motion_schedule_start"
-        private const val KEY_MOTION_SCHEDULE_END = "motion_schedule_end"
-        private const val KEY_NOTIFICATION_SCHEDULE_ENABLED = "notification_schedule_enabled"
-        private const val KEY_NOTIFICATION_SCHEDULE_START = "notification_schedule_start"
-        private const val KEY_NOTIFICATION_SCHEDULE_END = "notification_schedule_end"
-        private const val KEY_AUTO_START_BOOT = "auto_start_boot"
-        private const val KEY_POWER_CUT_ALERT = "power_cut_alert"
-        private const val KEY_LOW_BATTERY_THRESHOLD = "low_battery_threshold"
-        private const val KEY_SYSTEM_LOG_ENABLED = "system_log_enabled"
-        private const val KEY_DYNAMIC_FPS_ENABLED = "dynamic_fps_enabled"
-        private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
-        private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
-    }
 }
