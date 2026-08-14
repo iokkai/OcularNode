@@ -190,7 +190,7 @@
     <!-- 9. 設定 - 動態、AI 與排程 -->
     <string name="settings_motion_group">動態警報敏感度與冷卻</string>
     <string name="settings_motion_sensitivity_title">動態差異觸發門檻 (Sensitivity)</string>
-    <string name="settings_motion_sensitivity_desc">低於此百分比的畫面變動將被忽略 (1% = 極度敏感，100% = 需要全畫面變動)</string>
+    <string name="settings_motion_sensitivity_desc" formatted="false">低於此百分比的畫面變動將被忽略 (1% = 極度敏感，100% = 需要全畫面變動)</string>
     <string name="settings_motion_cooldown">冷卻時間 (秒，避免連續發送)</string>
     <string name="settings_event_recording_title">事件動態延長錄影</string>
     <string name="settings_event_recording_desc">開啟後，動態事件將自動錄製含前 5 秒緩衝的影片，並依據持續動態自動延長 (最長 3 分鐘)</string>
@@ -370,7 +370,7 @@
     <string name="remote_motion_live_desc">👁️ 即時監看模式：僅提供即時串流影像，不執行背景影像比對與推播，適合人在家時使用。</string>
     <string name="remote_motion_params_title">⚙️ 防護細節與告警參數</string>
     <string name="remote_motion_sens_title">動態差異觸發門檻 (Sensitivity)</string>
-    <string name="remote_motion_sens_desc">低於此百分比的畫面變動將被忽略 (1% = 極度敏感, 100% = 需要全畫面變動)</string>
+    <string name="remote_motion_sens_desc" formatted="false">低於此百分比的畫面變動將被忽略 (1% = 極度敏感, 100% = 需要全畫面變動)</string>
     <string name="remote_motion_cooldown_title">告警冷卻時間 (Cooldown)</string>
     <string name="remote_motion_cooldown_desc">觸發告警後暫停再次告警的時間間隔</string>
     <string name="remote_motion_alarm_title">異動時鏡頭端發出警報聲</string>

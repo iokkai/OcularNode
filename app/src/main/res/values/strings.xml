@@ -190,7 +190,7 @@
     <!-- 9. Settings - Motion, AI & Schedule -->
     <string name="settings_motion_group">Motion Alert Sensitivity &amp; Cooldown</string>
     <string name="settings_motion_sensitivity_title">Motion Trigger Threshold (Sensitivity)</string>
-    <string name="settings_motion_sensitivity_desc">Changes below this percentage are ignored (1% = highly sensitive, 100% = full screen change)</string>
+    <string name="settings_motion_sensitivity_desc" formatted="false">Changes below this percentage are ignored (1% = highly sensitive, 100% = full screen change)</string>
     <string name="settings_motion_cooldown">Cooldown Time (Seconds, prevents spam)</string>
     <string name="settings_event_recording_title">Dynamic Event Video Recording</string>
     <string name="settings_event_recording_desc">Auto record video with 5s pre-event buffer, extending on continuous motion (up to 3 min)</string>
@@ -370,7 +370,7 @@
     <string name="remote_motion_live_desc">👁️ Live Monitor Mode: Streams video on demand without background frame analysis or alerts. Ideal when you are at home.</string>
     <string name="remote_motion_params_title">⚙️ Guard Details &amp; Alert Parameters</string>
     <string name="remote_motion_sens_title">Motion Trigger Threshold (Sensitivity)</string>
-    <string name="remote_motion_sens_desc">Changes below this percentage are ignored (1% = highly sensitive, 100% = full frame change required)</string>
+    <string name="remote_motion_sens_desc" formatted="false">Changes below this percentage are ignored (1% = highly sensitive, 100% = full frame change required)</string>
     <string name="remote_motion_cooldown_title">Alert Cooldown</string>
     <string name="remote_motion_cooldown_desc">Time interval to pause repeated alerts after a trigger</string>
     <string name="remote_motion_alarm_title">Play Siren on Camera Device upon Trigger</string>
