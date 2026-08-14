@@ -12,7 +12,9 @@
 
 ## 🌟 Core Features
 
-- 🔒 **Secure Private Mesh Streaming (Tailscale Support)**: Supports Tailscale VPN mesh network, with automatic Tailscale CGNAT (`100.64.0.0/10`) subnet recognition and secure NAT traversal. No public IP exposure or port forwarding required (Tailscale app installation required on the device).
+- 🌐 **Dual Connection Modes (Local LAN Direct & Remote Traversal)**:
+  - **🏠 Home Wi-Fi Direct (LAN)**: Connect directly over local Wi-Fi (`192.168.x.x`) with zero external dependency, ultra-low latency, and complete offline privacy.
+  - **🔒 Remote Mesh Streaming (Tailscale Support)**: Seamless remote access from anywhere using Tailscale VPN mesh network, with automatic CGNAT (`100.64.0.0/10`) recognition without exposing public IPs or configuring port forwarding (Tailscale app installation required on the device).
 - 🪄 **Device Owner Zero-Touch Provisioning Wizard**:
   - Fast network setup via dedicated QR code scanning.
   - Supports automatic Tailscale Auth Key configuration and VPN connection (with Tailscale installed).

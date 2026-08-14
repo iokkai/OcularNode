@@ -13,7 +13,9 @@
 
 ## 🌟 核心特色 (Core Features)
 
-- 🔒 **全內網安全串流 (Tailscale 整合支援)**：支援搭配 Tailscale 使用，自動識別 Tailscale CGNAT (100.64.0.0/10) 網段與遠端安全穿透，不需暴露公網 IP 或設定 Port Forwarding（需於裝置上手動安裝 Tailscale App）。
+- 🌐 **雙連線模式 (區域網路直連 + 遠端安全穿透)**：
+  - **🏠 家中 Wi-Fi 區網直連**：同區網內免設定直接連線（支援 `192.168.x.x` 等本地 IP），超低延遲、免連外網、完全保障隱私與離線可用。
+  - **🔒 Tailscale 跨網遠端安全串流**：出門在外可搭配 Tailscale VPN 遠端存取，自動識別 CGNAT (`100.64.0.0/10`) 網段，無需暴露公網 IP 或設定路由器 Port Forwarding（需於裝置上手動安裝 Tailscale App）。
 - 🪄 **Device Owner 專用設備部署精靈 (Zero-Touch Provisioning)**：
   - 支援專用 QR Code 掃描快速配網。
   - 支援注入 Tailscale Auth Key 自動配置並啟用 VPN（需已安裝 Tailscale）。
