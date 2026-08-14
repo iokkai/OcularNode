@@ -80,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.BuildConfig
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 
 data class OpenSourceLibrary(
     val name: String,
@@ -95,10 +96,10 @@ fun AboutScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     BackHandler { onBack() }
 
-    val brandPrimaryColor = Color(0xFF6750A4)
-    val textPrimaryColor = Color(0xFF1C1B1F)
-    val textSecondaryColor = Color(0xFF49454F)
-    val cardBorderColor = Color(0xFFCAC4D0)
+    val brandPrimaryColor = AppPrimary
+    val textPrimaryColor = AppTextPrimary
+    val textSecondaryColor = AppTextSecondary
+    val cardBorderColor = AppBorder
 
     val ossLibraries = remember {
         listOf(
@@ -213,10 +214,10 @@ fun AboutScreen(onBack: () -> Unit) {
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFFDF8FF))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppBackground)
             )
         },
-        containerColor = Color(0xFFFDF8FF)
+        containerColor = AppBackground
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -229,7 +230,7 @@ fun AboutScreen(onBack: () -> Unit) {
             // Header Hero Card
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
                 border = BorderStroke(1.dp, cardBorderColor),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
@@ -241,7 +242,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         modifier = Modifier
                             .size(72.dp)
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFFE8DEF8)),
+                            .background(AppSecondaryContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -275,12 +276,12 @@ fun AboutScreen(onBack: () -> Unit) {
                     // Clean version badge: directly display version number
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFEADDFF),
+                        color = AppPrimaryContainer,
                         modifier = Modifier.padding(vertical = 2.dp)
                     ) {
                         Text(
                             text = "v${BuildConfig.VERSION_NAME}",
-                            color = Color(0xFF21005D),
+                            color = AppOnPrimaryContainer,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -354,7 +355,7 @@ fun AboutScreen(onBack: () -> Unit) {
             // Project & Author Card
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
                 border = BorderStroke(1.dp, cardBorderColor),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
@@ -390,7 +391,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // License Item
                     Row(
@@ -419,8 +420,8 @@ fun AboutScreen(onBack: () -> Unit) {
 
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFE8DEF8),
-                            border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                            color = AppSecondaryContainer,
+                            border = BorderStroke(1.dp, AppBorder)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -430,20 +431,20 @@ fun AboutScreen(onBack: () -> Unit) {
                                     stringResource(R.string.about_license_name),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF21005D)
+                                    color = AppOnPrimaryContainer
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                     contentDescription = null,
-                                    tint = Color(0xFF21005D),
+                                    tint = AppOnPrimaryContainer,
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // GitHub Repo Link
                     AboutLinkRow(
@@ -453,7 +454,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         context = context
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Issues Link
                     AboutLinkRow(
@@ -463,7 +464,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         context = context
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Releases Link
                     AboutLinkRow(
@@ -478,7 +479,7 @@ fun AboutScreen(onBack: () -> Unit) {
             // Key Highlights Card
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
                 border = BorderStroke(1.dp, cardBorderColor),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
@@ -501,7 +502,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         description = stringResource(R.string.about_hl_kiosk_desc)
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     HighlightItem(
                         icon = Icons.Default.VpnKey,
@@ -509,7 +510,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         description = stringResource(R.string.about_hl_tailscale_desc)
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     HighlightItem(
                         icon = Icons.Default.SmartToy,
@@ -522,7 +523,7 @@ fun AboutScreen(onBack: () -> Unit) {
             // Open Source Acknowledgements Card (Expandable)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
                 border = BorderStroke(1.dp, cardBorderColor),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)
             ) {
@@ -562,7 +563,7 @@ fun AboutScreen(onBack: () -> Unit) {
                         Column(modifier = Modifier.padding(top = 12.dp)) {
                             ossLibraries.forEachIndexed { index, lib ->
                                 if (index > 0) {
-                                    HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = Color(0xFFF3EDF7))
+                                    HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), color = AppSurfaceVariant)
                                 }
                                 OssLibraryItem(library = lib, context = context)
                             }
@@ -575,7 +576,7 @@ fun AboutScreen(onBack: () -> Unit) {
             Text(
                 text = stringResource(R.string.about_footer_copyright),
                 fontSize = 11.sp,
-                color = Color(0xFF79747E),
+                color = AppTextMuted,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             )
@@ -602,16 +603,16 @@ private fun AboutLinkRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF6750A4),
+                tint = AppPrimary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Text(title, fontSize = 14.sp, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Medium)
+            Text(title, fontSize = 14.sp, color = AppTextPrimary, fontWeight = FontWeight.Medium)
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.OpenInNew,
             contentDescription = "Open Link",
-            tint = Color(0xFF79747E),
+            tint = AppTextMuted,
             modifier = Modifier.size(16.dp)
         )
     }
@@ -628,21 +629,21 @@ private fun HighlightItem(
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFE8DEF8)),
+                .background(AppSecondaryContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color(0xFF6750A4),
+                tint = AppPrimary,
                 modifier = Modifier.size(18.dp)
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1C1B1F))
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AppTextPrimary)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(description, fontSize = 11.sp, color = Color(0xFF49454F), lineHeight = 16.sp)
+            Text(description, fontSize = 11.sp, color = AppTextSecondary, lineHeight = 16.sp)
         }
     }
 }
@@ -671,19 +672,19 @@ private fun OssLibraryItem(
                 text = library.name,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
-                color = Color(0xFF1C1B1F),
+                color = AppTextPrimary,
                 modifier = Modifier.weight(1f)
             )
             Surface(
                 shape = RoundedCornerShape(6.dp),
-                color = Color(0xFFF3EDF7),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                color = AppSurfaceVariant,
+                border = BorderStroke(1.dp, AppBorder)
             ) {
                 Text(
                     text = library.license,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6750A4),
+                    color = AppPrimary,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                 )
             }
@@ -692,14 +693,14 @@ private fun OssLibraryItem(
         Text(
             text = library.author,
             fontSize = 11.sp,
-            color = Color(0xFF6750A4),
+            color = AppPrimary,
             fontWeight = FontWeight.Medium
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = library.description,
             fontSize = 11.sp,
-            color = Color(0xFF49454F)
+            color = AppTextSecondary
         )
     }
 }
@@ -724,7 +725,7 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
                 Icon(
                     imageVector = Icons.Default.Security,
                     contentDescription = null,
-                    tint = Color(0xFF6750A4),
+                    tint = AppPrimary,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -732,7 +733,7 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
                     stringResource(R.string.about_license_dialog_title),
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = Color(0xFF1C1B1F)
+                    color = AppTextPrimary
                 )
             }
         },
@@ -740,8 +741,8 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Card(
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                    border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                    colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                    border = BorderStroke(1.dp, AppBorder),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
@@ -749,13 +750,13 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
                             "GNU General Public License v3.0 (Copyleft)",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF6750A4)
+                            color = AppPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "• 自由使用、學習、修改與分享原始碼\n• 衍生作品必須以相同 GPL v3 協議開源\n• 保障使用者的數位自由與隱私權",
                             fontSize = 11.sp,
-                            color = Color(0xFF49454F),
+                            color = AppTextSecondary,
                             lineHeight = 16.sp
                         )
                     }
@@ -765,13 +766,13 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
                     stringResource(R.string.about_disclaimer_title),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = Color(0xFFB3261E)
+                    color = AppError
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.about_disclaimer_content),
                     fontSize = 11.sp,
-                    color = Color(0xFF49454F),
+                    color = AppTextSecondary,
                     lineHeight = 16.sp
                 )
 
@@ -779,13 +780,13 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
                 OutlinedButton(
                     onClick = { openBrowserUrl(context, "https://github.com/iokkai/OcularNode/blob/main/LICENSE") },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFF6750A4)),
+                    border = BorderStroke(1.dp, AppPrimary),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         stringResource(R.string.about_btn_view_license),
                         fontSize = 12.sp,
-                        color = Color(0xFF6750A4),
+                        color = AppPrimary,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -793,11 +794,11 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.btn_close), fontWeight = FontWeight.Bold, color = Color(0xFF6750A4))
+                Text(stringResource(R.string.btn_close), fontWeight = FontWeight.Bold, color = AppPrimary)
             }
         },
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color.White
+        containerColor = AppSurface
     )
 }
 
@@ -814,7 +815,7 @@ private fun UpdateAvailableDialog(
                 Icon(
                     imageVector = Icons.Default.NewReleases,
                     contentDescription = null,
-                    tint = Color(0xFF6750A4),
+                    tint = AppPrimary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -822,7 +823,7 @@ private fun UpdateAvailableDialog(
                     stringResource(R.string.about_update_found_title),
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
-                    color = Color(0xFF1C1B1F)
+                    color = AppTextPrimary
                 )
             }
         },
@@ -831,7 +832,7 @@ private fun UpdateAvailableDialog(
                 Text(
                     stringResource(R.string.about_update_found_desc),
                     fontSize = 13.sp,
-                    color = Color(0xFF49454F)
+                    color = AppTextSecondary
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -839,7 +840,7 @@ private fun UpdateAvailableDialog(
                 // New Version Badge
                 Card(
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEADDFF)),
+                    colors = CardDefaults.cardColors(containerColor = AppPrimaryContainer),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -852,12 +853,12 @@ private fun UpdateAvailableDialog(
                                 text = "最新版本: ${result.latestVersionName}",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = Color(0xFF21005D)
+                                color = AppOnPrimaryContainer
                             )
                             Text(
                                 text = "目前版本: v${BuildConfig.VERSION_NAME}",
                                 fontSize = 11.sp,
-                                color = Color(0xFF49454F)
+                                color = AppTextSecondary
                             )
                         }
                     }
@@ -869,19 +870,19 @@ private fun UpdateAvailableDialog(
                         stringResource(R.string.about_update_notes_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
-                        color = Color(0xFF1C1B1F)
+                        color = AppTextPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Card(
                         shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                        border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                        colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                        border = BorderStroke(1.dp, AppBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
                             text = result.releaseNotes.trim(),
                             fontSize = 11.sp,
-                            color = Color(0xFF49454F),
+                            color = AppTextSecondary,
                             lineHeight = 16.sp,
                             modifier = Modifier.padding(10.dp)
                         )
@@ -899,8 +900,8 @@ private fun UpdateAvailableDialog(
                     },
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6750A4),
-                        contentColor = Color.White
+                        containerColor = AppPrimary,
+                        contentColor = AppSurface
                     ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -916,10 +917,10 @@ private fun UpdateAvailableDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.btn_close), fontWeight = FontWeight.Bold, color = Color(0xFF6750A4))
+                Text(stringResource(R.string.btn_close), fontWeight = FontWeight.Bold, color = AppPrimary)
             }
         },
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color.White
+        containerColor = AppSurface
     )
 }

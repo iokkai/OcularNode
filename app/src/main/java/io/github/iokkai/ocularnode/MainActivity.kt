@@ -55,19 +55,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.annotation.StringRes
-import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.res.stringResource
+import io.github.iokkai.ocularnode.ui.theme.*
 import io.github.iokkai.ocularnode.data.CameraDevice
+import io.github.iokkai.ocularnode.data.SettingsManager
+import io.github.iokkai.ocularnode.service.CameraStreamService
 import io.github.iokkai.ocularnode.ui.camera.CameraModeScreen
 import io.github.iokkai.ocularnode.ui.camera.CameraServerViewModel
 import io.github.iokkai.ocularnode.ui.events.EventLogsScreen
 import io.github.iokkai.ocularnode.ui.events.EventLogsViewModel
 import io.github.iokkai.ocularnode.ui.settings.SettingsScreen
 import io.github.iokkai.ocularnode.ui.settings.SettingsViewModel
-import io.github.iokkai.ocularnode.ui.theme.MyApplicationTheme
+import io.github.iokkai.ocularnode.ui.theme.*
 import io.github.iokkai.ocularnode.ui.viewer.LiveMonitorScreen
 import io.github.iokkai.ocularnode.ui.viewer.ViewerListScreen
 import io.github.iokkai.ocularnode.ui.viewer.ViewerViewModel
+import io.github.iokkai.ocularnode.util.NetworkUtils
+import io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager
 
 enum class AppTab(@StringRes val titleRes: Int, val icon: ImageVector) {
     CAMERA(R.string.tab_camera, Icons.Default.Videocam),
@@ -125,7 +130,7 @@ fun MainAppScreen(
     }
     var viewingMonitorDevice by remember { mutableStateOf<CameraDevice?>(null) }
     val unreadCount by eventLogsViewModel.unreadCount.collectAsState()
-    val tailscaleProgress by io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.tailscaleDownloadProgress.collectAsState()
+    val tailscaleProgress by ZeroTouchProvisionManager.tailscaleDownloadProgress.collectAsState()
 
     // Force CAMERA role & sync if Device Owner
     LaunchedEffect(isDeviceOwner) {
@@ -137,20 +142,20 @@ fun MainAppScreen(
                 currentTab = AppTab.CAMERA
             }
             val activity = context as? MainActivity
-            val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager(context)
+            val settingsManager = SettingsManager(context)
             
             // 確保 Tailscale 處於安裝與連線狀態
             val authKey = settingsManager.tailscaleAuthKey
             if (authKey.isNotBlank()) {
-                if (io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context)) {
-                    io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
+                if (NetworkUtils.isTailscaleInstalled(context)) {
+                    ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
                 } else {
-                    io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.startZeroTouchPipeline(context, authKey)
+                    ZeroTouchProvisionManager.startZeroTouchPipeline(context, authKey)
                 }
             }
 
             if (settingsManager.isKioskModeActive && activity != null) {
-                io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.enableKioskMode(activity)
+                ZeroTouchProvisionManager.enableKioskMode(activity)
             }
         }
     }
@@ -175,7 +180,7 @@ fun MainAppScreen(
                 currentTab = AppTab.VIEWER
             }
             try {
-                val serviceIntent = android.content.Intent(context, io.github.iokkai.ocularnode.service.CameraStreamService::class.java)
+                val serviceIntent = android.content.Intent(context, CameraStreamService::class.java)
                 context.stopService(serviceIntent)
                 val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
                 notificationManager?.cancel(1001)
@@ -210,8 +215,8 @@ fun MainAppScreen(
         ) {
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFF6750A4)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppPrimary),
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             ) {
                 Column(
@@ -221,13 +226,13 @@ fun MainAppScreen(
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(Color(0xFFE8DEF8), CircleShape),
+                            .background(AppSecondaryContainer, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.PhoneAndroid,
                             contentDescription = null,
-                            tint = Color(0xFF6750A4),
+                            tint = AppPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -236,13 +241,13 @@ fun MainAppScreen(
                         text = stringResource(R.string.provisioning_in_progress),
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF1C1B1F)
+                        color = AppTextPrimary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = tailscaleProgress.status,
                         fontSize = 13.sp,
-                        color = Color(0xFF49454F),
+                        color = AppTextSecondary,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -251,8 +256,8 @@ fun MainAppScreen(
                         LinearProgressIndicator(
                             progress = { tailscaleProgress.progressPercent / 100f },
                             modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = Color(0xFF6750A4),
-                            trackColor = Color(0xFFE8DEF8)
+                            color = AppPrimary,
+                            trackColor = AppSecondaryContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
@@ -263,21 +268,21 @@ fun MainAppScreen(
                                 text = "${tailscaleProgress.progressPercent}%",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF6750A4)
+                                color = AppPrimary
                             )
                             if (tailscaleProgress.totalBytes > 0) {
                                 Text(
                                     text = "${tailscaleProgress.downloadedBytes / (1024 * 1024)} MB / ${tailscaleProgress.totalBytes / (1024 * 1024)} MB",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF79747E)
+                                    color = AppTextMuted
                                 )
                             }
                         }
                     } else {
                         LinearProgressIndicator(
                             modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = Color(0xFF6750A4),
-                            trackColor = Color(0xFFE8DEF8)
+                            color = AppPrimary,
+                            trackColor = AppSecondaryContainer
                         )
                     }
                 }
@@ -289,8 +294,8 @@ fun MainAppScreen(
         bottomBar = {
             if (viewingMonitorDevice == null && !isBlackScreenActive) {
                 NavigationBar(
-                    containerColor = Color(0xFFF3EDF7),
-                    contentColor = Color(0xFF1C1B1F)
+                    containerColor = AppSurfaceVariant,
+                    contentColor = AppTextPrimary
                 ) {
                     availableTabs.forEach { tab ->
                         val selected = currentTab == tab
@@ -309,7 +314,7 @@ fun MainAppScreen(
                                 if (tab == AppTab.ALERTS && unreadCount > 0) {
                                     BadgedBox(
                                         badge = {
-                                            Badge(containerColor = Color(0xFFB3261E), contentColor = Color.White) {
+                                            Badge(containerColor = AppError, contentColor = AppSurface) {
                                                 Text(unreadCount.toString())
                                             }
                                         }
@@ -322,18 +327,18 @@ fun MainAppScreen(
                             },
                             label = { Text(stringResource(tab.titleRes), fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = Color(0xFF1D192B),
-                                selectedTextColor = Color(0xFF1D192B),
-                                unselectedIconColor = Color(0xFF49454F),
-                                unselectedTextColor = Color(0xFF49454F),
-                                indicatorColor = Color(0xFFE8DEF8)
+                                selectedIconColor = AppOnSecondaryContainer,
+                                selectedTextColor = AppOnSecondaryContainer,
+                                unselectedIconColor = AppTextSecondary,
+                                unselectedTextColor = AppTextSecondary,
+                                indicatorColor = AppSecondaryContainer
                             )
                         )
                     }
                 }
             }
         },
-        containerColor = Color(0xFFFDF8FF)
+        containerColor = AppBackground
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -371,7 +376,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
     ) {
         Surface(
             shape = RoundedCornerShape(28.dp),
-            color = Color.White,
+            color = AppSurface,
             tonalElevation = 6.dp,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
         ) {
@@ -382,13 +387,13 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .background(Color(0xFFE8DEF8), CircleShape),
+                        .background(AppSecondaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.PhoneAndroid,
                         contentDescription = null,
-                        tint = Color(0xFF6750A4),
+                        tint = AppPrimary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -399,7 +404,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                     text = stringResource(R.string.onboarding_welcome),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1C1B1F)
+                    color = AppTextPrimary
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -407,7 +412,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                 Text(
                     text = stringResource(R.string.onboarding_select_role_desc),
                     fontSize = 13.sp,
-                    color = Color(0xFF49454F),
+                    color = AppTextSecondary,
                     textAlign = TextAlign.Center
                 )
 
@@ -417,8 +422,8 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                 Card(
                     onClick = { onSelectRole("CAMERA") },
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                    border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+                    colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                    border = BorderStroke(1.dp, AppSecondaryContainer),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -428,15 +433,15 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
-                                .background(Color(0xFF6750A4), CircleShape),
+                                .background(AppPrimary, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = AppSurface)
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text(stringResource(R.string.role_camera_option), fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
-                            Text(stringResource(R.string.role_camera_desc), color = Color(0xFF49454F), fontSize = 12.sp)
+                            Text(stringResource(R.string.role_camera_option), fontWeight = FontWeight.Bold, color = AppTextPrimary, fontSize = 15.sp)
+                            Text(stringResource(R.string.role_camera_desc), color = AppTextSecondary, fontSize = 12.sp)
                         }
                     }
                 }
@@ -447,8 +452,8 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                 Card(
                     onClick = { onSelectRole("VIEWER") },
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                    border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+                    colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                    border = BorderStroke(1.dp, AppSecondaryContainer),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -458,15 +463,15 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
-                                .background(Color(0xFF6750A4), CircleShape),
+                                .background(AppPrimary, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Visibility, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Default.Visibility, contentDescription = null, tint = AppSurface)
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text(stringResource(R.string.role_viewer_option), fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
-                            Text(stringResource(R.string.role_viewer_desc), color = Color(0xFF49454F), fontSize = 12.sp)
+                            Text(stringResource(R.string.role_viewer_option), fontWeight = FontWeight.Bold, color = AppTextPrimary, fontSize = 15.sp)
+                            Text(stringResource(R.string.role_viewer_desc), color = AppTextSecondary, fontSize = 12.sp)
                         }
                     }
                 }

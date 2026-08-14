@@ -55,6 +55,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 import io.github.iokkai.ocularnode.util.QRCodeUtils
 import io.github.iokkai.ocularnode.util.ScannedCameraInfo
 import com.google.zxing.BinaryBitmap
@@ -195,7 +196,7 @@ fun QRCodeScannerDialog(
                             Box(
                                 modifier = Modifier
                                     .size(260.dp)
-                                    .border(3.dp, Color(0xFFD0BCFF), RoundedCornerShape(24.dp))
+                                    .border(3.dp, Purple80, RoundedCornerShape(24.dp))
                                     .background(Color.Transparent)
                             )
                             Spacer(modifier = Modifier.height(24.dp))
@@ -231,7 +232,7 @@ fun QRCodeScannerDialog(
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
+                            colors = ButtonDefaults.buttonColors(containerColor = AppPrimary)
                         ) {
                             Text(stringResource(R.string.qr_scan_btn_grant_perm))
                         }
@@ -255,7 +256,7 @@ fun QRCodeScannerDialog(
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.background(Color(0x88000000), shape = CircleShape)
+                        modifier = Modifier.background(AppOverlayDark, shape = CircleShape)
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                     }

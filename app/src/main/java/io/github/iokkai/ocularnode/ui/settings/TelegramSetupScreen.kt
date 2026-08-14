@@ -69,9 +69,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.ui.theme.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,18 +115,18 @@ fun TelegramSetupScreen(
                         text = stringResource(R.string.tg_setup_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF1C1B1F)
+                        color = AppTextPrimary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.tg_setup_back), tint = Color(0xFF1C1B1F))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.tg_setup_back), tint = AppTextPrimary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFFDF8FF))
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppBackground)
             )
         },
-        containerColor = Color(0xFFFDF8FF)
+        containerColor = AppBackground
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -202,8 +204,8 @@ private fun Step1InputTokenContent(
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppSecondaryContainer),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -211,10 +213,10 @@ private fun Step1InputTokenContent(
                 Box(
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color(0xFFE8DEF8), CircleShape),
+                        .background(AppSecondaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = AppPrimary)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
@@ -222,12 +224,12 @@ private fun Step1InputTokenContent(
                         text = stringResource(R.string.tg_setup_step1_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = Color(0xFF1C1B1F)
+                        color = AppTextPrimary
                     )
                     Text(
                         text = stringResource(R.string.tg_setup_step1_subtitle),
                         fontSize = 12.sp,
-                        color = Color(0xFF49454F)
+                        color = AppTextSecondary
                     )
                 }
             }
@@ -237,7 +239,7 @@ private fun Step1InputTokenContent(
             // 教學步驟卡片
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF3EDF7),
+                color = AppSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -245,14 +247,14 @@ private fun Step1InputTokenContent(
                         text = stringResource(R.string.tg_setup_guide_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = Color(0xFF6750A4)
+                        color = AppPrimary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = stringResource(R.string.tg_setup_guide_content),
                         fontSize = 13.sp,
                         lineHeight = 22.sp,
-                        color = Color(0xFF1C1B1F)
+                        color = AppTextPrimary
                     )
                 }
             }
@@ -264,13 +266,13 @@ private fun Step1InputTokenContent(
                 onValueChange = onTokenChange,
                 label = { Text(stringResource(R.string.tg_setup_token_label)) },
                 placeholder = { Text(stringResource(R.string.tg_setup_token_placeholder)) },
-                leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFF6750A4)) },
+                leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = AppPrimary) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF6750A4),
-                    unfocusedBorderColor = Color(0xFFCAC4D0),
-                    focusedTextColor = Color(0xFF1C1B1F),
-                    unfocusedTextColor = Color(0xFF1C1B1F)
+                    focusedBorderColor = AppPrimary,
+                    unfocusedBorderColor = AppBorder,
+                    focusedTextColor = AppTextPrimary,
+                    unfocusedTextColor = AppTextPrimary
                 ),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -282,8 +284,8 @@ private fun Step1InputTokenContent(
                 onClick = onNext,
                 enabled = tokenInput.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6750A4),
-                    contentColor = Color.White
+                    containerColor = AppPrimary,
+                    contentColor = AppSurface
                 ),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
@@ -318,8 +320,8 @@ private fun Step2ListeningContent(
 
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppSecondaryContainer),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -330,7 +332,7 @@ private fun Step2ListeningContent(
                 text = stringResource(R.string.tg_setup_step2_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
-                color = Color(0xFF1C1B1F)
+                color = AppTextPrimary
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -338,7 +340,7 @@ private fun Step2ListeningContent(
             Text(
                 text = stringResource(R.string.tg_setup_step2_desc),
                 fontSize = 13.sp,
-                color = Color(0xFF49454F),
+                color = AppTextSecondary,
                 textAlign = TextAlign.Center
             )
 
@@ -347,8 +349,8 @@ private fun Step2ListeningContent(
             if (isLoadingBotInfo) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF0F7FF),
-                    border = BorderStroke(1.dp, Color(0xFFD0E4FF)),
+                    color = AppInfoContainerLight,
+                    border = BorderStroke(1.dp, AppInfoContainer),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
@@ -360,7 +362,7 @@ private fun Step2ListeningContent(
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color(0xFF0061A4),
+                            color = AppInfo,
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -368,7 +370,7 @@ private fun Step2ListeningContent(
                             text = stringResource(R.string.tg_setup_loading_bot),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF0061A4)
+                            color = AppInfo
                         )
                     }
                 }
@@ -376,8 +378,8 @@ private fun Step2ListeningContent(
             } else if (botName.isNotEmpty()) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF0F7FF),
-                    border = BorderStroke(1.dp, Color(0xFFD0E4FF)),
+                    color = AppInfoContainerLight,
+                    border = BorderStroke(1.dp, AppInfoContainer),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
@@ -398,7 +400,7 @@ private fun Step2ListeningContent(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .background(Color(0xFFD0E4FF), CircleShape),
+                                .background(AppInfoContainer, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("🤖", fontSize = 18.sp)
@@ -409,13 +411,13 @@ private fun Step2ListeningContent(
                                 text = botName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
-                                color = Color(0xFF0061A4)
+                                color = AppInfo
                             )
                             if (botUsername.isNotEmpty()) {
                                 Text(
                                     text = "@$botUsername",
                                     fontSize = 13.sp,
-                                    color = Color(0xFF0061A4)
+                                    color = AppInfo
                                 )
                             }
                         }
@@ -427,8 +429,8 @@ private fun Step2ListeningContent(
             // 超大字體 4 位數驗證碼卡片
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFFF3EDF7),
-                border = BorderStroke(2.dp, Color(0xFF6750A4)),
+                color = AppSurfaceVariant,
+                border = BorderStroke(2.dp, AppPrimary),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp)
@@ -445,7 +447,7 @@ private fun Step2ListeningContent(
                         fontWeight = FontWeight.ExtraBold,
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 8.sp,
-                        color = Color(0xFF6750A4)
+                        color = AppPrimary
                     )
 
                     Spacer(modifier = Modifier.width(16.dp))
@@ -453,13 +455,13 @@ private fun Step2ListeningContent(
                     IconButton(
                         onClick = onCopyPin,
                         modifier = Modifier
-                            .background(Color(0xFFE8DEF8), CircleShape)
+                            .background(AppSecondaryContainer, CircleShape)
                             .size(38.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
                             contentDescription = stringResource(R.string.tg_setup_copy_pin),
-                            tint = Color(0xFF6750A4),
+                            tint = AppPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -474,7 +476,7 @@ private fun Step2ListeningContent(
                 horizontalArrangement = Arrangement.Center
             ) {
                 CircularProgressIndicator(
-                    color = Color(0xFF6750A4),
+                    color = AppPrimary,
                     strokeWidth = 3.dp,
                     modifier = Modifier.size(22.dp)
                 )
@@ -482,7 +484,7 @@ private fun Step2ListeningContent(
                 Icon(
                     imageVector = Icons.Default.Timer,
                     contentDescription = null,
-                    tint = Color(0xFF6750A4),
+                    tint = AppPrimary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
@@ -490,7 +492,7 @@ private fun Step2ListeningContent(
                     text = stringResource(R.string.tg_setup_waiting_msg, remainingSeconds),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1C1B1F)
+                    color = AppTextPrimary
                 )
             }
 
@@ -499,8 +501,8 @@ private fun Step2ListeningContent(
             // 操作指南區塊 1：個人接收
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF8F5FF),
-                border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+                color = AppSurfaceCardAlt,
+                border = BorderStroke(1.dp, AppSecondaryContainer),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -508,7 +510,7 @@ private fun Step2ListeningContent(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .background(Color(0xFFE8DEF8), CircleShape),
+                                .background(AppSecondaryContainer, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("👤", fontSize = 14.sp)
@@ -518,14 +520,14 @@ private fun Step2ListeningContent(
                             text = stringResource(R.string.tg_setup_personal_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color(0xFF6750A4)
+                            color = AppPrimary
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = stringResource(R.string.tg_setup_personal_guide),
                         fontSize = 13.sp,
-                        color = Color(0xFF1C1B1F),
+                        color = AppTextPrimary,
                         lineHeight = 22.sp
                     )
                 }
@@ -536,8 +538,8 @@ private fun Step2ListeningContent(
             // 操作指南區塊 2：群組接收
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF0F7FF),
-                border = BorderStroke(1.dp, Color(0xFFD0E4FF)),
+                color = AppInfoContainerLight,
+                border = BorderStroke(1.dp, AppInfoContainer),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -545,7 +547,7 @@ private fun Step2ListeningContent(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .background(Color(0xFFD0E4FF), CircleShape),
+                                .background(AppInfoContainer, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("👥", fontSize = 14.sp)
@@ -555,14 +557,14 @@ private fun Step2ListeningContent(
                             text = stringResource(R.string.tg_setup_group_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
-                            color = Color(0xFF0061A4)
+                            color = AppInfo
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = stringResource(R.string.tg_setup_group_guide),
                         fontSize = 13.sp,
-                        color = Color(0xFF1C1B1F),
+                        color = AppTextPrimary,
                         lineHeight = 22.sp
                     )
                 }
@@ -572,10 +574,10 @@ private fun Step2ListeningContent(
             OutlinedButton(
                 onClick = onCancel,
                 shape = RoundedCornerShape(20.dp),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.tg_setup_btn_cancel), color = Color(0xFF49454F))
+                Text(stringResource(R.string.tg_setup_btn_cancel), color = AppTextSecondary)
             }
         }
     }
@@ -588,8 +590,8 @@ private fun TimeoutContent(
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFFFB4AB)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppErrorBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -599,7 +601,7 @@ private fun TimeoutContent(
             Box(
                 modifier = Modifier
                     .size(64.dp)
-                    .background(Color(0xFFFFDAD6), CircleShape),
+                    .background(AppErrorContainer, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text("⏳", fontSize = 32.sp)
@@ -611,7 +613,7 @@ private fun TimeoutContent(
                 text = stringResource(R.string.tg_setup_timeout_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFBA1A1A)
+                color = AppError
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -619,7 +621,7 @@ private fun TimeoutContent(
             Text(
                 text = stringResource(R.string.tg_setup_timeout_desc),
                 fontSize = 13.sp,
-                color = Color(0xFF49454F),
+                color = AppTextSecondary,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
             )
@@ -628,7 +630,7 @@ private fun TimeoutContent(
 
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = AppSurface),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -646,7 +648,7 @@ private fun TimeoutContent(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(stringResource(R.string.tg_setup_btn_modify_token), color = Color(0xFF49454F))
+                Text(stringResource(R.string.tg_setup_btn_modify_token), color = AppTextSecondary)
             }
         }
     }
@@ -660,8 +662,8 @@ private fun SuccessContent(
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFA8E0B0)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppSuccessBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -671,13 +673,13 @@ private fun SuccessContent(
             Box(
                 modifier = Modifier
                     .size(68.dp)
-                    .background(Color(0xFFE8F5E9), CircleShape),
+                    .background(AppSuccessContainer, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = stringResource(R.string.tg_setup_success_title),
-                    tint = Color(0xFF2E7D32),
+                    tint = AppSuccess,
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -688,7 +690,7 @@ private fun SuccessContent(
                 text = stringResource(R.string.tg_setup_success_title),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF2E7D32)
+                color = AppSuccess
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -696,7 +698,7 @@ private fun SuccessContent(
             Text(
                 text = stringResource(R.string.tg_setup_success_desc),
                 fontSize = 13.sp,
-                color = Color(0xFF49454F),
+                color = AppTextSecondary,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp
             )
@@ -705,8 +707,8 @@ private fun SuccessContent(
 
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF1F8E9),
-                border = BorderStroke(1.dp, Color(0xFFC8E6C9)),
+                color = AppSuccessContainer,
+                border = BorderStroke(1.dp, AppSuccessBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -714,7 +716,7 @@ private fun SuccessContent(
                         text = stringResource(R.string.tg_setup_info_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = Color(0xFF2E7D32)
+                        color = AppSuccess
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
@@ -722,12 +724,12 @@ private fun SuccessContent(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Monospace,
-                        color = Color(0xFF1B5E20)
+                        color = AppSuccessDark
                     )
                     Text(
                         text = stringResource(R.string.tg_setup_bot_status),
                         fontSize = 12.sp,
-                        color = Color(0xFF388E3C)
+                        color = AppSuccess
                     )
                 }
             }
@@ -736,7 +738,7 @@ private fun SuccessContent(
 
             Button(
                 onClick = onDone,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32), contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = AppSuccess, contentColor = AppSurface),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -757,8 +759,8 @@ private fun ErrorContent(
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFFFB4AB)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppErrorBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -766,7 +768,7 @@ private fun ErrorContent(
                 text = stringResource(R.string.tg_setup_error_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
-                color = Color(0xFFBA1A1A)
+                color = AppError
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -774,7 +776,7 @@ private fun ErrorContent(
             Text(
                 text = errorMessage,
                 fontSize = 13.sp,
-                color = Color(0xFF49454F)
+                color = AppTextSecondary
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -785,8 +787,8 @@ private fun ErrorContent(
                 label = { Text(stringResource(R.string.tg_setup_token_label)) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF6750A4),
-                    unfocusedBorderColor = Color(0xFFCAC4D0)
+                    focusedBorderColor = AppPrimary,
+                    unfocusedBorderColor = AppBorder
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -795,7 +797,7 @@ private fun ErrorContent(
 
             Button(
                 onClick = onRetry,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = AppSurface),
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {

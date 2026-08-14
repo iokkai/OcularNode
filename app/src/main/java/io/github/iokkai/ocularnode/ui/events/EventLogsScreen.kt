@@ -67,6 +67,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.github.iokkai.ocularnode.data.CameraDevice
@@ -112,7 +113,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFDF8FF))
+            .background(AppBackground)
             .padding(16.dp)
     ) {
         // Header
@@ -125,7 +126,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.events_title),
-                        color = Color(0xFF1C1B1F),
+                        color = AppTextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -136,21 +137,21 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                         Box(
                             modifier = Modifier
                                 .clip(CircleShape)
-                                .background(Color(0xFFE0F2FE))
+                                .background(AppInfoContainerLight)
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "♻️ ${if (viewModel.settingsManager.storageLimitGB < 1.0f) "500MB" else "${viewModel.settingsManager.storageLimitGB.toInt()}GB"}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0284C7)
+                                color = AppInfoBright
                             )
                         }
                     }
                 }
                 Text(
                     text = stringResource(R.string.events_subtitle),
-                    color = Color(0xFF49454F),
+                    color = AppTextSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -168,7 +169,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = stringResource(R.string.events_btn_clear_all),
-                        tint = if (events.isNotEmpty()) Color(0xFFB3261E) else Color(0xFF9E9E9E)
+                        tint = if (events.isNotEmpty()) AppError else AppTextDisabled
                     )
                 }
             }
@@ -180,7 +181,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
         if (!isCameraRole && cameraDevices.isNotEmpty()) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
+                colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
@@ -190,9 +191,9 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = AppPrimary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(stringResource(R.string.events_sync_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
+                            Text(stringResource(R.string.events_sync_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
                         }
 
                         Button(
@@ -203,7 +204,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                                 }
                             },
                             enabled = !isSyncingRemote,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.height(34.dp)
                         ) {
@@ -228,8 +229,8 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                                 onClick = { selectedCameraForSync = cam },
                                 label = { Text(cam.name, fontSize = 11.sp) },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFFE8DEF8),
-                                    selectedLabelColor = Color(0xFF1D192B)
+                                    selectedContainerColor = AppSecondaryContainer,
+                                    selectedLabelColor = AppOnSecondaryContainer
                                 )
                             )
                         }
@@ -238,7 +239,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                     AnimatedVisibility(visible = syncMessage != null) {
                         syncMessage?.let { msg ->
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text(msg, fontSize = 11.sp, color = if (msg.contains("❌")) Color(0xFFB3261E) else Color(0xFF2E7D32), fontWeight = FontWeight.Medium)
+                            Text(msg, fontSize = 11.sp, color = if (msg.contains("❌")) AppError else AppSuccess, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -291,11 +292,11 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                     Icon(
                         imageVector = Icons.Default.NotificationsActive,
                         contentDescription = null,
-                        tint = Color(0xFF79747E),
+                        tint = AppTextMuted,
                         modifier = Modifier.size(64.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(stringResource(R.string.events_empty), color = Color(0xFF49454F), fontSize = 15.sp)
+                    Text(stringResource(R.string.events_empty), color = AppTextSecondary, fontSize = 15.sp)
                 }
             }
         } else {
@@ -331,7 +332,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                         viewModel.clearAllEvents()
                         showClearConfirmDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
+                    colors = ButtonDefaults.buttonColors(containerColor = AppError)
                 ) {
                     Text(stringResource(R.string.events_clear_confirm))
                 }
@@ -374,8 +375,8 @@ fun EventCard(
 
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE7E0EC)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppBorderLight),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -401,7 +402,7 @@ fun EventCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Gray)
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = AppTextDisabled)
                 }
 
                 if (hasVideo) {
@@ -410,11 +411,11 @@ fun EventCard(
                             .align(Alignment.BottomEnd)
                             .padding(4.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xCC000000))
+                            .background(AppOverlayDarkHeavy)
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFFFFB4AB), modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = AppErrorBorder, modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(stringResource(R.string.events_badge_video), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
@@ -428,28 +429,28 @@ fun EventCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = stringResource(R.string.events_motion_change, event.motionPercentage),
-                        color = Color(0xFF1C1B1F),
+                        color = AppTextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
                 }
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(event.cameraName, color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(event.cameraName, color = AppPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(formattedTime, color = Color(0xFF49454F), fontSize = 11.sp)
+                Text(formattedTime, color = AppTextSecondary, fontSize = 11.sp)
 
                 if (event.aiSummary.isNotBlank()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (event.aiFiltered) Color(0xFFE8DEF8) else Color(0xFFFFD8E4))
+                            .background(if (event.aiFiltered) AppSecondaryContainer else AppPrimaryContainer)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = event.aiSummary,
                             fontSize = 11.sp,
-                            color = if (event.aiFiltered) Color(0xFF1D192B) else Color(0xFF31111D),
+                            color = if (event.aiFiltered) AppOnSecondaryContainer else AppOnPrimaryContainer,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -460,13 +461,13 @@ fun EventCard(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = null,
-                        tint = if (event.telegramSentSuccess) Color(0xFF2E7D32) else if (event.aiFiltered) Color(0xFF79747E) else Color(0xFF49454F),
+                        tint = if (event.telegramSentSuccess) AppSuccess else if (event.aiFiltered) AppTextMuted else AppTextSecondary,
                         modifier = Modifier.size(11.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (event.aiFiltered) stringResource(R.string.events_status_filtered) else if (event.telegramSentSuccess) stringResource(R.string.events_status_telegram) else stringResource(R.string.events_status_failed),
-                        color = if (event.aiFiltered) Color(0xFF6750A4) else if (event.telegramSentSuccess) Color(0xFF2E7D32) else Color(0xFF49454F),
+                        color = if (event.aiFiltered) AppPrimary else if (event.telegramSentSuccess) AppSuccess else AppTextSecondary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -499,13 +500,13 @@ fun EventCard(
                     Icon(
                         imageVector = if (hasVideo) Icons.Default.Videocam else Icons.Default.Download,
                         contentDescription = "Download File",
-                        tint = Color(0xFF6750A4)
+                        tint = AppPrimary
                     )
                 }
             }
 
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFF79747E), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AppTextMuted, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -603,19 +604,19 @@ fun SnapshotPreviewDialog(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF2B2930))
+                            .background(AppDarkSurface)
                             .padding(4.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(if (!showVideoMode) Color(0xFFD0BCFF) else Color.Transparent)
+                                .background(if (!showVideoMode) Purple80 else Color.Transparent)
                                 .clickable { showVideoMode = false }
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 stringResource(R.string.events_tab_snapshot),
-                                color = if (!showVideoMode) Color(0xFF381E72) else Color.White,
+                                color = if (!showVideoMode) AppOnPrimaryContainer else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
@@ -624,13 +625,13 @@ fun SnapshotPreviewDialog(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(if (showVideoMode) Color(0xFFD0BCFF) else Color.Transparent)
+                                .background(if (showVideoMode) Purple80 else Color.Transparent)
                                 .clickable { showVideoMode = true }
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 stringResource(R.string.events_tab_video),
-                                color = if (showVideoMode) Color(0xFF381E72) else Color.White,
+                                color = if (showVideoMode) AppOnPrimaryContainer else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
@@ -645,7 +646,7 @@ fun SnapshotPreviewDialog(
                         .weight(1f)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF1C1B1F)),
+                        .background(AppTextPrimary),
                     contentAlignment = Alignment.Center
                 ) {
                     if (showVideoMode && hasVideo) {
@@ -672,7 +673,7 @@ fun SnapshotPreviewDialog(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Text(stringResource(R.string.events_media_load_failed), color = Color.Gray)
+                        Text(stringResource(R.string.events_media_load_failed), color = AppTextDisabled)
                     }
                 }
 
@@ -681,28 +682,28 @@ fun SnapshotPreviewDialog(
                 // Metadata Details Card
                 Card(
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF2B2930)),
+                    colors = CardDefaults.cardColors(containerColor = AppDarkSurface),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(stringResource(R.string.events_source_cam, event.cameraName), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(stringResource(R.string.events_time_point, formattedTime), color = Color(0xFFCAC4D0), fontSize = 13.sp)
+                        Text(stringResource(R.string.events_time_point, formattedTime), color = AppBorder, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(stringResource(R.string.events_motion_ratio, event.motionPercentage), color = Color(0xFFE8DEF8), fontSize = 13.sp)
+                        Text(stringResource(R.string.events_motion_ratio, event.motionPercentage), color = AppSecondaryContainer, fontSize = 13.sp)
 
                         if (event.snapshotPath != null) {
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("📁 ${event.snapshotPath}", color = Color.Gray, fontSize = 10.sp)
+                            Text("📁 ${event.snapshotPath}", color = AppTextDisabled, fontSize = 10.sp)
                         }
                         if (event.videoPath != null) {
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("🎬 ${event.videoPath}", color = Color(0xFFD0BCFF), fontSize = 10.sp)
+                            Text("🎬 ${event.videoPath}", color = Purple80, fontSize = 10.sp)
                         }
 
                         if (event.aiSummary.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("🤖 AI: ${event.aiSummary}", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("🤖 AI: ${event.aiSummary}", color = Purple80, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -719,7 +720,7 @@ fun SnapshotPreviewDialog(
                                         Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0BCFF), contentColor = Color(0xFF381E72)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Purple80, contentColor = AppOnPrimaryContainer),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -742,7 +743,7 @@ fun SnapshotPreviewDialog(
                                         Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0BCFF), contentColor = Color(0xFF381E72)),
+                                colors = ButtonDefaults.buttonColors(containerColor = Purple80, contentColor = AppOnPrimaryContainer),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {

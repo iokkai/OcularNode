@@ -66,6 +66,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.activity.compose.BackHandler
@@ -181,7 +182,7 @@ fun LiveMonitorScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (isConnecting) {
-                    CircularProgressIndicator(color = Color(0xFF6750A4))
+                    CircularProgressIndicator(color = AppPrimary)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
                 Text(statusMsg, color = Color.LightGray, fontSize = 15.sp)
@@ -195,9 +196,9 @@ fun LiveMonitorScreen(
                 .padding(top = 68.dp, start = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(
-                    if (adaptiveState.isDowngraded) Color(0xEEE65100)
-                    else if (adaptiveState.isEnabled) Color(0xEE4A148C)
-                    else Color(0xEE374151)
+                    if (adaptiveState.isDowngraded) AppWarning
+                    else if (adaptiveState.isEnabled) AppPrimary
+                    else AppTextSecondary
                 )
                 .clickable {
                     viewModel.setAdaptiveModeEnabled(!adaptiveState.isEnabled)
@@ -220,7 +221,7 @@ fun LiveMonitorScreen(
                 .align(Alignment.TopStart)
                 .padding(top = 108.dp, start = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xAA0F172A))
+                .background(AppOverlayDark)
                 .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -257,7 +258,7 @@ fun LiveMonitorScreen(
                 .align(Alignment.TopEnd)
                 .padding(top = 70.dp, end = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xAA0F172A))
+                .background(AppOverlayDark)
                 .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -287,7 +288,7 @@ fun LiveMonitorScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xF2FDF8FF))
+                .background(AppBackground.copy(alpha = 0.95f))
                 .padding(horizontal = 12.dp, vertical = 10.dp)
                 .align(Alignment.TopCenter),
             verticalAlignment = Alignment.CenterVertically,
@@ -298,11 +299,11 @@ fun LiveMonitorScreen(
                     viewModel.disconnectCamera()
                     onBack()
                 }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF1C1B1F))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppTextPrimary)
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Column {
-                    Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(camera.name, color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     val cpuVal = cameraStatusJson?.optInt("cpuUsage", -1) ?: -1
                     val memVal = cameraStatusJson?.optInt("memoryUsage", -1) ?: -1
                     val pingVal = cameraStatusJson?.optInt("pingMs", -1) ?: -1
@@ -312,7 +313,7 @@ fun LiveMonitorScreen(
                     val pingText = if (pingVal >= 0) "Ping: ${pingVal}ms" else "Ping: --"
                     val adaptiveStatusStr = if (adaptiveState.isDowngraded) "⚡ Adaptive: ${adaptiveState.currentResolution} (${adaptiveState.reasonText})" else if (adaptiveState.isEnabled) "⚡ Adaptive: ${adaptiveState.currentResolution}" else "⚡ Adaptive: Off"
 
-                    Text("$cpuText | $memText | $pingText\n$adaptiveStatusStr", color = Color(0xFF6750A4), fontWeight = FontWeight.SemiBold, fontSize = 10.sp)
+                    Text("$cpuText | $memText | $pingText\n$adaptiveStatusStr", color = AppPrimary, fontWeight = FontWeight.SemiBold, fontSize = 10.sp)
                 }
             }
 
@@ -320,7 +321,7 @@ fun LiveMonitorScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isConnected) Color(0xFF2E7D32) else Color(0xFFB3261E))
+                        .background(if (isConnected) AppSuccess else AppError)
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
@@ -333,9 +334,9 @@ fun LiveMonitorScreen(
                 Spacer(modifier = Modifier.width(6.dp))
                 IconButton(
                     onClick = { showRemoteSettingsDialog = true },
-                    modifier = Modifier.size(34.dp).background(Color(0xFFE8DEF8), CircleShape)
+                    modifier = Modifier.size(34.dp).background(AppSecondaryContainer, CircleShape)
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = AppPrimary, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -343,8 +344,8 @@ fun LiveMonitorScreen(
         // Bottom Collapsible Remote Control Panel
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xDC1E1B2E)),
-            border = BorderStroke(1.dp, Color(0x66CAC4D0)),
+            colors = CardDefaults.cardColors(containerColor = AppDarkSurface.copy(alpha = 0.86f)),
+            border = BorderStroke(1.dp, AppBorder.copy(alpha = 0.4f)),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
@@ -367,7 +368,7 @@ fun LiveMonitorScreen(
                             onClick = { viewModel.toggleAudioListening() },
                             modifier = Modifier
                                 .size(38.dp)
-                                .background(if (isListening) Color(0xFF2E7D32) else Color(0x44FFFFFF), CircleShape)
+                                .background(if (isListening) AppSuccess else AppWhiteSemiTransparent, CircleShape)
                         ) {
                             Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Listen", tint = Color.White, modifier = Modifier.size(20.dp))
                         }
@@ -377,7 +378,7 @@ fun LiveMonitorScreen(
                             modifier = Modifier
                                 .height(38.dp)
                                 .clip(RoundedCornerShape(19.dp))
-                                .background(if (isSpeaking) Color(0xFFB3261E) else Color(0xFF6750A4))
+                                .background(if (isSpeaking) AppError else AppPrimary)
                                 .pointerInput(Unit) {
                                     detectTapGestures(
                                         onPress = {
@@ -415,7 +416,7 @@ fun LiveMonitorScreen(
                     ) {
                         Text(
                             text = if (isControlPanelExpanded) stringResource(R.string.monitor_btn_collapse_controls) else stringResource(R.string.monitor_btn_expand_controls),
-                            color = Color(0xFFD0BCFF),
+                            color = Purple80,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -423,7 +424,7 @@ fun LiveMonitorScreen(
                         Icon(
                             imageVector = if (isControlPanelExpanded) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
                             contentDescription = "Expand",
-                            tint = Color(0xFFD0BCFF),
+                            tint = Purple80,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -442,7 +443,7 @@ fun LiveMonitorScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             IconButton(
                                 onClick = { viewModel.sendControlCommand("camera", "switch") },
-                                modifier = Modifier.background(Color(0x33FFFFFF), CircleShape)
+                                modifier = Modifier.background(AppWhiteSemiTransparent, CircleShape)
                             ) {
                                 Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Switch Camera", tint = Color.White)
                             }
@@ -456,9 +457,9 @@ fun LiveMonitorScreen(
                                     torchOn = !torchOn
                                     viewModel.sendControlCommand("torch", if (torchOn) "on" else "off")
                                 },
-                                modifier = Modifier.background(if (torchOn) Color(0xFFEADDFF) else Color(0x33FFFFFF), CircleShape)
+                                modifier = Modifier.background(if (torchOn) AppPrimaryContainer else AppWhiteSemiTransparent, CircleShape)
                             ) {
-                                Icon(Icons.Default.FlashOn, contentDescription = "Torch", tint = if (torchOn) Color(0xFF21005D) else Color.White)
+                                Icon(Icons.Default.FlashOn, contentDescription = "Torch", tint = if (torchOn) AppOnPrimaryContainer else Color.White)
                             }
                             Text(stringResource(R.string.monitor_btn_torch), color = Color.White, fontSize = 10.sp)
                         }
@@ -475,12 +476,12 @@ fun LiveMonitorScreen(
                             else -> stringResource(R.string.monitor_night_vision_off)
                         }
                         val nightBgColor = when (currentNightMode) {
-                            "on" -> Color(0xFFEADDFF)
-                            "auto" -> Color(0xFFD0BCFF)
-                            else -> Color(0x33FFFFFF)
+                            "on" -> AppPrimaryContainer
+                            "auto" -> Purple80
+                            else -> AppWhiteSemiTransparent
                         }
                         val nightIconTint = when (currentNightMode) {
-                            "on", "auto" -> Color(0xFF21005D)
+                            "on", "auto" -> AppOnPrimaryContainer
                             else -> Color.White
                         }
 
@@ -511,7 +512,7 @@ fun LiveMonitorScreen(
                                         Toast.makeText(context, context.getString(R.string.monitor_toast_snapshot), Toast.LENGTH_SHORT).show()
                                     }
                                 },
-                                modifier = Modifier.background(Color(0x33FFFFFF), CircleShape)
+                                modifier = Modifier.background(AppWhiteSemiTransparent, CircleShape)
                             ) {
                                 Icon(Icons.Default.CameraAlt, contentDescription = "Snapshot", tint = Color.White)
                             }
@@ -526,9 +527,9 @@ fun LiveMonitorScreen(
                                     viewModel.setAdaptiveModeEnabled(nextState)
                                     Toast.makeText(context, if (nextState) context.getString(R.string.monitor_toast_adaptive_on) else context.getString(R.string.monitor_toast_adaptive_off), Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.background(if (adaptiveState.isEnabled) Color(0xFFD0BCFF) else Color(0x33FFFFFF), CircleShape)
+                                modifier = Modifier.background(if (adaptiveState.isEnabled) Purple80 else AppWhiteSemiTransparent, CircleShape)
                             ) {
-                                Icon(Icons.Default.Tune, contentDescription = "Adaptive Mode", tint = if (adaptiveState.isEnabled) Color(0xFF21005D) else Color.White)
+                                Icon(Icons.Default.Tune, contentDescription = "Adaptive Mode", tint = if (adaptiveState.isEnabled) AppOnPrimaryContainer else Color.White)
                             }
                             Text(if (adaptiveState.isEnabled) stringResource(R.string.monitor_btn_adaptive_on) else stringResource(R.string.monitor_btn_adaptive_off), color = Color.White, fontSize = 10.sp)
                         }
@@ -540,7 +541,7 @@ fun LiveMonitorScreen(
                                     viewModel.sendControlCommand("alarm", "trigger")
                                     Toast.makeText(context, context.getString(R.string.monitor_toast_alarm_sent), Toast.LENGTH_SHORT).show()
                                 },
-                                modifier = Modifier.background(Color(0xAA8C1D18), CircleShape)
+                                modifier = Modifier.background(AppErrorDark.copy(alpha = 0.67f), CircleShape)
                             ) {
                                 Icon(Icons.Default.Warning, contentDescription = "Alarm", tint = Color.White)
                             }

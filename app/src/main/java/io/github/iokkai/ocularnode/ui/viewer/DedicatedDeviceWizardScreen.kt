@@ -87,20 +87,21 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 
-private val WizardBackgroundColor = Color(0xFFFDF8FF)
-private val WizardSurfaceCardColor = Color.White
-private val WizardBorderColor = Color(0xFFCAC4D0)
-private val WizardPrimaryColor = Color(0xFF6750A4)
-private val WizardPrimaryContainerColor = Color(0xFFE8DEF8)
-private val WizardTextPrimaryColor = Color(0xFF1C1B1F)
-private val WizardTextSecondaryColor = Color(0xFF49454F)
-private val WizardTextMutedColor = Color(0xFF79747E)
-private val WizardWarningContainerColor = Color(0xFFFFDAD6)
-private val WizardWarningTextColor = Color(0xFF410002)
-private val WizardErrorColor = Color(0xFFB3261E)
-private val WizardSuccessColor = Color(0xFF2E7D32)
-private val WizardSuccessContainerColor = Color(0xFFE8F5E9)
+private val WizardBackgroundColor = AppBackground
+private val WizardSurfaceCardColor = AppSurface
+private val WizardBorderColor = AppBorder
+private val WizardPrimaryColor = AppPrimary
+private val WizardPrimaryContainerColor = AppSecondaryContainer
+private val WizardTextPrimaryColor = AppTextPrimary
+private val WizardTextSecondaryColor = AppTextSecondary
+private val WizardTextMutedColor = AppTextMuted
+private val WizardWarningContainerColor = AppErrorContainer
+private val WizardWarningTextColor = AppErrorTextDark
+private val WizardErrorColor = AppError
+private val WizardSuccessColor = AppSuccess
+private val WizardSuccessContainerColor = AppSuccessContainer
 
 /**
  * 專用監控設備部署精靈主畫面 (Dedicated Device Wizard)
@@ -325,8 +326,8 @@ private fun WizardStepper(currentStep: Int) {
     )
 
     Surface(
-        color = Color(0xFFF3EDF7),
-        border = BorderStroke(1.dp, Color(0xFFE7E0EC)),
+        color = AppSurfaceVariant,
+        border = BorderStroke(1.dp, AppBorderLight),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -352,7 +353,7 @@ private fun WizardStepper(currentStep: Int) {
                                 color = when {
                                     isCompleted -> WizardSuccessColor
                                     isCurrent -> WizardPrimaryColor
-                                    else -> Color(0xFFCAC4D0)
+                                    else -> AppBorder
                                 },
                                 shape = CircleShape
                             ),
@@ -370,7 +371,7 @@ private fun WizardStepper(currentStep: Int) {
                                 text = stepNum.toString(),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCurrent) Color.White else Color(0xFF49454F)
+                                color = if (isCurrent) Color.White else AppTextSecondary
                             )
                         }
                     }
@@ -389,7 +390,7 @@ private fun WizardStepper(currentStep: Int) {
                             .width(16.dp)
                             .height(1.5.dp)
                             .background(
-                                if (stepNum < currentStep) WizardSuccessColor else Color(0xFFCAC4D0)
+                                if (stepNum < currentStep) WizardSuccessColor else AppBorder
                             )
                     )
                 }
@@ -437,7 +438,7 @@ fun StepWarningScreen(
                 containerColor = WizardWarningContainerColor,
                 contentColor = WizardWarningTextColor
             ),
-            border = BorderStroke(1.dp, Color(0xFFFFB4AB)),
+            border = BorderStroke(1.dp, AppErrorBorder),
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -522,8 +523,8 @@ fun StepWarningScreen(
             colors = ButtonDefaults.buttonColors(
                 containerColor = WizardPrimaryColor,
                 contentColor = Color.White,
-                disabledContainerColor = Color(0xFFE0E0E0),
-                disabledContentColor = Color(0xFF9E9E9E)
+                disabledContainerColor = AppBorderSubtle,
+                disabledContentColor = AppTextDisabled
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -800,8 +801,8 @@ fun StepNetworkAndApiKeyScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = WizardPrimaryColor,
                         contentColor = Color.White,
-                        disabledContainerColor = Color(0xFFE0E0E0),
-                        disabledContentColor = Color(0xFF9E9E9E)
+                        disabledContainerColor = AppBorderSubtle,
+                        disabledContentColor = AppTextDisabled
                     ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -865,8 +866,8 @@ fun StepNetworkAndApiKeyScreen(
             colors = ButtonDefaults.buttonColors(
                 containerColor = WizardPrimaryColor,
                 contentColor = Color.White,
-                disabledContainerColor = Color(0xFFE0E0E0),
-                disabledContentColor = Color(0xFF9E9E9E)
+                disabledContainerColor = AppBorderSubtle,
+                disabledContentColor = AppTextDisabled
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -1044,7 +1045,7 @@ fun StepScanScreen(
                     text = stringResource(R.string.wizard_waiting_scan),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF21005D)
+                    color = AppOnPrimaryContainer
                 )
             }
         }

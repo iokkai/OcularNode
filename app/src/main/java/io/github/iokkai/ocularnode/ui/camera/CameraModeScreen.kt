@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 
 @Composable
 fun CameraModeScreen(viewModel: CameraServerViewModel) {
@@ -151,7 +152,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFDF8FF))) {
+    Box(modifier = Modifier.fillMaxSize().background(AppBackground)) {
         if (!hasCameraPermission) {
             Column(
                 modifier = Modifier
@@ -163,20 +164,20 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                 Icon(
                     imageVector = Icons.Default.Security,
                     contentDescription = "Permission Needed",
-                    tint = Color(0xFF6750A4),
+                    tint = AppPrimary,
                     modifier = Modifier.size(64.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.permission_required_title),
-                    color = Color(0xFF1C1B1F),
+                    color = AppTextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.permission_required_desc),
-                    color = Color(0xFF49454F),
+                    color = AppTextSecondary,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -190,7 +191,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                             )
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White),
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Text(stringResource(R.string.btn_grant_permissions))
@@ -206,8 +207,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                 // Header Card
                 Card(
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                    colors = CardDefaults.cardColors(containerColor = AppSurface),
+                    border = BorderStroke(1.dp, AppBorder),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -228,14 +229,14 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                     modifier = Modifier
                                         .size(12.dp)
                                         .clip(CircleShape)
-                                        .background(if (isServiceRunning) Color(0xFF2E7D32) else Color(0xFFB3261E))
+                                        .background(if (isServiceRunning) AppSuccess else AppError)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Column {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = if (isServiceRunning) stringResource(R.string.camera_status_streaming) else stringResource(R.string.camera_status_stopped),
-                                            color = Color(0xFF1C1B1F),
+                                            color = AppTextPrimary,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp
                                         )
@@ -243,7 +244,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                         Icon(
                                             imageVector = if (isAddressSectionExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                             contentDescription = if (isAddressSectionExpanded) "Collapse" else "Expand",
-                                            tint = Color(0xFF6750A4),
+                                            tint = AppPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -262,7 +263,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 },
                                 shape = RoundedCornerShape(20.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isServiceRunning) Color(0xFFB3261E) else Color(0xFF6750A4),
+                                    containerColor = if (isServiceRunning) AppError else AppPrimary,
                                     contentColor = Color.White
                                 )
                             ) {
@@ -282,8 +283,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(16.dp))
-                                        .background(Color(0xFFFFF3E0))
-                                        .border(1.dp, Color(0xFFFF9800), RoundedCornerShape(16.dp))
+                                        .background(AppWarningContainer)
+                                        .border(1.dp, AppWarningBright, RoundedCornerShape(16.dp))
                                         .padding(14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -293,12 +294,12 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                         Text(
                                             stringResource(R.string.thermal_throttling_title, batteryTemp),
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFE65100),
+                                            color = AppWarning,
                                             fontSize = 14.sp
                                         )
                                         Text(
                                             stringResource(R.string.thermal_throttling_desc),
-                                            color = Color(0xFFF57C00),
+                                            color = AppWarningBright,
                                             fontSize = 12.sp
                                         )
                                     }
@@ -326,8 +327,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(Color(0xFFE8F5E9))
-                                            .border(1.dp, Color(0xFF81C784), RoundedCornerShape(16.dp))
+                                            .background(AppSuccessContainer)
+                                            .border(1.dp, AppSuccessBorder, RoundedCornerShape(16.dp))
                                             .padding(14.dp)
                                     ) {
                                         Row(
@@ -340,15 +341,15 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                                     modifier = Modifier
                                                         .size(10.dp)
                                                         .clip(CircleShape)
-                                                        .background(Color(0xFF2E7D32))
+                                                        .background(AppSuccess)
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text(stringResource(R.string.camera_tailscale_connected), color = Color(0xFF1B5E20), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                                Text(stringResource(R.string.camera_tailscale_connected), color = AppSuccessDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                             }
 
                                             TextButton(
                                                 onClick = { viewModel.refreshNetworkInfo() },
-                                                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF1B5E20))
+                                                colors = ButtonDefaults.textButtonColors(contentColor = AppSuccessDark)
                                             ) {
                                                 Text(stringResource(R.string.btn_refresh), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                             }
@@ -363,17 +364,17 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                             Icon(
                                                 imageVector = Icons.Default.Wifi,
                                                 contentDescription = null,
-                                                tint = Color(0xFF1B5E20)
+                                                tint = AppSuccessDark
                                             )
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(stringResource(R.string.camera_tailscale_ip), color = Color(0xFF2E7D32), fontSize = 11.sp)
-                                                Text("http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}", color = Color(0xFF1B5E20), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                                Text(stringResource(R.string.camera_tailscale_ip), color = AppSuccess, fontSize = 11.sp)
+                                                Text("http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}", color = AppSuccessDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                             }
                                             IconButton(onClick = {
                                                 copyToClipboard(context, "http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}")
                                             }) {
-                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = Color(0xFF1B5E20))
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppSuccessDark)
                                             }
                                         }
                                     }
@@ -382,8 +383,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(16.dp))
-                                            .background(Color(0xFFFFEBEE))
-                                            .border(1.dp, Color(0xFFE57373), RoundedCornerShape(16.dp))
+                                            .background(AppErrorContainerLight)
+                                            .border(1.dp, AppErrorBorder, RoundedCornerShape(16.dp))
                                             .padding(14.dp)
                                     ) {
                                         Row(
@@ -396,18 +397,18 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                                     modifier = Modifier
                                                         .size(10.dp)
                                                         .clip(CircleShape)
-                                                        .background(Color(0xFFD32F2F))
+                                                        .background(AppErrorBright)
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text(stringResource(R.string.camera_tailscale_disconnected), color = Color(0xFFC62828), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                Text(stringResource(R.string.camera_tailscale_disconnected), color = AppErrorDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                             }
 
                                             val isTailscaleInstalled = remember(context) { io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) }
                                             OutlinedButton(
                                                 onClick = { io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context) },
                                                 shape = RoundedCornerShape(12.dp),
-                                                border = BorderStroke(1.dp, Color(0xFFE57373)),
-                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFC62828)),
+                                                border = BorderStroke(1.dp, AppErrorBorder),
+                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppErrorDark),
                                                 modifier = Modifier.height(32.dp)
                                             ) {
                                                 Text(if (isTailscaleInstalled) "🚀" else "📥", fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -420,16 +421,16 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(Icons.Default.Wifi, contentDescription = null, tint = Color(0xFFE65100))
+                                            Icon(Icons.Default.Wifi, contentDescription = null, tint = AppWarning)
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(stringResource(R.string.camera_local_ip), color = Color(0xFF5D4037), fontSize = 11.sp)
-                                                Text("http://$activeLocal:${viewModel.settingsManager.serverPort}", color = Color(0xFF3E2723), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                                Text(stringResource(R.string.camera_local_ip), color = AppTextSecondary, fontSize = 11.sp)
+                                                Text("http://$activeLocal:${viewModel.settingsManager.serverPort}", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                             }
                                             IconButton(onClick = {
                                                 copyToClipboard(context, "http://$activeLocal:${viewModel.settingsManager.serverPort}")
                                             }) {
-                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = Color(0xFF5D4037))
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppTextSecondary)
                                             }
                                         }
                                     }
@@ -444,15 +445,15 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
                                 Card(
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F2FA)),
-                                    border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+                                    colors = CardDefaults.cardColors(containerColor = AppSurfaceSubtle),
+                                    border = BorderStroke(1.dp, AppSecondaryContainer),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Default.QrCode2, contentDescription = null, tint = Color(0xFF6750A4))
+                                            Icon(Icons.Default.QrCode2, contentDescription = null, tint = AppPrimary)
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text(stringResource(R.string.btn_scan_qr), fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 14.sp)
+                                            Text(stringResource(R.string.btn_scan_qr), fontWeight = FontWeight.Bold, color = AppTextPrimary, fontSize = 14.sp)
                                         }
 
                                         Spacer(modifier = Modifier.height(12.dp))
@@ -477,16 +478,16 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.Computer, contentDescription = null, tint = Color(0xFF6750A4), modifier = Modifier.size(16.dp))
+                                                    Icon(Icons.Default.Computer, contentDescription = null, tint = AppPrimary, modifier = Modifier.size(16.dp))
                                                     Spacer(modifier = Modifier.width(4.dp))
-                                                    Text(stringResource(R.string.qr_web_monitor_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                                                    Text(stringResource(R.string.qr_web_monitor_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTextPrimary)
                                                 }
-                                                Text(stringResource(R.string.qr_web_monitor_desc), fontSize = 10.sp, color = Color(0xFF49454F))
+                                                Text(stringResource(R.string.qr_web_monitor_desc), fontSize = 10.sp, color = AppTextSecondary)
 
                                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                                Text(stringResource(R.string.qr_quick_add_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
-                                                Text(stringResource(R.string.qr_quick_add_desc), fontSize = 10.sp, color = Color(0xFF49454F))
+                                                Text(stringResource(R.string.qr_quick_add_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTextPrimary)
+                                                Text(stringResource(R.string.qr_quick_add_desc), fontSize = 10.sp, color = AppTextSecondary)
                                             }
                                         }
                                     }
@@ -501,7 +502,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                 Card(
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.Black),
-                    border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                    border = BorderStroke(1.dp, AppBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(260.dp)
@@ -528,7 +529,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 verticalArrangement = Arrangement.Center,
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(stringResource(R.string.camera_status_stopped), color = Color.Gray)
+                                Text(stringResource(R.string.camera_status_stopped), color = AppTextDisabled)
                             }
                         }
 
@@ -542,14 +543,14 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                         ) {
                             IconButton(
                                 onClick = { viewModel.toggleCameraLens() },
-                                modifier = Modifier.background(Color(0xAA000000), CircleShape)
+                                modifier = Modifier.background(AppOverlayDark, CircleShape)
                             ) {
                                 Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Switch Camera", tint = Color.White)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
                                 onClick = { viewModel.toggleTorch() },
-                                modifier = Modifier.background(Color(0xAA000000), CircleShape)
+                                modifier = Modifier.background(AppOverlayDark, CircleShape)
                             ) {
                                 Icon(Icons.Default.FlashOn, contentDescription = "Torch", tint = Color.White)
                             }
@@ -564,9 +565,9 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                     onClick = { viewModel.toggleBlackScreen(true) },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEADDFF), contentColor = Color(0xFF21005D))
+                    colors = ButtonDefaults.buttonColors(containerColor = AppPrimaryContainer, contentColor = AppOnPrimaryContainer)
                 ) {
-                    Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFF21005D))
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = AppOnPrimaryContainer)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.camera_black_screen), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
@@ -576,18 +577,18 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                 // Controls Panel
                 Card(
                     shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                    colors = CardDefaults.cardColors(containerColor = AppSurface),
+                    border = BorderStroke(1.dp, AppBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
-                        Text(stringResource(R.string.camera_quality_mode_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.camera_quality_mode_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         // Operating Mode Selection (監看模式 vs 自動偵測模式)
                         val operatingMode by viewModel.operatingMode.collectAsState()
                         Column {
-                            Text(stringResource(R.string.operating_mode_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            Text(stringResource(R.string.operating_mode_title), color = AppTextSecondary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -598,8 +599,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                     onClick = { viewModel.setOperatingMode("monitor") },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isMonitor) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                                        contentColor = if (isMonitor) Color.White else Color(0xFF1D192B)
+                                        containerColor = if (isMonitor) AppPrimary else AppSecondaryContainer,
+                                        contentColor = if (isMonitor) Color.White else AppOnSecondaryContainer
                                     ),
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -609,8 +610,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                     onClick = { viewModel.setOperatingMode("detection") },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (!isMonitor) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                                        contentColor = if (!isMonitor) Color.White else Color(0xFF1D192B)
+                                        containerColor = if (!isMonitor) AppPrimary else AppSecondaryContainer,
+                                        contentColor = if (!isMonitor) Color.White else AppOnSecondaryContainer
                                     ),
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -624,7 +625,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 else
                                     stringResource(R.string.mode_motion_detect_desc),
                                 fontSize = 11.sp,
-                                color = Color(0xFF79747E)
+                                color = AppTextMuted
                             )
                         }
 
@@ -637,15 +638,15 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(stringResource(R.string.resolution_setting_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                Text(stringResource(R.string.resolution_setting_desc), color = Color(0xFF79747E), fontSize = 11.sp)
+                                Text(stringResource(R.string.resolution_setting_title), color = AppTextSecondary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                Text(stringResource(R.string.resolution_setting_desc), color = AppTextMuted, fontSize = 11.sp)
                             }
                             OutlinedButton(
                                 onClick = { showResolutionDialog = true },
                                 shape = RoundedCornerShape(16.dp),
-                                border = BorderStroke(1.5.dp, Color(0xFF6750A4))
+                                border = BorderStroke(1.5.dp, AppPrimary)
                             ) {
-                                Text("📹 $currentResolution ▾", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("📹 $currentResolution ▾", color = AppPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                         }
 
@@ -658,10 +659,10 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column {
-                                    Text(stringResource(R.string.jpeg_quality_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text(stringResource(R.string.jpeg_quality_desc), color = Color(0xFF79747E), fontSize = 11.sp)
+                                    Text(stringResource(R.string.jpeg_quality_title), color = AppTextSecondary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(stringResource(R.string.jpeg_quality_desc), color = AppTextMuted, fontSize = 11.sp)
                                 }
-                                Text("${currentQuality}%", color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("${currentQuality}%", color = AppPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                             Slider(
                                 value = currentQuality.toFloat(),
@@ -669,9 +670,9 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 valueRange = 30f..90f,
                                 steps = 5,
                                 colors = SliderDefaults.colors(
-                                    thumbColor = Color(0xFF6750A4),
-                                    activeTrackColor = Color(0xFF6750A4),
-                                    inactiveTrackColor = Color(0xFFE8DEF8)
+                                    thumbColor = AppPrimary,
+                                    activeTrackColor = AppPrimary,
+                                    inactiveTrackColor = AppSecondaryContainer
                                 )
                             )
                         }
@@ -686,17 +687,17 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.ai_filter_title), color = Color(0xFF49454F), fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text(stringResource(R.string.ai_filter_desc), color = Color(0xFF79747E), fontSize = 11.sp)
+                                    Text(stringResource(R.string.ai_filter_title), color = AppTextSecondary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(stringResource(R.string.ai_filter_desc), color = AppTextMuted, fontSize = 11.sp)
                                 }
                                 Switch(
                                     checked = isMlKitFilterEnabled,
                                     onCheckedChange = { viewModel.toggleMlKitFilter(it) },
                                     colors = SwitchDefaults.colors(
                                         checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF6750A4),
-                                        uncheckedThumbColor = Color(0xFF49454F),
-                                        uncheckedTrackColor = Color(0xFFE8DEF8)
+                                        checkedTrackColor = AppPrimary,
+                                        uncheckedThumbColor = AppTextSecondary,
+                                        uncheckedTrackColor = AppSecondaryContainer
                                     )
                                 )
                             }
@@ -747,10 +748,10 @@ fun ResolutionSelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.resolution_setting_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.resolution_setting_title), color = AppTextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text(stringResource(R.string.resolution_setting_desc), fontSize = 13.sp, color = Color(0xFF49454F))
+                Text(stringResource(R.string.resolution_setting_desc), fontSize = 13.sp, color = AppTextSecondary)
                 Spacer(modifier = Modifier.height(12.dp))
                 options.forEach { (resKey, desc) ->
                     val isSelected = currentResolution.equals(resKey, ignoreCase = true)
@@ -758,9 +759,9 @@ fun ResolutionSelectionDialog(
                         onClick = { onSelect(resKey) },
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) Color(0xFFE8DEF8) else Color(0xFFF3EDF7)
+                            containerColor = if (isSelected) AppSecondaryContainer else AppSurfaceVariant
                         ),
-                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) AppPrimary else AppBorder),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
@@ -772,12 +773,12 @@ fun ResolutionSelectionDialog(
                             RadioButton(
                                 selected = isSelected,
                                 onClick = { onSelect(resKey) },
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF6750A4))
+                                colors = RadioButtonDefaults.colors(selectedColor = AppPrimary)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(resKey, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
-                                Text(desc, fontSize = 11.sp, color = Color(0xFF49454F))
+                                Text(resKey, fontWeight = FontWeight.Bold, color = AppTextPrimary, fontSize = 15.sp)
+                                Text(desc, fontSize = 11.sp, color = AppTextSecondary)
                             }
                         }
                     }
@@ -786,7 +787,7 @@ fun ResolutionSelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.btn_close), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.btn_close), color = AppPrimary, fontWeight = FontWeight.Bold)
             }
         }
     )

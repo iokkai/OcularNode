@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 import io.github.iokkai.ocularnode.util.AppLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,15 +47,15 @@ fun SystemLogScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFF1E1E1E)),
+                .background(AppDarkSurface),
             contentPadding = PaddingValues(8.dp)
         ) {
             items(logs) { log ->
                 val color = when {
-                    log.contains(" E/") -> Color(0xFFFF5252)
-                    log.contains(" W/") -> Color(0xFFFFD740)
-                    log.contains(" I/") -> Color(0xFF69F0AE)
-                    else -> Color(0xFFE0E0E0)
+                    log.contains(" E/") -> AppErrorBright
+                    log.contains(" W/") -> AppWarningBright
+                    log.contains(" I/") -> AppSuccessBright
+                    else -> AppBorderSubtle
                 }
                 Text(
                     text = log,
@@ -65,13 +66,13 @@ fun SystemLogScreen(
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
                 )
-                HorizontalDivider(color = Color.DarkGray, thickness = 1.dp)
+                HorizontalDivider(color = AppDarkSurfaceVariant, thickness = 1.dp)
             }
             if (logs.isEmpty()) {
                 item {
                     Text(
                         stringResource(R.string.syslog_empty),
-                        color = Color.Gray,
+                        color = AppTextMuted,
                         modifier = Modifier.padding(16.dp)
                     )
                 }

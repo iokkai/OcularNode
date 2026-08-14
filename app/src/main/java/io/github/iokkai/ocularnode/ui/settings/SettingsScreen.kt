@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
+import io.github.iokkai.ocularnode.ui.theme.*
 
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
@@ -156,8 +157,8 @@ fun SettingsScreen(
 
     var localStorageGB by remember(storageLimitGB) { mutableStateOf(storageLimitGB) }
     var localMaxEvents by remember(maxEventCount) { mutableStateOf(maxEventCount.toFloat()) }
-    val brandPrimaryColor = Color(0xFF6750A4)
-    val textPrimaryColor = Color(0xFF1C1B1F)
+    val brandPrimaryColor = AppPrimary
+    val textPrimaryColor = AppTextPrimary
 
     DisposableEffect(Unit) {
         onDispose {
@@ -168,11 +169,11 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFDF8FF))
+            .background(AppBackground)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        Text(stringResource(R.string.settings_title), color = Color(0xFF1C1B1F), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.settings_title), color = AppTextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -181,15 +182,15 @@ fun SettingsScreen(
         // Device Role Config Card
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            border = BorderStroke(1.dp, AppBorder),
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = Color(0xFF6750A4))
+                    Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = AppPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.settings_device_role), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(stringResource(R.string.settings_device_role), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -201,8 +202,8 @@ fun SettingsScreen(
                     Button(
                         onClick = { viewModel.updateRoleMode("CAMERA") },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isCamera) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                            contentColor = if (isCamera) Color.White else Color(0xFF1D192B)
+                            containerColor = if (isCamera) AppPrimary else AppSecondaryContainer,
+                            contentColor = if (isCamera) Color.White else AppOnSecondaryContainer
                         ),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.weight(1f)
@@ -215,8 +216,8 @@ fun SettingsScreen(
                     Button(
                         onClick = { viewModel.updateRoleMode("VIEWER") },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (!isCamera) Color(0xFF6750A4) else Color(0xFFE8DEF8),
-                            contentColor = if (!isCamera) Color.White else Color(0xFF1D192B)
+                            containerColor = if (!isCamera) AppPrimary else AppSecondaryContainer,
+                            contentColor = if (!isCamera) Color.White else AppOnSecondaryContainer
                         ),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.weight(1f)
@@ -235,15 +236,15 @@ fun SettingsScreen(
             // 1. ⚙️ 基本與連線設定 (General & Network)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Settings, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.Settings, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_general_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_general_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -252,10 +253,10 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateDeviceName(it) },
                         label = { Text(stringResource(R.string.settings_camera_name)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -268,10 +269,10 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateServerPort(it) },
                         label = { Text(stringResource(R.string.settings_camera_port)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -282,15 +283,15 @@ fun SettingsScreen(
             // 2. ⚡ 電源與系統運作管理 (Power & System Management)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.PowerSettingsNew, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_power_system_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_power_system_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -301,11 +302,11 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_auto_start_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_auto_start_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 if (autoStartOnBoot) stringResource(R.string.settings_auto_start_desc_on) else stringResource(R.string.settings_auto_start_desc_off),
-                                color = Color(0xFF49454F),
+                                color = AppTextSecondary,
                                 fontSize = 11.sp
                             )
                         }
@@ -314,12 +315,12 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.updateAutoStartOnBoot(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4)
+                                checkedTrackColor = AppPrimary
                             )
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Power Cut Alert
                     Row(
@@ -328,11 +329,11 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_power_alert_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_power_alert_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 if (powerCutAlertEnabled) stringResource(R.string.settings_power_alert_desc_on) else stringResource(R.string.settings_power_alert_desc_off),
-                                color = Color(0xFF49454F),
+                                color = AppTextSecondary,
                                 fontSize = 11.sp
                             )
                         }
@@ -341,12 +342,12 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.updatePowerCutAlertEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFFB3261E)
+                                checkedTrackColor = AppError
                             )
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // System Log
                     Row(
@@ -355,18 +356,18 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_logs_enable_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_logs_enable_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_logs_enable_desc), fontSize = 11.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.settings_logs_enable_desc), fontSize = 11.sp, color = AppTextSecondary)
                         }
                         Switch(
                             checked = systemLogEnabled,
                             onCheckedChange = { viewModel.updateSystemLogEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -376,9 +377,9 @@ fun SettingsScreen(
                         onClick = { showSystemLogs = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, Color(0xFF6750A4))
+                        border = BorderStroke(1.dp, AppPrimary)
                     ) {
-                        Text(stringResource(R.string.settings_logs_btn_view), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_logs_btn_view), color = AppPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
@@ -386,15 +387,15 @@ fun SettingsScreen(
             // 3. 🎯 偵測與排程警報 (Motion Detection & Schedules)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_motion_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_motion_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -422,7 +423,7 @@ fun SettingsScreen(
                         Text(
                             stringResource(R.string.settings_motion_sensitivity_desc),
                             fontSize = 11.sp,
-                            color = Color(0xFF49454F)
+                            color = AppTextSecondary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Slider(
@@ -432,7 +433,7 @@ fun SettingsScreen(
                             colors = SliderDefaults.colors(
                                 thumbColor = brandPrimaryColor,
                                 activeTrackColor = brandPrimaryColor,
-                                inactiveTrackColor = Color(0xFFE8DEF8)
+                                inactiveTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -445,16 +446,16 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateCooldown(it) },
                         label = { Text(stringResource(R.string.settings_motion_cooldown)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Event Video Recording
                     Row(
@@ -463,23 +464,23 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_event_recording_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_event_recording_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_event_recording_desc), fontSize = 11.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.settings_event_recording_desc), fontSize = 11.sp, color = AppTextSecondary)
                         }
                         Switch(
                             checked = eventVideoRecordingEnabled,
                             onCheckedChange = { viewModel.updateEventVideoRecordingEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Dynamic FPS Adjustment
                     Row(
@@ -488,23 +489,23 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_dynamic_fps_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_dynamic_fps_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_dynamic_fps_desc), fontSize = 11.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.settings_dynamic_fps_desc), fontSize = 11.sp, color = AppTextSecondary)
                         }
                         Switch(
                             checked = dynamicFpsAdjustmentEnabled,
                             onCheckedChange = { viewModel.updateDynamicFpsAdjustmentEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Alarm Buzzer
                     Row(
@@ -513,21 +514,21 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_alarm_sound), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_alarm_sound), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                         Switch(
                             checked = playAlarm,
                             onCheckedChange = { viewModel.updatePlayAlarm(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Motion Schedule
                     Row(
@@ -536,18 +537,18 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_motion_schedule_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_motion_schedule_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_motion_schedule_desc), fontSize = 11.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.settings_motion_schedule_desc), fontSize = 11.sp, color = AppTextSecondary)
                         }
                         Switch(
                             checked = motionScheduleEnabled,
                             onCheckedChange = { viewModel.updateMotionScheduleEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -589,7 +590,7 @@ fun SettingsScreen(
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     // Notification Schedule
                     Row(
@@ -598,18 +599,18 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_notif_schedule_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_notif_schedule_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_notif_schedule_desc), fontSize = 11.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.settings_notif_schedule_desc), fontSize = 11.sp, color = AppTextSecondary)
                         }
                         Switch(
                             checked = notificationScheduleEnabled,
                             onCheckedChange = { viewModel.updateNotificationScheduleEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -656,16 +657,16 @@ fun SettingsScreen(
             // 4. 🤖 AI 智慧過濾與 Telegram 告警 (AI Filter & Telegram Notifications)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     // AI Section Header
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_ai_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_ai_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -675,18 +676,18 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_ai_smart_filter_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_ai_smart_filter_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_ai_smart_filter_desc), color = Color(0xFF49454F), fontSize = 11.sp)
+                            Text(stringResource(R.string.settings_ai_smart_filter_desc), color = AppTextSecondary, fontSize = 11.sp)
                         }
                         Switch(
                             checked = mlKitFilterEnabled,
                             onCheckedChange = { viewModel.updateMlKitFilterEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -696,18 +697,18 @@ fun SettingsScreen(
                         onClick = { showNotificationSettings = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B))
+                        colors = ButtonDefaults.buttonColors(containerColor = AppSecondaryContainer, contentColor = AppOnSecondaryContainer)
                     ) {
                         Text(stringResource(R.string.settings_ai_btn_categories), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = AppBorderLight)
 
                     // Telegram Subhead
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_telegram_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(stringResource(R.string.settings_telegram_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -716,10 +717,10 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateBotToken(it) },
                         label = { Text(stringResource(R.string.settings_telegram_bot_token)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -732,10 +733,10 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateChatId(it) },
                         label = { Text(stringResource(R.string.settings_telegram_chat_id)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -743,7 +744,7 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(stringResource(R.string.settings_telegram_media_type), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                    Text(stringResource(R.string.settings_telegram_media_type), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTextPrimary)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -759,10 +760,10 @@ fun SettingsScreen(
                             OutlinedButton(
                                 onClick = { viewModel.updateTelegramSendMediaType(typeKey) },
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                border = BorderStroke(1.dp, if (isSelected) AppPrimary else AppBorder),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
-                                    contentColor = if (isSelected) Color(0xFF6750A4) else Color(0xFF49454F)
+                                    containerColor = if (isSelected) AppSecondaryContainer else Color.Transparent,
+                                    contentColor = if (isSelected) AppPrimary else AppTextSecondary
                                 ),
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
@@ -777,10 +778,10 @@ fun SettingsScreen(
                     OutlinedButton(
                         onClick = { showTelegramSetupDialog = true },
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, Color(0xFF6750A4)),
+                        border = BorderStroke(1.dp, AppPrimary),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.settings_telegram_auto_pair), fontWeight = FontWeight.Bold, color = Color(0xFF6750A4), fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_telegram_auto_pair), fontWeight = FontWeight.Bold, color = AppPrimary, fontSize = 13.sp)
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -788,7 +789,7 @@ fun SettingsScreen(
                     Button(
                         onClick = { viewModel.testTelegram() },
                         enabled = !isTesting && botToken.isNotBlank() && chatId.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White),
                         shape = RoundedCornerShape(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -804,7 +805,7 @@ fun SettingsScreen(
                     AnimatedVisibility(visible = testStatus != null) {
                         testStatus?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(msg, color = if (msg.contains("成功") || msg.contains("Success", ignoreCase = true)) Color(0xFF2E7D32) else Color(0xFFB3261E), fontSize = 13.sp)
+                            Text(msg, color = if (msg.contains("成功") || msg.contains("Success", ignoreCase = true)) AppSuccess else AppError, fontSize = 13.sp)
                         }
                     }
                 }
@@ -813,15 +814,15 @@ fun SettingsScreen(
             // 5. 💾 儲存空間與清理維護 (Storage Space & Auto-Cleanup)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Storage, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.Storage, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_storage_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_storage_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -831,18 +832,18 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_auto_cleanup_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_auto_cleanup_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(stringResource(R.string.settings_auto_cleanup_desc), color = Color(0xFF49454F), fontSize = 11.sp)
+                            Text(stringResource(R.string.settings_auto_cleanup_desc), color = AppTextSecondary, fontSize = 11.sp)
                         }
                         Switch(
                             checked = autoCleanupEnabled,
                             onCheckedChange = { viewModel.updateAutoCleanupEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -865,7 +866,7 @@ fun SettingsScreen(
                                     colors = SliderDefaults.colors(
                                         thumbColor = brandPrimaryColor,
                                         activeTrackColor = brandPrimaryColor,
-                                        inactiveTrackColor = Color(0xFFE8DEF8)
+                                        inactiveTrackColor = AppSecondaryContainer
                                     )
                                 )
                             }
@@ -889,30 +890,30 @@ fun SettingsScreen(
                                     colors = SliderDefaults.colors(
                                         thumbColor = brandPrimaryColor,
                                         activeTrackColor = brandPrimaryColor,
-                                        inactiveTrackColor = Color(0xFFE8DEF8)
+                                        inactiveTrackColor = AppSecondaryContainer
                                     )
                                 )
                             }
                         }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = Color(0xFFE7E0EC))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = AppBorderLight)
 
                     OutlinedButton(
                         onClick = { viewModel.performManualCleanup() },
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.5.dp, Color(0xFFB3261E)),
+                        border = BorderStroke(1.5.dp, AppError),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = Color(0xFFB3261E), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = AppError, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.settings_btn_delete_old_records), color = Color(0xFFB3261E), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_btn_delete_old_records), color = AppError, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
                     AnimatedVisibility(visible = cleanupStatus != null) {
                         cleanupStatus?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(msg, color = Color(0xFF2E7D32), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text(msg, color = AppSuccess, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -923,8 +924,8 @@ fun SettingsScreen(
             // Live Stream Preview Setting Card (觀看端全鏡頭即時預覽)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -934,14 +935,14 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF6750A4))
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = AppPrimary)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text(stringResource(R.string.settings_live_preview_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text(stringResource(R.string.settings_live_preview_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     if (livePreviewInListEnabled) stringResource(R.string.settings_live_preview_desc_on) else stringResource(R.string.settings_live_preview_desc_off),
-                                    color = Color(0xFF49454F),
+                                    color = AppTextSecondary,
                                     fontSize = 10.sp
                                 )
                             }
@@ -952,7 +953,7 @@ fun SettingsScreen(
                             onCheckedChange = { viewModel.updateLivePreviewInListEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4)
+                                checkedTrackColor = AppPrimary
                             )
                         )
                     }
@@ -962,18 +963,18 @@ fun SettingsScreen(
             // Notification Category Settings Card
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
                 shape = RoundedCornerShape(24.dp),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0))
+                border = BorderStroke(1.dp, AppBorder)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_ai_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_ai_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(stringResource(R.string.settings_ai_viewer_subtitle), fontSize = 13.sp, color = Color(0xFF49454F))
+                    Text(stringResource(R.string.settings_ai_viewer_subtitle), fontSize = 13.sp, color = AppTextSecondary)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     Row(
@@ -982,17 +983,17 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_ai_smart_filter_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text(stringResource(R.string.settings_ai_smart_filter_desc), color = Color(0xFF49454F), fontSize = 10.sp)
+                            Text(stringResource(R.string.settings_ai_smart_filter_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(stringResource(R.string.settings_ai_smart_filter_desc), color = AppTextSecondary, fontSize = 10.sp)
                         }
                         Switch(
                             checked = mlKitFilterEnabled,
                             onCheckedChange = { viewModel.updateMlKitFilterEnabled(it) },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4),
-                                uncheckedThumbColor = Color(0xFF49454F),
-                                uncheckedTrackColor = Color(0xFFE8DEF8)
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
                             )
                         )
                     }
@@ -1002,7 +1003,7 @@ fun SettingsScreen(
                         onClick = { showNotificationSettings = true },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8DEF8), contentColor = Color(0xFF1D192B))
+                        colors = ButtonDefaults.buttonColors(containerColor = AppSecondaryContainer, contentColor = AppOnSecondaryContainer)
                     ) {
                         Text(stringResource(R.string.settings_ai_btn_categories), fontWeight = FontWeight.Bold)
                     }
@@ -1012,18 +1013,18 @@ fun SettingsScreen(
             // Telegram Bot Card (Viewer Mode with Sync to Cameras option)
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_telegram_viewer_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_telegram_viewer_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(stringResource(R.string.settings_telegram_viewer_desc), color = Color(0xFF49454F), fontSize = 13.sp)
+                    Text(stringResource(R.string.settings_telegram_viewer_desc), color = AppTextSecondary, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
@@ -1031,10 +1032,10 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateBotToken(it) },
                         label = { Text(stringResource(R.string.settings_telegram_bot_token)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1047,10 +1048,10 @@ fun SettingsScreen(
                         onValueChange = { viewModel.updateChatId(it) },
                         label = { Text(stringResource(R.string.settings_telegram_chat_id)) },
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color(0xFF1C1B1F),
-                            unfocusedTextColor = Color(0xFF1C1B1F),
-                            focusedBorderColor = Color(0xFF6750A4),
-                            unfocusedBorderColor = Color(0xFFCAC4D0)
+                            focusedTextColor = AppTextPrimary,
+                            unfocusedTextColor = AppTextPrimary,
+                            focusedBorderColor = AppPrimary,
+                            unfocusedBorderColor = AppBorder
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -1061,15 +1062,15 @@ fun SettingsScreen(
                     OutlinedButton(
                         onClick = { showTelegramSetupDialog = true },
                         shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.dp, Color(0xFF6750A4)),
+                        border = BorderStroke(1.dp, AppPrimary),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(stringResource(R.string.settings_telegram_auto_pair), fontWeight = FontWeight.Bold, color = Color(0xFF6750A4), fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_telegram_auto_pair), fontWeight = FontWeight.Bold, color = AppPrimary, fontSize = 16.sp)
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Text(stringResource(R.string.settings_telegram_media_type), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF1C1B1F))
+                    Text(stringResource(R.string.settings_telegram_media_type), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTextPrimary)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1085,10 +1086,10 @@ fun SettingsScreen(
                             OutlinedButton(
                                 onClick = { viewModel.updateTelegramSendMediaType(typeKey) },
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, if (isSelected) Color(0xFF6750A4) else Color(0xFFCAC4D0)),
+                                border = BorderStroke(1.dp, if (isSelected) AppPrimary else AppBorder),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
-                                    contentColor = if (isSelected) Color(0xFF6750A4) else Color(0xFF49454F)
+                                    containerColor = if (isSelected) AppSecondaryContainer else Color.Transparent,
+                                    contentColor = if (isSelected) AppPrimary else AppTextSecondary
                                 ),
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
@@ -1107,7 +1108,7 @@ fun SettingsScreen(
                         Button(
                             onClick = { viewModel.testTelegram() },
                             enabled = !isTesting && botToken.isNotBlank() && chatId.isNotBlank(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White),
                             shape = RoundedCornerShape(20.dp),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -1124,15 +1125,15 @@ fun SettingsScreen(
                             onClick = { viewModel.syncTelegramToCameras() },
                             enabled = !isSyncing && (botToken.isNotBlank() || chatId.isNotBlank()),
                             shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.5.dp, Color(0xFF6750A4)),
+                            border = BorderStroke(1.5.dp, AppPrimary),
                             modifier = Modifier.weight(1f)
                         ) {
                             if (isSyncing) {
-                                CircularProgressIndicator(color = Color(0xFF6750A4), modifier = Modifier.height(18.dp).width(18.dp))
+                                CircularProgressIndicator(color = AppPrimary, modifier = Modifier.height(18.dp).width(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(stringResource(R.string.settings_telegram_syncing), fontSize = 13.sp)
                             } else {
-                                Text(stringResource(R.string.settings_telegram_sync_btn), color = Color(0xFF6750A4), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(stringResource(R.string.settings_telegram_sync_btn), color = AppPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }
@@ -1141,10 +1142,10 @@ fun SettingsScreen(
                         syncStatus?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
                             val statusColor = when {
-                                msg.contains("⚡") || msg.contains("成功") || msg.contains("Success", ignoreCase = true) -> Color(0xFF2E7D32)
-                                msg.contains("⏳") -> Color(0xFF6750A4)
-                                msg.contains("⚠️") -> Color(0xFFE65100)
-                                else -> Color(0xFFB3261E)
+                                msg.contains("⚡") || msg.contains("成功") || msg.contains("Success", ignoreCase = true) -> AppSuccess
+                                msg.contains("⏳") -> AppPrimary
+                                msg.contains("⚠️") -> AppWarning
+                                else -> AppError
                             }
                             Text(msg, color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         }
@@ -1153,7 +1154,7 @@ fun SettingsScreen(
                     AnimatedVisibility(visible = testStatus != null) {
                         testStatus?.let { msg ->
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(msg, color = if (msg.contains("成功") || msg.contains("Success", ignoreCase = true)) Color(0xFF2E7D32) else Color(0xFFB3261E), fontSize = 13.sp)
+                            Text(msg, color = if (msg.contains("成功") || msg.contains("Success", ignoreCase = true)) AppSuccess else AppError, fontSize = 13.sp)
                         }
                     }
                 }
@@ -1177,8 +1178,8 @@ fun SettingsScreen(
 
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFF6750A4)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppPrimary),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
@@ -1186,10 +1187,10 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Default.PowerSettingsNew,
                             contentDescription = null,
-                            tint = Color(0xFF6750A4)
+                            tint = AppPrimary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.settings_kiosk_group), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.settings_kiosk_group), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1197,7 +1198,7 @@ fun SettingsScreen(
                     Text(
                         text = if (isKioskActive) stringResource(R.string.settings_kiosk_status_locked) else stringResource(R.string.settings_kiosk_status_unlocked),
                         fontSize = 12.sp,
-                        color = if (isKioskActive) Color(0xFF6750A4) else Color(0xFF2E7D32),
+                        color = if (isKioskActive) AppPrimary else AppSuccess,
                         fontWeight = FontWeight.Medium
                     )
 
@@ -1218,7 +1219,7 @@ fun SettingsScreen(
                                 }
                             },
                             enabled = !isKioskActive,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White),
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.weight(1f)
                         ) {
@@ -1239,10 +1240,10 @@ fun SettingsScreen(
                                 }
                             },
                             enabled = isKioskActive,
-                            border = BorderStroke(1.5.dp, if (isKioskActive) Color(0xFFB3261E) else Color(0xFFCAC4D0)),
+                            border = BorderStroke(1.5.dp, if (isKioskActive) AppError else AppBorder),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = if (isKioskActive) Color(0xFFB3261E) else Color(0xFF9E9E9E),
-                                disabledContentColor = Color(0xFF9E9E9E)
+                                contentColor = if (isKioskActive) AppError else AppTextDisabled,
+                                disabledContentColor = AppTextDisabled
                             ),
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.weight(1f)
@@ -1262,8 +1263,8 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(4.dp))
         Card(
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            border = BorderStroke(1.dp, AppBorder),
             modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
         ) {
             Row(
@@ -1275,18 +1276,18 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF6750A4))
+                    Icon(Icons.Default.Info, contentDescription = null, tint = AppPrimary)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
                             stringResource(R.string.about_title),
-                            color = Color(0xFF1C1B1F),
+                            color = AppTextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
                         Text(
                             "v${BuildConfig.VERSION_NAME}",
-                            color = Color(0xFF79747E),
+                            color = AppTextMuted,
                             fontSize = 12.sp
                         )
                     }
@@ -1294,7 +1295,7 @@ fun SettingsScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                     contentDescription = "Open About",
-                    tint = Color(0xFF79747E),
+                    tint = AppTextMuted,
                     modifier = Modifier.size(16.dp)
                 )
             }

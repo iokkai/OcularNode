@@ -47,6 +47,7 @@ import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.NotificationCategory
 import io.github.iokkai.ocularnode.data.SettingsDataStore
 import io.github.iokkai.ocularnode.data.SettingsManager
+import io.github.iokkai.ocularnode.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,13 +62,13 @@ fun NotificationSettingsScreen(
     val scope = rememberCoroutineScope()
     
     Scaffold(
-        containerColor = Color(0xFFFDF8FF),
+        containerColor = AppBackground,
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFDF8FF),
-                    titleContentColor = Color(0xFF1C1B1F),
-                    navigationIconContentColor = Color(0xFF1C1B1F)
+                    containerColor = AppBackground,
+                    titleContentColor = AppTextPrimary,
+                    navigationIconContentColor = AppTextPrimary
                 ),
                 title = { Text(stringResource(R.string.notif_settings_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
@@ -87,7 +88,7 @@ fun NotificationSettingsScreen(
         ) {
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
+                colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Row(
@@ -97,7 +98,7 @@ fun NotificationSettingsScreen(
                     Text(
                         text = stringResource(R.string.notif_settings_hint),
                         fontSize = 12.sp,
-                        color = Color(0xFF49454F),
+                        color = AppTextSecondary,
                         lineHeight = 18.sp
                     )
                 }
@@ -106,21 +107,21 @@ fun NotificationSettingsScreen(
             Text(
                 text = stringResource(R.string.notif_settings_prompt),
                 fontSize = 13.sp,
-                color = Color(0xFF49454F),
+                color = AppTextSecondary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppBorder),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
+                        Icon(Icons.Default.Notifications, contentDescription = null, tint = AppPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.notif_settings_group_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.notif_settings_group_title), color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -130,8 +131,8 @@ fun NotificationSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.notif_settings_mlkit_master_title), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
-                            Text(stringResource(R.string.notif_settings_mlkit_master_desc), fontSize = 12.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.notif_settings_mlkit_master_title), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = AppTextPrimary)
+                            Text(stringResource(R.string.notif_settings_mlkit_master_desc), fontSize = 12.sp, color = AppTextSecondary)
                         }
                         Switch(
                             checked = mlKitFilterEnabled,
@@ -140,8 +141,8 @@ fun NotificationSettingsScreen(
                                 settingsManager.mlKitFilterEnabled = checked
                             },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF6750A4)
+                                checkedThumbColor = AppSurface,
+                                checkedTrackColor = AppPrimary
                             )
                         )
                     }
@@ -154,10 +155,10 @@ fun NotificationSettingsScreen(
                     ) {
                         Spacer(modifier = Modifier.weight(1.2f))
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.notif_settings_allow_push), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.notif_settings_allow_push), fontSize = 13.sp, color = AppTextMuted, fontWeight = FontWeight.Bold)
                         }
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.notif_settings_trigger_record), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.notif_settings_trigger_record), fontSize = 13.sp, color = AppTextMuted, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -183,7 +184,7 @@ fun NotificationSettingsScreen(
                                 text = "$iconStr ${stringResource(category.titleRes)}",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF1C1B1F),
+                                color = AppTextPrimary,
                                 modifier = Modifier.weight(1.2f)
                             )
                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -195,8 +196,8 @@ fun NotificationSettingsScreen(
                                         }
                                     },
                                     colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF6750A4)
+                                        checkedThumbColor = AppSurface,
+                                        checkedTrackColor = AppPrimary
                                     )
                                 )
                             }
@@ -209,8 +210,8 @@ fun NotificationSettingsScreen(
                                         }
                                     },
                                     colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = Color(0xFF6750A4)
+                                        checkedThumbColor = AppSurface,
+                                        checkedTrackColor = AppPrimary
                                     )
                                 )
                             }
@@ -223,7 +224,7 @@ fun NotificationSettingsScreen(
             Text(
                 text = stringResource(R.string.notif_settings_footer_desc),
                 fontSize = 12.sp,
-                color = Color(0xFF49454F)
+                color = AppTextSecondary
             )
         }
     }

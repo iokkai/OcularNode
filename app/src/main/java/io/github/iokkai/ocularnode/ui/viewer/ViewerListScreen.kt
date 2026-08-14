@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.CameraDevice
+import io.github.iokkai.ocularnode.ui.theme.*
 import io.github.iokkai.ocularnode.util.ScannedCameraInfo
 
 import androidx.compose.material.icons.filled.Settings
@@ -180,7 +181,7 @@ fun ViewerListScreen(
                                 showDedicatedDeviceWizard = true
                             },
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF6750A4),
+                            color = AppPrimary,
                             contentColor = Color.White,
                             shadowElevation = 6.dp
                         ) {
@@ -205,7 +206,7 @@ fun ViewerListScreen(
                                 showQrScannerDialog = true
                             },
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF6750A4),
+                            color = AppPrimary,
                             contentColor = Color.White,
                             shadowElevation = 6.dp
                         ) {
@@ -231,7 +232,7 @@ fun ViewerListScreen(
                                 showAddDialog = true
                             },
                             shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF6750A4),
+                            color = AppPrimary,
                             contentColor = Color.White,
                             shadowElevation = 6.dp
                         ) {
@@ -253,7 +254,7 @@ fun ViewerListScreen(
 
                 FloatingActionButton(
                     onClick = { isSpeedDialExpanded = !isSpeedDialExpanded },
-                    containerColor = Color(0xFF6750A4),
+                    containerColor = AppPrimary,
                     contentColor = Color.White,
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -265,7 +266,7 @@ fun ViewerListScreen(
                 }
             }
         },
-        containerColor = Color(0xFFFDF8FF),
+        containerColor = AppBackground,
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize()) {
@@ -283,14 +284,14 @@ fun ViewerListScreen(
                 Column {
                     Text(
                         text = stringResource(R.string.viewer_title),
-                        color = Color(0xFF1C1B1F),
+                        color = AppTextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.viewer_header_subtitle),
-                        color = Color(0xFF49454F),
+                        color = AppTextSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -306,8 +307,8 @@ fun ViewerListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFE8F5E9))
-                        .border(1.dp, Color(0xFF81C784), RoundedCornerShape(16.dp))
+                        .background(AppSuccessContainer)
+                        .border(1.dp, AppSuccessBorder, RoundedCornerShape(16.dp))
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -315,19 +316,19 @@ fun ViewerListScreen(
                             modifier = Modifier
                                 .size(12.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF2E7D32))
+                                .background(AppSuccess)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
                                 text = stringResource(R.string.viewer_tailscale_connected),
-                                color = Color(0xFF1B5E20),
+                                color = AppSuccessDark,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
                             Text(
                                 text = stringResource(R.string.viewer_tailscale_connected_desc),
-                                color = Color(0xFF388E3C),
+                                color = AppSuccess,
                                 fontSize = 10.sp
                             )
                         }
@@ -338,7 +339,7 @@ fun ViewerListScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
-                        Text("🚀", color = Color(0xFF1B5E20), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("🚀", color = AppSuccessDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             } else {
@@ -348,8 +349,8 @@ fun ViewerListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFFFEBEE))
-                        .border(1.dp, Color(0xFFE57373), RoundedCornerShape(16.dp))
+                        .background(AppErrorContainerLight)
+                        .border(1.dp, AppErrorBorder, RoundedCornerShape(16.dp))
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -357,19 +358,19 @@ fun ViewerListScreen(
                             modifier = Modifier
                                 .size(12.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFD32F2F))
+                                .background(AppErrorBright)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
                                 text = stringResource(R.string.viewer_tailscale_disconnected),
-                                color = Color(0xFFC62828),
+                                color = AppErrorDark,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
                             Text(
                                 text = stringResource(R.string.viewer_tailscale_disconnected_desc),
-                                color = Color(0xFFC62828),
+                                color = AppErrorDark,
                                 fontSize = 10.sp
                             )
                         }
@@ -381,7 +382,7 @@ fun ViewerListScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
-                        Text(if (isTailscaleInstalled) stringResource(R.string.viewer_tailscale_open) else stringResource(R.string.viewer_tailscale_install), color = Color(0xFFC62828), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(if (isTailscaleInstalled) stringResource(R.string.viewer_tailscale_open) else stringResource(R.string.viewer_tailscale_install), color = AppErrorDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -399,19 +400,19 @@ fun ViewerListScreen(
                         Icon(
                             imageVector = Icons.Default.Videocam,
                             contentDescription = null,
-                            tint = Color(0xFF79747E),
+                            tint = AppTextMuted,
                             modifier = Modifier.size(64.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(stringResource(R.string.viewer_empty_title), color = Color(0xFF1C1B1F), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_empty_title), color = AppTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(stringResource(R.string.viewer_empty_desc), color = Color(0xFF49454F), fontSize = 13.sp)
+                        Text(stringResource(R.string.viewer_empty_desc), color = AppTextSecondary, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(
                                 onClick = { showQrScannerDialog = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White),
                                 shape = RoundedCornerShape(20.dp)
                             ) {
                                 Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -622,8 +623,8 @@ fun CameraDeviceCard(
 
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppBorder),
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onConnect() }
@@ -634,7 +635,7 @@ fun CameraDeviceCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
-                    .background(Color(0xFF1E1B2E)),
+                    .background(AppDarkSurface),
                 contentAlignment = Alignment.Center
             ) {
                 if (currentBitmap != null) {
@@ -649,19 +650,19 @@ fun CameraDeviceCard(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color(0xFF6750A4), modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(color = AppPrimary, modifier = Modifier.size(24.dp))
                     }
                 } else {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF2D2A3E)),
+                            .background(AppDarkSurfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.VideocamOff, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.VideocamOff, contentDescription = null, tint = AppTextDisabled, modifier = Modifier.size(28.dp))
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(stringResource(R.string.viewer_card_loading_snapshot), color = Color.LightGray, fontSize = 11.sp)
+                            Text(stringResource(R.string.viewer_card_loading_snapshot), color = AppBorderSubtle, fontSize = 11.sp)
                         }
                     }
                 }
@@ -679,7 +680,7 @@ fun CameraDeviceCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(if (isLivePreviewAll) Color(0xCC2E7D32) else Color(0xCC000000))
+                            .background(if (isLivePreviewAll) AppOverlaySuccess else AppOverlayDarkHeavy)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -687,7 +688,7 @@ fun CameraDeviceCard(
                                 modifier = Modifier
                                     .size(6.dp)
                                     .clip(CircleShape)
-                                    .background(if (isLivePreviewAll) Color.Green else Color.LightGray)
+                                    .background(if (isLivePreviewAll) AppSuccessBright else AppBorderSubtle)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
@@ -704,7 +705,7 @@ fun CameraDeviceCard(
                         onClick = { refreshKey = System.currentTimeMillis() },
                         modifier = Modifier
                             .size(28.dp)
-                            .background(Color(0xAA000000), CircleShape)
+                            .background(AppOverlayDark, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
@@ -721,7 +722,7 @@ fun CameraDeviceCard(
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xCC6750A4))
+                        .background(AppOverlayPrimary)
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -742,9 +743,9 @@ fun CameraDeviceCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     val (statusColor, statusText) = when (isOnlineStatus) {
-                        true -> Color(0xFF4CAF50) to stringResource(R.string.device_online)
-                        false -> Color(0xFFB3261E) to stringResource(R.string.device_offline)
-                        null -> Color(0xFF79747E) to stringResource(R.string.viewer_status_checking)
+                        true -> AppSuccessBright to stringResource(R.string.device_online)
+                        false -> AppError to stringResource(R.string.device_offline)
+                        null -> AppTextMuted to stringResource(R.string.viewer_status_checking)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(
@@ -753,10 +754,10 @@ fun CameraDeviceCard(
                                 .clip(CircleShape)
                                 .background(statusColor)
                         )
-                        Text(camera.name, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(camera.name, color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Text(statusText, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
-                    Text("${camera.ipAddress}:${camera.port}", color = Color(0xFF6750A4), fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                    Text("${camera.ipAddress}:${camera.port}", color = AppPrimary, fontWeight = FontWeight.Medium, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -765,54 +766,54 @@ fun CameraDeviceCard(
                         if (isOnlineStatus == true) {
                             val isCpuHigh = cpuUsage > 80
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("CPU: $cpuUsage%", fontSize = 11.sp, color = if (isCpuHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
+                                Text("CPU: $cpuUsage%", fontSize = 11.sp, color = if (isCpuHigh) AppError else AppTextSecondary, fontWeight = FontWeight.SemiBold)
                                 if (isCpuHigh) {
                                     Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_cpu_warning), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_cpu_warning), tint = AppError, modifier = Modifier.size(14.dp))
                                 }
                             }
                             val isMemHigh = memoryUsage > 85
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 val memText = if (memoryUsedMB > 0) "RAM: $memoryUsage% (${memoryUsedMB}MB)" else "RAM: $memoryUsage%"
-                                Text(memText, fontSize = 11.sp, color = if (isMemHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
+                                Text(memText, fontSize = 11.sp, color = if (isMemHigh) AppError else AppTextSecondary, fontWeight = FontWeight.SemiBold)
                                 if (isMemHigh) {
                                     Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_mem_warning), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_mem_warning), tint = AppError, modifier = Modifier.size(14.dp))
                                 }
                             }
                             val isPingHigh = pingMs > 250
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Ping: ${pingMs}ms", fontSize = 11.sp, color = if (isPingHigh) Color(0xFFB3261E) else Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
+                                Text("Ping: ${pingMs}ms", fontSize = 11.sp, color = if (isPingHigh) AppError else AppSuccess, fontWeight = FontWeight.SemiBold)
                                 if (isPingHigh) {
                                     Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_ping_warning), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_ping_warning), tint = AppError, modifier = Modifier.size(14.dp))
                                 }
                             }
                         } else if (isOnlineStatus == false) {
-                            Text("CPU: --", fontSize = 11.sp, color = Color(0xFF79747E))
-                            Text("RAM: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("CPU: --", fontSize = 11.sp, color = AppTextMuted)
+                            Text("RAM: --", fontSize = 11.sp, color = AppTextMuted)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.viewer_status_ping_offline), fontSize = 11.sp, color = Color(0xFFB3261E), fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.viewer_status_ping_offline), fontSize = 11.sp, color = AppError, fontWeight = FontWeight.SemiBold)
                                 Spacer(modifier = Modifier.width(2.dp))
-                                Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_disconnected), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_disconnected), tint = AppError, modifier = Modifier.size(14.dp))
                             }
                         } else {
-                            Text("CPU: --", fontSize = 11.sp, color = Color(0xFF79747E))
-                            Text("RAM: --", fontSize = 11.sp, color = Color(0xFF79747E))
-                            Text("Ping: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("CPU: --", fontSize = 11.sp, color = AppTextMuted)
+                            Text("RAM: --", fontSize = 11.sp, color = AppTextMuted)
+                            Text("Ping: --", fontSize = 11.sp, color = AppTextMuted)
                         }
                     }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     IconButton(onClick = onRemoteSettings, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Settings, contentDescription = "Remote Settings", tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Settings, contentDescription = "Remote Settings", tint = AppPrimary, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF49454F), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = AppTextSecondary, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFB3261E), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = AppError, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -846,8 +847,8 @@ fun AddOrEditCameraDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title, color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold) },
-        containerColor = Color.White,
+        title = { Text(title, color = AppTextPrimary, fontWeight = FontWeight.Bold) },
+        containerColor = AppSurface,
         shape = RoundedCornerShape(24.dp),
         text = {
             Column {
@@ -856,10 +857,10 @@ fun AddOrEditCameraDialog(
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.camera_name_label)) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color(0xFF1C1B1F),
-                        unfocusedTextColor = Color(0xFF1C1B1F),
-                        focusedBorderColor = Color(0xFF6750A4),
-                        unfocusedBorderColor = Color(0xFFCAC4D0)
+                        focusedTextColor = AppTextPrimary,
+                        unfocusedTextColor = AppTextPrimary,
+                        focusedBorderColor = AppPrimary,
+                        unfocusedBorderColor = AppBorder
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -875,10 +876,10 @@ fun AddOrEditCameraDialog(
                     },
                     label = { Text(stringResource(R.string.camera_ip_label)) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color(0xFF1C1B1F),
-                        unfocusedTextColor = Color(0xFF1C1B1F),
-                        focusedBorderColor = Color(0xFF6750A4),
-                        unfocusedBorderColor = Color(0xFFCAC4D0)
+                        focusedTextColor = AppTextPrimary,
+                        unfocusedTextColor = AppTextPrimary,
+                        focusedBorderColor = AppPrimary,
+                        unfocusedBorderColor = AppBorder
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -889,10 +890,10 @@ fun AddOrEditCameraDialog(
                     onValueChange = { portStr = it },
                     label = { Text(stringResource(R.string.camera_port_label)) },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color(0xFF1C1B1F),
-                        unfocusedTextColor = Color(0xFF1C1B1F),
-                        focusedBorderColor = Color(0xFF6750A4),
-                        unfocusedBorderColor = Color(0xFFCAC4D0)
+                        focusedTextColor = AppTextPrimary,
+                        unfocusedTextColor = AppTextPrimary,
+                        focusedBorderColor = AppPrimary,
+                        unfocusedBorderColor = AppBorder
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -908,7 +909,7 @@ fun AddOrEditCameraDialog(
                     TextButton(onClick = onScanQrClick) {
                         Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(stringResource(R.string.viewer_btn_scan_qr_dialog), color = Color(0xFF6750A4), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_btn_scan_qr_dialog), color = AppPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     TextButton(
@@ -923,7 +924,7 @@ fun AddOrEditCameraDialog(
                             }
                         }
                     ) {
-                        Text(stringResource(R.string.viewer_btn_paste_clipboard), color = Color(0xFF6750A4), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_btn_paste_clipboard), color = AppPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -935,14 +936,14 @@ fun AddOrEditCameraDialog(
                     onSave(name, ipAddress, port)
                 },
                 shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White)
+                colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White)
             ) {
                 Text(stringResource(R.string.btn_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.btn_cancel), color = Color(0xFF49454F))
+                Text(stringResource(R.string.btn_cancel), color = AppTextSecondary)
             }
         }
     )

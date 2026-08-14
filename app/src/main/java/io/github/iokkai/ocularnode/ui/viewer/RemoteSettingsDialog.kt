@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.NotificationCategory
 import io.github.iokkai.ocularnode.ui.camera.ResolutionSelectionDialog
+import io.github.iokkai.ocularnode.ui.theme.*
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -98,12 +99,12 @@ fun RemoteSettingsScreen(
     var isTriggeringUpdate by remember { mutableStateOf(false) }
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
-    val surfaceBgColor = Color(0xFFFDF8FF)
-    val textPrimaryColor = Color(0xFF1C1B1F)
-    val textSecondaryColor = Color(0xFF49454F)
-    val brandPrimaryColor = Color(0xFF6750A4)
-    val cardBgColor = Color.White
-    val cardBorderColor = Color(0xFFCAC4D0)
+    val surfaceBgColor = AppBackground
+    val textPrimaryColor = AppTextPrimary
+    val textSecondaryColor = AppTextSecondary
+    val brandPrimaryColor = AppPrimary
+    val cardBgColor = AppSurface
+    val cardBorderColor = AppBorder
 
     // Read current settings from JSON
     val deviceNameStr = cameraStatusJson?.optString("deviceName", cameraName) ?: cameraName
@@ -431,8 +432,8 @@ fun RemoteSettingsScreen(
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isMon) brandPrimaryColor else Color(0xFFE8DEF8),
-                                            contentColor = if (isMon) Color.White else Color(0xFF1D192B)
+                                            containerColor = if (isMon) brandPrimaryColor else AppSecondaryContainer,
+                                            contentColor = if (isMon) Color.White else AppOnSecondaryContainer
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -445,8 +446,8 @@ fun RemoteSettingsScreen(
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (!isMon) brandPrimaryColor else Color(0xFFE8DEF8),
-                                            contentColor = if (!isMon) Color.White else Color(0xFF1D192B)
+                                            containerColor = if (!isMon) brandPrimaryColor else AppSecondaryContainer,
+                                            contentColor = if (!isMon) Color.White else AppOnSecondaryContainer
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -478,8 +479,8 @@ fun RemoteSettingsScreen(
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (localTorchOn) Color(0xFFE2A03F) else Color(0xFFE8DEF8),
-                                            contentColor = if (localTorchOn) Color.White else Color(0xFF1D192B)
+                                            containerColor = if (localTorchOn) AppWarning else AppSecondaryContainer,
+                                            contentColor = if (localTorchOn) Color.White else AppOnSecondaryContainer
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -546,8 +547,8 @@ fun RemoteSettingsScreen(
                                             },
                                             shape = RoundedCornerShape(10.dp),
                                             colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (isSelected) brandPrimaryColor else Color(0xFFE8DEF8),
-                                                contentColor = if (isSelected) Color.White else Color(0xFF1D192B)
+                                                containerColor = if (isSelected) brandPrimaryColor else AppSecondaryContainer,
+                                                contentColor = if (isSelected) Color.White else AppOnSecondaryContainer
                                             ),
                                             modifier = Modifier.weight(1f)
                                         ) {
@@ -584,15 +585,15 @@ fun RemoteSettingsScreen(
                                         val lowCut = (localNightLuma - localNightHysteresis).coerceAtLeast(0f).toInt()
                                         val highCut = (localNightLuma + localNightHysteresis).coerceAtMost(255f).toInt()
                                         Surface(
-                                            color = Color(0xFFF3EDF7),
+                                            color = AppSurfaceVariant,
                                             shape = RoundedCornerShape(8.dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Column(modifier = Modifier.padding(10.dp)) {
-                                                Text(stringResource(R.string.remote_night_anti_flicker), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
-                                                Text(stringResource(R.string.remote_night_enter, lowCut), fontSize = 11.sp, color = Color(0xFF6750A4))
-                                                Text(stringResource(R.string.remote_night_exit, highCut), fontSize = 11.sp, color = Color(0xFF6750A4))
-                                                Text(stringResource(R.string.remote_night_hold, lowCut, highCut), fontSize = 10.sp, color = Color(0xFF79747E))
+                                                Text(stringResource(R.string.remote_night_anti_flicker), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AppTextSecondary)
+                                                Text(stringResource(R.string.remote_night_enter, lowCut), fontSize = 11.sp, color = AppPrimary)
+                                                Text(stringResource(R.string.remote_night_exit, highCut), fontSize = 11.sp, color = AppPrimary)
+                                                Text(stringResource(R.string.remote_night_hold, lowCut, highCut), fontSize = 10.sp, color = AppTextMuted)
                                             }
                                         }
                                     }
@@ -628,8 +629,8 @@ fun RemoteSettingsScreen(
                                         },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (!isDetectionMode) brandPrimaryColor else Color(0xFFE8DEF8),
-                                            contentColor = if (!isDetectionMode) Color.White else Color(0xFF1D192B)
+                                            containerColor = if (!isDetectionMode) brandPrimaryColor else AppSecondaryContainer,
+                                            contentColor = if (!isDetectionMode) Color.White else AppOnSecondaryContainer
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -644,8 +645,8 @@ fun RemoteSettingsScreen(
                                         },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isDetectionMode) brandPrimaryColor else Color(0xFFE8DEF8),
-                                            contentColor = if (isDetectionMode) Color.White else Color(0xFF1D192B)
+                                            containerColor = if (isDetectionMode) brandPrimaryColor else AppSecondaryContainer,
+                                            contentColor = if (isDetectionMode) Color.White else AppOnSecondaryContainer
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
@@ -657,7 +658,7 @@ fun RemoteSettingsScreen(
 
                                 // 模式說明區塊
                                 Surface(
-                                    color = if (isDetectionMode) Color(0xFFF3EDF7) else Color(0xFFF1F5F9),
+                                    color = if (isDetectionMode) AppSurfaceVariant else AppSurfaceCardAlt,
                                     shape = RoundedCornerShape(10.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -668,7 +669,7 @@ fun RemoteSettingsScreen(
                                             else 
                                                 stringResource(R.string.remote_motion_live_desc),
                                             fontSize = 11.sp,
-                                            color = if (isDetectionMode) Color(0xFF6750A4) else Color(0xFF475569),
+                                            color = if (isDetectionMode) AppPrimary else AppTextSecondary,
                                             lineHeight = 16.sp
                                         )
                                     }
@@ -760,8 +761,8 @@ fun RemoteSettingsScreen(
                                                 }
                                             },
                                             shape = RoundedCornerShape(10.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB3261E)),
-                                            border = BorderStroke(1.dp, Color(0xFFB3261E)),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppError),
+                                            border = BorderStroke(1.dp, AppError),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -899,7 +900,7 @@ fun RemoteSettingsScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(1.dp)
-                                                .background(Color(0xFFE2E8F0))
+                                                .background(AppBorderLight)
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
 
@@ -909,10 +910,10 @@ fun RemoteSettingsScreen(
                                         ) {
                                             Spacer(modifier = Modifier.weight(1.2f))
                                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                Text(stringResource(R.string.remote_ai_allow_push), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                                Text(stringResource(R.string.remote_ai_allow_push), fontSize = 13.sp, color = AppTextMuted, fontWeight = FontWeight.Bold)
                                             }
                                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                Text(stringResource(R.string.remote_ai_trigger_rec), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                                Text(stringResource(R.string.remote_ai_trigger_rec), fontSize = 13.sp, color = AppTextMuted, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                         NotificationCategory.values().forEach { category ->
@@ -970,12 +971,12 @@ fun RemoteSettingsScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .height(1.dp)
-                                                .background(Color(0xFFE2E8F0))
+                                                .background(AppBorderLight)
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
 
                                         // ➔ 告警媒體類型 (照片 / 影片 / 照片+影片)
-                                        Text(stringResource(R.string.remote_tg_media_type_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_tg_media_type), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(stringResource(R.string.remote_tg_media_type_desc), fontSize = 11.sp, color = textSecondaryColor)
                                         Spacer(modifier = Modifier.height(10.dp))
@@ -994,9 +995,9 @@ fun RemoteSettingsScreen(
                                                 OutlinedButton(
                                                     onClick = { localTelegramMediaType = typeKey },
                                                     shape = RoundedCornerShape(12.dp),
-                                                    border = BorderStroke(1.dp, if (isSelected) brandPrimaryColor else Color(0xFFCAC4D0)),
+                                                    border = BorderStroke(1.dp, if (isSelected) brandPrimaryColor else AppBorder),
                                                     colors = ButtonDefaults.outlinedButtonColors(
-                                                        containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                                        containerColor = if (isSelected) AppSecondaryContainer else Color.Transparent,
                                                         contentColor = if (isSelected) brandPrimaryColor else textSecondaryColor
                                                     ),
                                                     modifier = Modifier.weight(1f),
@@ -1017,21 +1018,21 @@ fun RemoteSettingsScreen(
                             exit = fadeOut() + shrinkVertically()
                         ) {
                             Surface(
-                                color = Color(0xFFF8FAFC),
+                                color = AppSurfaceCardAlt,
                                 shape = RoundedCornerShape(16.dp),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, AppBorderLight),
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
                             ) {
                                 Column(
                                     modifier = Modifier.padding(20.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text(stringResource(R.string.remote_live_mode_banner_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF334155))
+                                    Text(stringResource(R.string.remote_live_mode_banner_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppTextPrimary)
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
                                         stringResource(R.string.remote_live_mode_banner_desc),
                                         fontSize = 12.sp,
-                                        color = Color(0xFF64748B),
+                                        color = AppTextSecondary,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                         lineHeight = 18.sp
                                     )
@@ -1182,8 +1183,8 @@ fun RemoteSettingsScreen(
                                 // 🚀 遠端檢查並更新鏡頭端 (Silent OTA)
                                 Card(
                                     shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
-                                    border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+                                    colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                                    border = BorderStroke(1.dp, AppSecondaryContainer),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1216,7 +1217,7 @@ fun RemoteSettingsScreen(
                                                 if (isTriggeringUpdate) return@Button
                                                 isTriggeringUpdate = true
                                                 coroutineScope.launch {
-                                                    val success = onSendCommand("update", "")
+                                                    val success = onSendCommand("trigger_ota_update", "true")
                                                     isTriggeringUpdate = false
                                                     if (success) {
                                                         Toast.makeText(context, context.getString(R.string.remote_ota_toast_sent), Toast.LENGTH_LONG).show()
@@ -1265,7 +1266,7 @@ fun RemoteSettingsScreen(
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Card(
                                     shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = if (hasRemoteTelegram) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
+                                    colors = CardDefaults.cardColors(containerColor = if (hasRemoteTelegram) AppSuccessContainer else AppErrorContainerLight),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
@@ -1273,11 +1274,11 @@ fun RemoteSettingsScreen(
                                             text = if (hasRemoteTelegram) stringResource(R.string.remote_tg_status_bound) else stringResource(R.string.remote_tg_status_unbound),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
-                                            color = if (hasRemoteTelegram) Color(0xFF2E7D32) else Color(0xFFB3261E)
+                                            color = if (hasRemoteTelegram) AppSuccess else AppError
                                         )
                                         if (hasRemoteTelegram) {
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            Text("Chat ID: $remoteChatId", fontSize = 11.sp, color = Color(0xFF1B5E20))
+                                            Text("Chat ID: $remoteChatId", fontSize = 11.sp, color = AppSuccessDark)
                                         }
                                     }
                                 }
@@ -1329,9 +1330,9 @@ fun RemoteSettingsScreen(
                                                 }
                                             },
                                             shape = RoundedCornerShape(12.dp),
-                                            border = BorderStroke(1.dp, if (isSelected) brandPrimaryColor else cardBorderColor),
+                                            border = BorderStroke(1.dp, if (isSelected) brandPrimaryColor else AppBorder),
                                             colors = ButtonDefaults.outlinedButtonColors(
-                                                containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                                containerColor = if (isSelected) AppSecondaryContainer else Color.Transparent,
                                                 contentColor = if (isSelected) brandPrimaryColor else textSecondaryColor
                                             ),
                                             modifier = Modifier.weight(1f),
