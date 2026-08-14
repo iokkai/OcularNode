@@ -181,14 +181,14 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
                         eventDao.insertEvent(event)
                         newCount++
                     }
-                    _syncMessage.value = "✅ 成功同步來自 [${camera.name}] 的 $newCount 筆偵測紀錄！"
+                    _syncMessage.value = "✅ Synced $newCount records from [${camera.name}]"
                 } else {
-                    _syncMessage.value = "⚠️ 無法連線至 ${camera.name} (HTTP ${response.code})"
+                    _syncMessage.value = "⚠️ Cannot connect to ${camera.name} (HTTP ${response.code})"
                 }
                 response.close()
             } catch (e: Exception) {
                 Log.e("EventLogsViewModel", "Error syncing remote events from ${camera.name}", e)
-                _syncMessage.value = "❌ 同步失敗: ${e.localizedMessage ?: "無法連線至鏡頭端"}"
+                _syncMessage.value = "❌ Sync failed: ${e.localizedMessage ?: "Cannot connect to camera"}"
             } finally {
                 _isSyncingRemote.value = false
             }

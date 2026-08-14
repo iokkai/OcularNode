@@ -61,9 +61,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.R
 
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.activity.compose.BackHandler
@@ -226,7 +228,7 @@ fun LiveMonitorScreen(
                 onClick = { zoomScale = (zoomScale - 0.25f).coerceIn(1f, 5f) },
                 modifier = Modifier.size(34.dp)
             ) {
-                Icon(Icons.Default.ZoomOut, contentDescription = "縮小", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ZoomOut, contentDescription = stringResource(R.string.monitor_btn_zoom_out), tint = Color.White, modifier = Modifier.size(18.dp))
             }
             Box(
                 modifier = Modifier
@@ -245,7 +247,7 @@ fun LiveMonitorScreen(
                 onClick = { zoomScale = (zoomScale + 0.25f).coerceIn(1f, 5f) },
                 modifier = Modifier.size(34.dp)
             ) {
-                Icon(Icons.Default.ZoomIn, contentDescription = "放大", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.ZoomIn, contentDescription = stringResource(R.string.monitor_btn_zoom_in), tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
 
@@ -267,7 +269,7 @@ fun LiveMonitorScreen(
                 },
                 modifier = Modifier.size(34.dp)
             ) {
-                Icon(Icons.AutoMirrored.Filled.RotateLeft, contentDescription = "逆時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Filled.RotateLeft, contentDescription = stringResource(R.string.monitor_btn_rotate_left), tint = Color.White, modifier = Modifier.size(18.dp))
             }
             IconButton(
                 onClick = {
@@ -277,7 +279,7 @@ fun LiveMonitorScreen(
                 },
                 modifier = Modifier.size(34.dp)
             ) {
-                Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = "順時鐘旋轉", tint = Color.White, modifier = Modifier.size(18.dp))
+                Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = stringResource(R.string.monitor_btn_rotate_right), tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
 
@@ -322,7 +324,7 @@ fun LiveMonitorScreen(
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = if (isConnected) "LIVE ${fps}FPS" else "中斷重連中",
+                        text = if (isConnected) "LIVE ${fps}FPS" else stringResource(R.string.monitor_reconnecting),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
@@ -397,7 +399,7 @@ fun LiveMonitorScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = if (isSpeaking) "🎙️ 發話中" else "按住對講",
+                                    text = if (isSpeaking) stringResource(R.string.monitor_btn_speaking) else stringResource(R.string.monitor_btn_hold_to_talk),
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
@@ -412,7 +414,7 @@ fun LiveMonitorScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (isControlPanelExpanded) "收合控制項" else "展開更多控制",
+                            text = if (isControlPanelExpanded) stringResource(R.string.monitor_btn_collapse_controls) else stringResource(R.string.monitor_btn_expand_controls),
                             color = Color(0xFFD0BCFF),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -444,7 +446,7 @@ fun LiveMonitorScreen(
                             ) {
                                 Icon(Icons.Default.FlipCameraAndroid, contentDescription = "Switch Camera", tint = Color.White)
                             }
-                            Text("切換鏡頭", color = Color.White, fontSize = 10.sp)
+                            Text(stringResource(R.string.monitor_btn_switch_camera), color = Color.White, fontSize = 10.sp)
                         }
 
                         // Torch
@@ -458,7 +460,7 @@ fun LiveMonitorScreen(
                             ) {
                                 Icon(Icons.Default.FlashOn, contentDescription = "Torch", tint = if (torchOn) Color(0xFF21005D) else Color.White)
                             }
-                            Text("補光燈", color = Color.White, fontSize = 10.sp)
+                            Text(stringResource(R.string.monitor_btn_torch), color = Color.White, fontSize = 10.sp)
                         }
 
                         // Night Vision
@@ -468,9 +470,9 @@ fun LiveMonitorScreen(
                             else -> Icons.Default.Nightlight
                         }
                         val nightLabel = when (currentNightMode) {
-                            "on" -> "夜視：黑白"
-                            "auto" -> "夜視：自動"
-                            else -> "夜視：關閉"
+                            "on" -> stringResource(R.string.monitor_night_vision_on)
+                            "auto" -> stringResource(R.string.monitor_night_vision_auto)
+                            else -> stringResource(R.string.monitor_night_vision_off)
                         }
                         val nightBgColor = when (currentNightMode) {
                             "on" -> Color(0xFFEADDFF)
@@ -485,14 +487,14 @@ fun LiveMonitorScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             IconButton(
                                 onClick = {
-                                    val (nextMode, toastMsg) = when (currentNightMode) {
-                                        "off" -> "on" to "已開啟黑白夜視模式"
-                                        "on" -> "auto" to "已切換至自動夜視模式"
-                                        "auto" -> "off" to "已關閉夜視模式"
-                                        else -> "on" to "已開啟黑白夜視模式"
+                                    val (nextMode, toastMsgRes) = when (currentNightMode) {
+                                        "off" -> "on" to R.string.monitor_toast_night_vision_on
+                                        "on" -> "auto" to R.string.monitor_toast_night_vision_auto
+                                        "auto" -> "off" to R.string.monitor_toast_night_vision_off
+                                        else -> "on" to R.string.monitor_toast_night_vision_on
                                     }
                                     viewModel.sendControlCommand("night_vision", nextMode)
-                                    Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(toastMsgRes), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.background(nightBgColor, CircleShape)
                             ) {
@@ -506,14 +508,14 @@ fun LiveMonitorScreen(
                             IconButton(
                                 onClick = {
                                     if (frame != null) {
-                                        Toast.makeText(context, "已快照當前畫面", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.monitor_toast_snapshot), Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 modifier = Modifier.background(Color(0x33FFFFFF), CircleShape)
                             ) {
                                 Icon(Icons.Default.CameraAlt, contentDescription = "Snapshot", tint = Color.White)
                             }
-                            Text("快照", color = Color.White, fontSize = 10.sp)
+                            Text(stringResource(R.string.monitor_btn_snapshot), color = Color.White, fontSize = 10.sp)
                         }
 
                         // Adaptive Resolution Toggle
@@ -522,13 +524,13 @@ fun LiveMonitorScreen(
                                 onClick = {
                                     val nextState = !adaptiveState.isEnabled
                                     viewModel.setAdaptiveModeEnabled(nextState)
-                                    Toast.makeText(context, if (nextState) "已開啟動態自適應解析度" else "已關閉自適應模式", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, if (nextState) context.getString(R.string.monitor_toast_adaptive_on) else context.getString(R.string.monitor_toast_adaptive_off), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.background(if (adaptiveState.isEnabled) Color(0xFFD0BCFF) else Color(0x33FFFFFF), CircleShape)
                             ) {
                                 Icon(Icons.Default.Tune, contentDescription = "Adaptive Mode", tint = if (adaptiveState.isEnabled) Color(0xFF21005D) else Color.White)
                             }
-                            Text(if (adaptiveState.isEnabled) "自適應: ON" else "自適應: OFF", color = Color.White, fontSize = 10.sp)
+                            Text(if (adaptiveState.isEnabled) stringResource(R.string.monitor_btn_adaptive_on) else stringResource(R.string.monitor_btn_adaptive_off), color = Color.White, fontSize = 10.sp)
                         }
 
                         // Alarm
@@ -536,13 +538,13 @@ fun LiveMonitorScreen(
                             IconButton(
                                 onClick = {
                                     viewModel.sendControlCommand("alarm", "trigger")
-                                    Toast.makeText(context, "已遠端發送警報蜂鳴", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.monitor_toast_alarm_sent), Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.background(Color(0xAA8C1D18), CircleShape)
                             ) {
                                 Icon(Icons.Default.Warning, contentDescription = "Alarm", tint = Color.White)
                             }
-                            Text("警報", color = Color.White, fontSize = 10.sp)
+                            Text(stringResource(R.string.monitor_btn_alarm), color = Color.White, fontSize = 10.sp)
                         }
                     }
                 }

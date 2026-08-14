@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import io.github.iokkai.ocularnode.MainActivity
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.SettingsManager
 import io.github.iokkai.ocularnode.service.CameraStreamService
 import io.github.iokkai.ocularnode.util.TelegramNotifier
@@ -66,31 +67,33 @@ class BootAndPowerReceiver : BroadcastReceiver() {
                                     botToken = settingsManager.telegramBotToken,
                                     chatId = settingsManager.telegramChatId,
                                     deviceName = settingsManager.cameraDeviceName,
-                                    alertTitle = "⚡ *【開機/更新自動重啟通知】*",
-                                    alertDetails = "系統收到廣播 ($action)，已自動喚醒「相機監控節點」服務與 Kiosk 監控畫面！"
+                                    alertTitle = context.getString(R.string.tg_alert_reboot_title),
+                                    alertDetails = context.getString(R.string.tg_alert_reboot_desc, action ?: ""),
+                                    context = context
                                 )
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("BootAndPowerReceiver", "自動啟動服務或畫面失敗", e)
+                        Log.e("BootAndPowerReceiver", "Failed to start service or activity on boot", e)
                     }
                 } else {
-                    Log.i("BootAndPowerReceiver", "非 Device Owner 且未啟用開機自啟，跳過啟動。")
+                    Log.i("BootAndPowerReceiver", "Not Device Owner or auto-start disabled, skipping.")
                 }
             }
 
             Intent.ACTION_POWER_DISCONNECTED -> {
                 if (settingsManager.powerCutAlertEnabled && settingsManager.deviceRoleMode != "VIEWER") {
                     val batteryPct = getBatteryPercentage(context)
-                    Log.w("BootAndPowerReceiver", "電源斷開！當前電量: $batteryPct%")
+                    Log.w("BootAndPowerReceiver", "Power disconnected! Battery: $batteryPct%")
                     if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
                         CoroutineScope(Dispatchers.IO).launch {
                             TelegramNotifier.sendSystemAlert(
                                 botToken = settingsManager.telegramBotToken,
                                 chatId = settingsManager.telegramChatId,
                                 deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = "🚨 *【外部電源斷電警報】*",
-                                alertDetails = "偵測到充電中斷！家中可能發生停電或線路鬆脫。當前剩餘電量: $batteryPct%"
+                                alertTitle = context.getString(R.string.tg_alert_power_cut_title),
+                                alertDetails = context.getString(R.string.tg_alert_power_cut_desc, batteryPct),
+                                context = context
                             )
                         }
                     }
@@ -100,15 +103,16 @@ class BootAndPowerReceiver : BroadcastReceiver() {
             Intent.ACTION_POWER_CONNECTED -> {
                 if (settingsManager.powerCutAlertEnabled && settingsManager.deviceRoleMode != "VIEWER") {
                     val batteryPct = getBatteryPercentage(context)
-                    Log.i("BootAndPowerReceiver", "電源恢復！當前電量: $batteryPct%")
+                    Log.i("BootAndPowerReceiver", "Power restored! Battery: $batteryPct%")
                     if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
                         CoroutineScope(Dispatchers.IO).launch {
                             TelegramNotifier.sendSystemAlert(
                                 botToken = settingsManager.telegramBotToken,
                                 chatId = settingsManager.telegramChatId,
                                 deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = "🔌 *【外部電源已恢復連接】*",
-                                alertDetails = "設備已重新連接外部電源進行充電。當前電量: $batteryPct%"
+                                alertTitle = context.getString(R.string.tg_alert_power_restore_title),
+                                alertDetails = context.getString(R.string.tg_alert_power_restore_desc, batteryPct),
+                                context = context
                             )
                         }
                     }

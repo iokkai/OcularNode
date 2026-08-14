@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +54,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.util.QRCodeUtils
 import io.github.iokkai.ocularnode.util.ScannedCameraInfo
 import com.google.zxing.BinaryBitmap
@@ -198,7 +200,7 @@ fun QRCodeScannerDialog(
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                             Text(
-                                "請將鏡頭端顯示的 QR Code 對準框內",
+                                stringResource(R.string.qr_scan_instruction),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
@@ -221,7 +223,7 @@ fun QRCodeScannerDialog(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "需要相機權限以掃描 QR Code",
+                            stringResource(R.string.qr_scan_perm_title),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
@@ -231,7 +233,7 @@ fun QRCodeScannerDialog(
                             onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4))
                         ) {
-                            Text("授權相機權限")
+                            Text(stringResource(R.string.qr_scan_btn_grant_perm))
                         }
                     }
                 }
@@ -248,7 +250,7 @@ fun QRCodeScannerDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.QrCodeScanner, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("掃描 QR Code 加入鏡頭", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.qr_scan_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
 
                     IconButton(

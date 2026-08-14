@@ -11,9 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.util.AppLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,15 +28,15 @@ fun SystemLogScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("系統日誌 (System Logs)") },
+                title = { Text(stringResource(R.string.syslog_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.syslog_cd_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { AppLogger.clear() }) {
-                        Icon(Icons.Filled.Delete, contentDescription = "Clear Logs")
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.syslog_cd_clear))
                     }
                 }
             )
@@ -68,7 +70,7 @@ fun SystemLogScreen(
             if (logs.isEmpty()) {
                 item {
                     Text(
-                        "暫無日誌",
+                        stringResource(R.string.syslog_empty),
                         color = Color.Gray,
                         modifier = Modifier.padding(16.dp)
                     )

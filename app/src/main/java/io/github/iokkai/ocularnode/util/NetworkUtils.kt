@@ -271,7 +271,7 @@ object NetworkUtils {
         }
 
         // 4. 若確實未安裝 Tailscale App，提示使用者並開啟商店
-        Toast.makeText(context, "未偵測到 Tailscale App，即將開啟商店頁面下載", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(io.github.iokkai.ocularnode.R.string.toast_tailscale_not_found), Toast.LENGTH_SHORT).show()
         try {
             val storeIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$tailscalePackage")).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

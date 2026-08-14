@@ -27,7 +27,7 @@ class TelegramPairingService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Telegram 自動綁定通知",
+                "Telegram Pairing Notification",
                 NotificationManager.IMPORTANCE_HIGH
             )
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -44,8 +44,8 @@ class TelegramPairingService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("等待 Telegram 配對...")
-            .setContentText("背景配對執行中，請在 Telegram 傳送配對碼")
+            .setContentTitle("Waiting for Telegram Pairing...")
+            .setContentText("Pairing in progress, please send PIN on Telegram")
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

@@ -61,9 +61,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.CameraDevice
 import io.github.iokkai.ocularnode.util.ScannedCameraInfo
 
@@ -189,7 +191,7 @@ fun ViewerListScreen(
                             ) {
                                 Text("🛠️", fontSize = 16.sp)
                                 Text(
-                                    text = "製作專用設備",
+                                    text = stringResource(R.string.btn_provision_device),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -214,7 +216,7 @@ fun ViewerListScreen(
                             ) {
                                 Text("📷", fontSize = 16.sp)
                                 Text(
-                                    text = "掃描 QR code",
+                                    text = stringResource(R.string.btn_scan_qr),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -240,7 +242,7 @@ fun ViewerListScreen(
                             ) {
                                 Text("⌨️", fontSize = 16.sp)
                                 Text(
-                                    text = "手動輸入 IP",
+                                    text = stringResource(R.string.btn_manual_ip),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -257,7 +259,7 @@ fun ViewerListScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = if (isSpeedDialExpanded) "關閉選單" else "新增鏡頭選單",
+                        contentDescription = if (isSpeedDialExpanded) stringResource(R.string.viewer_menu_close) else stringResource(R.string.viewer_menu_add),
                         modifier = Modifier.rotate(fabRotationAngle)
                     )
                 }
@@ -280,14 +282,14 @@ fun ViewerListScreen(
             ) {
                 Column {
                     Text(
-                        text = "觀看端 - 鏡頭列表",
+                        text = stringResource(R.string.viewer_title),
                         color = Color(0xFF1C1B1F),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "掃描鏡頭端 QR Code 或輸入 IP 加入",
+                        text = stringResource(R.string.viewer_header_subtitle),
                         color = Color(0xFF49454F),
                         fontSize = 12.sp
                     )
@@ -318,13 +320,13 @@ fun ViewerListScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Tailscale VPN 已連線",
+                                text = stringResource(R.string.viewer_tailscale_connected),
                                 color = Color(0xFF1B5E20),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
                             Text(
-                                text = "VPN 服務連線中 • 可跨網段遠端監控",
+                                text = stringResource(R.string.viewer_tailscale_connected_desc),
                                 color = Color(0xFF388E3C),
                                 fontSize = 10.sp
                             )
@@ -360,13 +362,13 @@ fun ViewerListScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Tailscale VPN 未連線",
+                                text = stringResource(R.string.viewer_tailscale_disconnected),
                                 color = Color(0xFFC62828),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp
                             )
                             Text(
-                                text = "VPN 服務未開啟 • 僅限同 Wi-Fi 觀看",
+                                text = stringResource(R.string.viewer_tailscale_disconnected_desc),
                                 color = Color(0xFFC62828),
                                 fontSize = 10.sp
                             )
@@ -379,7 +381,7 @@ fun ViewerListScreen(
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
-                        Text(if (isTailscaleInstalled) "🚀 開啟 Tailscale" else "📥 安裝 Tailscale", color = Color(0xFFC62828), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(if (isTailscaleInstalled) stringResource(R.string.viewer_tailscale_open) else stringResource(R.string.viewer_tailscale_install), color = Color(0xFFC62828), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -401,9 +403,9 @@ fun ViewerListScreen(
                             modifier = Modifier.size(64.dp)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("尚未新增任何鏡頭裝置", color = Color(0xFF1C1B1F), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_empty_title), color = Color(0xFF1C1B1F), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("請掃描鏡頭端的 QR Code 或手動輸入 IP 位址", color = Color(0xFF49454F), fontSize = 13.sp)
+                        Text(stringResource(R.string.viewer_empty_desc), color = Color(0xFF49454F), fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -414,7 +416,7 @@ fun ViewerListScreen(
                             ) {
                                 Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("掃描 QR Code 加入")
+                                Text(stringResource(R.string.btn_scan_qr))
                             }
 
                             OutlinedButton(
@@ -424,7 +426,7 @@ fun ViewerListScreen(
                                 },
                                 shape = RoundedCornerShape(20.dp)
                             ) {
-                                Text("手動輸入 IP")
+                                Text(stringResource(R.string.btn_manual_ip))
                             }
                         }
                     }
@@ -441,7 +443,7 @@ fun ViewerListScreen(
                             },
                             onRemoteSettings = {
                                 coroutineScope.launch {
-                                    Toast.makeText(context, "正在連線取得 ${camera.name} 狀態...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.viewer_toast_fetching_status, camera.name), Toast.LENGTH_SHORT).show()
                                     val status = viewModel.fetchCameraStatus(camera)
                                     remoteStatusJson = status
                                     remoteSettingsCamera = camera
@@ -470,7 +472,7 @@ fun ViewerListScreen(
         // Add Dialog
         if (showAddDialog) {
             AddOrEditCameraDialog(
-                title = if (prefilledInfo != null) "確認 QR Code 掃描資訊" else "新增鏡頭裝置",
+                title = if (prefilledInfo != null) stringResource(R.string.viewer_dialog_confirm_qr) else stringResource(R.string.btn_add_camera),
                 initialName = prefilledInfo?.name ?: "",
                 initialIp = prefilledInfo?.ipAddress ?: "100.",
                 initialPort = prefilledInfo?.port?.toString() ?: "8080",
@@ -486,7 +488,7 @@ fun ViewerListScreen(
                     viewModel.addCamera(name, ip, port)
                     showAddDialog = false
                     prefilledInfo = null
-                    Toast.makeText(context, "已成功加入鏡頭: $name", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.camera_added_success, name), Toast.LENGTH_SHORT).show()
                 }
             )
         }
@@ -494,7 +496,7 @@ fun ViewerListScreen(
         // Edit Dialog
         editingCamera?.let { camera ->
             AddOrEditCameraDialog(
-                title = "編輯鏡頭裝置",
+                title = stringResource(R.string.btn_edit_camera),
                 initialName = camera.name,
                 initialIp = camera.ipAddress,
                 initialPort = camera.port.toString(),
@@ -659,7 +661,7 @@ fun CameraDeviceCard(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.VideocamOff, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(28.dp))
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("快照載入中 / 點擊進入即時畫面", color = Color.LightGray, fontSize = 11.sp)
+                            Text(stringResource(R.string.viewer_card_loading_snapshot), color = Color.LightGray, fontSize = 11.sp)
                         }
                     }
                 }
@@ -689,7 +691,7 @@ fun CameraDeviceCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = if (isLivePreviewAll) "LIVE 串流中" else "📸 快照預覽",
+                                text = if (isLivePreviewAll) stringResource(R.string.viewer_card_live_streaming) else stringResource(R.string.viewer_card_snapshot_preview),
                                 color = Color.White,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold
@@ -725,7 +727,7 @@ fun CameraDeviceCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(2.dp))
-                        Text("進入主畫面監控", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_card_tap_to_monitor), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -740,9 +742,9 @@ fun CameraDeviceCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     val (statusColor, statusText) = when (isOnlineStatus) {
-                        true -> Color(0xFF4CAF50) to "Online"
-                        false -> Color(0xFFB3261E) to "Offline"
-                        null -> Color(0xFF79747E) to "檢測中..."
+                        true -> Color(0xFF4CAF50) to stringResource(R.string.device_online)
+                        false -> Color(0xFFB3261E) to stringResource(R.string.device_offline)
+                        null -> Color(0xFF79747E) to stringResource(R.string.viewer_status_checking)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Box(
@@ -766,16 +768,16 @@ fun CameraDeviceCard(
                                 Text("CPU: $cpuUsage%", fontSize = 11.sp, color = if (isCpuHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
                                 if (isCpuHigh) {
                                     Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(Icons.Default.Warning, contentDescription = "CPU過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_cpu_warning), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
                                 }
                             }
                             val isMemHigh = memoryUsage > 85
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                val memText = if (memoryUsedMB > 0) "記憶體: $memoryUsage% (${memoryUsedMB}MB)" else "記憶體: $memoryUsage%"
+                                val memText = if (memoryUsedMB > 0) "RAM: $memoryUsage% (${memoryUsedMB}MB)" else "RAM: $memoryUsage%"
                                 Text(memText, fontSize = 11.sp, color = if (isMemHigh) Color(0xFFB3261E) else Color(0xFF49454F), fontWeight = FontWeight.SemiBold)
                                 if (isMemHigh) {
                                     Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(Icons.Default.Warning, contentDescription = "記憶體過高警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_mem_warning), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
                                 }
                             }
                             val isPingHigh = pingMs > 250
@@ -783,21 +785,21 @@ fun CameraDeviceCard(
                                 Text("Ping: ${pingMs}ms", fontSize = 11.sp, color = if (isPingHigh) Color(0xFFB3261E) else Color(0xFF2E7D32), fontWeight = FontWeight.SemiBold)
                                 if (isPingHigh) {
                                     Spacer(modifier = Modifier.width(2.dp))
-                                    Icon(Icons.Default.Warning, contentDescription = "連線品質差警示", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                    Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_ping_warning), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
                                 }
                             }
                         } else if (isOnlineStatus == false) {
                             Text("CPU: --", fontSize = 11.sp, color = Color(0xFF79747E))
-                            Text("記憶體: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("RAM: --", fontSize = 11.sp, color = Color(0xFF79747E))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Ping: 離線", fontSize = 11.sp, color = Color(0xFFB3261E), fontWeight = FontWeight.SemiBold)
+                                Text(stringResource(R.string.viewer_status_ping_offline), fontSize = 11.sp, color = Color(0xFFB3261E), fontWeight = FontWeight.SemiBold)
                                 Spacer(modifier = Modifier.width(2.dp))
-                                Icon(Icons.Default.Warning, contentDescription = "連線斷開", tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
+                                Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.viewer_cd_disconnected), tint = Color(0xFFB3261E), modifier = Modifier.size(14.dp))
                             }
                         } else {
                             Text("CPU: --", fontSize = 11.sp, color = Color(0xFF79747E))
-                            Text("記憶體: --", fontSize = 11.sp, color = Color(0xFF79747E))
-                            Text("Ping: 檢測中", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("RAM: --", fontSize = 11.sp, color = Color(0xFF79747E))
+                            Text("Ping: --", fontSize = 11.sp, color = Color(0xFF79747E))
                         }
                     }
                 }
@@ -836,7 +838,7 @@ fun AddOrEditCameraDialog(
     fun processInputUrl(input: String) {
         val parsed = io.github.iokkai.ocularnode.util.QRCodeUtils.parseScannedQrCode(input)
         if (parsed != null) {
-            if (name.isBlank() || name == "鏡頭裝置") name = parsed.name
+            if (name.isBlank() || name == "Camera Node" || name == "鏡頭裝置") name = parsed.name
             ipAddress = parsed.ipAddress
             portStr = parsed.port.toString()
         }
@@ -852,7 +854,7 @@ fun AddOrEditCameraDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("鏡頭名稱 (如 客廳鏡頭)") },
+                    label = { Text(stringResource(R.string.camera_name_label)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color(0xFF1C1B1F),
                         unfocusedTextColor = Color(0xFF1C1B1F),
@@ -871,7 +873,7 @@ fun AddOrEditCameraDialog(
                             processInputUrl(it)
                         }
                     },
-                    label = { Text("IP 或 完整 URL (如 100.x.x.x)") },
+                    label = { Text(stringResource(R.string.camera_ip_label)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color(0xFF1C1B1F),
                         unfocusedTextColor = Color(0xFF1C1B1F),
@@ -885,7 +887,7 @@ fun AddOrEditCameraDialog(
                 OutlinedTextField(
                     value = portStr,
                     onValueChange = { portStr = it },
-                    label = { Text("Port 通訊埠 (預設 8080)") },
+                    label = { Text(stringResource(R.string.camera_port_label)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color(0xFF1C1B1F),
                         unfocusedTextColor = Color(0xFF1C1B1F),
@@ -906,7 +908,7 @@ fun AddOrEditCameraDialog(
                     TextButton(onClick = onScanQrClick) {
                         Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("相機掃描 QR", color = Color(0xFF6750A4), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_btn_scan_qr_dialog), color = Color(0xFF6750A4), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     TextButton(
@@ -915,13 +917,13 @@ fun AddOrEditCameraDialog(
                             val clipText = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
                             if (!clipText.isNullOrBlank()) {
                                 processInputUrl(clipText)
-                                Toast.makeText(context, "已貼上並解析連結: $clipText", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.viewer_toast_pasted, clipText), Toast.LENGTH_SHORT).show()
                             } else {
-                                Toast.makeText(context, "剪貼簿無內容", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.viewer_toast_clipboard_empty), Toast.LENGTH_SHORT).show()
                             }
                         }
                     ) {
-                        Text("📋 貼上剪貼簿", color = Color(0xFF6750A4), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.viewer_btn_paste_clipboard), color = Color(0xFF6750A4), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -935,12 +937,12 @@ fun AddOrEditCameraDialog(
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6750A4), contentColor = Color.White)
             ) {
-                Text("儲存")
+                Text(stringResource(R.string.btn_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消", color = Color(0xFF49454F))
+                Text(stringResource(R.string.btn_cancel), color = Color(0xFF49454F))
             }
         }
     )

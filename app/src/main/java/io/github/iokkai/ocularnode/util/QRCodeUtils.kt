@@ -38,11 +38,11 @@ object QRCodeUtils {
         val text = raw.trim()
         if (text.isBlank()) return null
 
-        // Case 1: JSON Format {"name":"客廳鏡頭","ip":"100.64.1.2","port":8080}
+        // Case 1: JSON Format {"name":"Living Room","ip":"100.64.1.2","port":8080}
         if (text.startsWith("{") && text.endsWith("}")) {
             try {
                 val json = JSONObject(text)
-                val name = json.optString("name", "鏡頭裝置")
+                val name = json.optString("name", "Camera Device")
                 val ip = json.optString("ip", json.optString("ipAddress", "")).trim()
                 val port = json.optInt("port", 8080)
                 if (ip.isNotBlank()) {
@@ -83,7 +83,7 @@ object QRCodeUtils {
         }
 
         if (ip.isNotBlank()) {
-            val name = queryName?.ifBlank { null } ?: "鏡頭端 ($ip)"
+            val name = queryName?.ifBlank { null } ?: "Camera ($ip)"
             return ScannedCameraInfo(name = name, ipAddress = ip, port = port)
         }
 

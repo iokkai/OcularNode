@@ -1,6 +1,8 @@
 package io.github.iokkai.ocularnode.util
 
+import android.content.Context
 import android.util.Log
+import io.github.iokkai.ocularnode.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -42,7 +44,8 @@ object TelegramNotifier {
         deviceName: String,
         motionPercentage: Float,
         photoBytes: ByteArray?,
-        aiSummary: String = ""
+        aiSummary: String = "",
+        context: Context? = null
     ): Boolean = withContext(Dispatchers.IO) {
         if (botToken.isBlank() || chatId.isBlank()) {
             return@withContext false
@@ -50,11 +53,20 @@ object TelegramNotifier {
 
         try {
             val aiLine = if (aiSummary.isNotBlank()) "🤖 *ML Kit AI:* $aiSummary\n" else ""
-            val caption = "🚨 *【動態偵測】*\n" +
-                    "📱 裝置: *$deviceName*\n" +
-                    "⚠️ 動態差異: *${"%.1f".format(motionPercentage)}%*\n" +
-                    aiLine +
-                    "⏰ 時間: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
+            val timeStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            val caption = if (context != null) {
+                "${context.getString(R.string.tg_caption_motion_title)}\n" +
+                        "${context.getString(R.string.tg_caption_device, deviceName)}\n" +
+                        "${context.getString(R.string.tg_caption_diff, motionPercentage)}\n" +
+                        aiLine +
+                        context.getString(R.string.tg_caption_time, timeStr)
+            } else {
+                "🚨 *[Motion Detected]*\n" +
+                        "📱 Device: *$deviceName*\n" +
+                        "⚠️ Motion Diff: *${"%.1f".format(motionPercentage)}%*\n" +
+                        aiLine +
+                        "⏰ Time: $timeStr"
+            }
 
             executeWithRetry {
                 if (photoBytes != null && photoBytes.isNotEmpty()) {
@@ -108,7 +120,8 @@ object TelegramNotifier {
         deviceName: String,
         motionPercentage: Float,
         videoFile: File,
-        aiSummary: String = ""
+        aiSummary: String = "",
+        context: Context? = null
     ): Boolean = withContext(Dispatchers.IO) {
         if (botToken.isBlank() || chatId.isBlank() || !videoFile.exists() || videoFile.length() == 0L) {
             return@withContext false
@@ -116,11 +129,20 @@ object TelegramNotifier {
 
         try {
             val aiLine = if (aiSummary.isNotBlank()) "🤖 *ML Kit AI:* $aiSummary\n" else ""
-            val caption = "📹 *【動態錄影告警】*\n" +
-                    "📱 裝置: *$deviceName*\n" +
-                    "⚠️ 動態差異: *${"%.1f".format(motionPercentage)}%*\n" +
-                    aiLine +
-                    "⏰ 時間: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
+            val timeStr = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            val caption = if (context != null) {
+                "${context.getString(R.string.tg_caption_video_title)}\n" +
+                        "${context.getString(R.string.tg_caption_device, deviceName)}\n" +
+                        "${context.getString(R.string.tg_caption_diff, motionPercentage)}\n" +
+                        aiLine +
+                        context.getString(R.string.tg_caption_time, timeStr)
+            } else {
+                "📹 *[Motion Video Alert]*\n" +
+                        "📱 Device: *$deviceName*\n" +
+                        "⚠️ Motion Diff: *${"%.1f".format(motionPercentage)}%*\n" +
+                        aiLine +
+                        "⏰ Time: $timeStr"
+            }
 
             val url = "https://api.telegram.org/bot$botToken/sendVideo"
             val requestBody = MultipartBody.Builder()
@@ -148,13 +170,13 @@ object TelegramNotifier {
         }
     }
 
-    suspend fun testBotConnection(botToken: String, chatId: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    suspend fun testBotConnection(botToken: String, chatId: String, context: Context? = null): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         if (botToken.isBlank() || chatId.isBlank()) {
-            return@withContext Pair(false, "請輸入 Bot Token 與 Chat ID")
+            return@withContext Pair(false, context?.getString(R.string.tg_test_prompt_empty) ?: "Please enter Bot Token and Chat ID")
         }
         try {
             val url = "https://api.telegram.org/bot$botToken/sendMessage"
-            val text = "✅ *OcularNode 測試成功！*\n連線設定正確，隨時準備接收動態監控警報通知。"
+            val text = context?.getString(R.string.tg_test_success_msg) ?: "✅ *OcularNode Test Successful!*\nConnection settings are verified, ready to receive security alerts."
             val jsonBody = """
                 {
                     "chat_id": "$chatId",
@@ -167,11 +189,15 @@ object TelegramNotifier {
             val request = Request.Builder().url(url).post(requestBody).build()
             val response = client.newCall(request).execute()
             val isSuccess = response.isSuccessful
-            val msg = if (isSuccess) "Telegram 推播測試成功！" else "Telegram API 失敗: HTTP ${response.code}"
+            val msg = if (isSuccess) {
+                context?.getString(R.string.tg_test_success_toast) ?: "Telegram alert test succeeded!"
+            } else {
+                context?.getString(R.string.tg_test_fail_toast, response.code) ?: "Telegram API failed: HTTP ${response.code}"
+            }
             response.close()
             return@withContext Pair(isSuccess, msg)
         } catch (e: Exception) {
-            return@withContext Pair(false, "網路連線失敗: ${e.localizedMessage}")
+            return@withContext Pair(false, context?.getString(R.string.tg_test_net_error_toast, e.localizedMessage ?: "") ?: "Network connection failed: ${e.localizedMessage}")
         }
     }
 
@@ -180,7 +206,8 @@ object TelegramNotifier {
         chatId: String,
         deviceName: String,
         alertTitle: String,
-        alertDetails: String
+        alertDetails: String,
+        context: Context? = null
     ): Boolean = withContext(Dispatchers.IO) {
         if (botToken.isBlank() || chatId.isBlank()) {
             return@withContext false
@@ -188,7 +215,14 @@ object TelegramNotifier {
         try {
             val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
             val timeStr = sdf.format(java.util.Date())
-            val messageText = "$alertTitle\n📱 裝置: *$deviceName*\n⚠️ 狀況: *$alertDetails*\n⏰ 時間: $timeStr"
+            val messageText = if (context != null) {
+                "$alertTitle\n" +
+                        "${context.getString(R.string.tg_caption_device, deviceName)}\n" +
+                        "${context.getString(R.string.tg_caption_status, alertDetails)}\n" +
+                        context.getString(R.string.tg_caption_time, timeStr)
+            } else {
+                "$alertTitle\n📱 Device: *$deviceName*\n⚠️ Status: *$alertDetails*\n⏰ Time: $timeStr"
+            }
 
             val url = "https://api.telegram.org/bot$botToken/sendMessage"
             val jsonObj = org.json.JSONObject().apply {

@@ -63,6 +63,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.iokkai.ocularnode.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +90,7 @@ fun TelegramSetupScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (!isGranted) {
-            Toast.makeText(context, "未開啟通知權限，背景切換時將無法接收提示通知", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.tg_setup_toast_notif_perm), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -108,7 +110,7 @@ fun TelegramSetupScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Telegram 自動綁定",
+                        text = stringResource(R.string.tg_setup_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = Color(0xFF1C1B1F)
@@ -116,7 +118,7 @@ fun TelegramSetupScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回", tint = Color(0xFF1C1B1F))
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.tg_setup_back), tint = Color(0xFF1C1B1F))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFFFDF8FF))
@@ -160,7 +162,7 @@ fun TelegramSetupScreen(
                         onCancel = { viewModel.resetToStep1() },
                         onCopyPin = {
                             clipboardManager.setText(AnnotatedString(state.pin))
-                            Toast.makeText(context, "已複製配對碼 ${state.pin}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.tg_setup_toast_pin_copied, state.pin), Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -217,13 +219,13 @@ private fun Step1InputTokenContent(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "步驟 1：取得 Bot Token",
+                        text = stringResource(R.string.tg_setup_step1_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = Color(0xFF1C1B1F)
                     )
                     Text(
-                        text = "建立您的專屬 Telegram 警報機器人",
+                        text = stringResource(R.string.tg_setup_step1_subtitle),
                         fontSize = 12.sp,
                         color = Color(0xFF49454F)
                     )
@@ -240,14 +242,14 @@ private fun Step1InputTokenContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "📖 3 步驟快速教學：",
+                        text = stringResource(R.string.tg_setup_guide_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         color = Color(0xFF6750A4)
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "1. 在 Telegram 搜尋 @BotFather \n2. 發送 /newbot 建立機器人 \n3. 複製並在下方貼上您的 HTTP API Token",
+                        text = stringResource(R.string.tg_setup_guide_content),
                         fontSize = 13.sp,
                         lineHeight = 22.sp,
                         color = Color(0xFF1C1B1F)
@@ -260,8 +262,8 @@ private fun Step1InputTokenContent(
             OutlinedTextField(
                 value = tokenInput,
                 onValueChange = onTokenChange,
-                label = { Text("HTTP API Token") },
-                placeholder = { Text("例如：123456789:ABCdefGhIJKlmNoPQRstuVWX") },
+                label = { Text(stringResource(R.string.tg_setup_token_label)) },
+                placeholder = { Text(stringResource(R.string.tg_setup_token_placeholder)) },
                 leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = Color(0xFF6750A4)) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -289,7 +291,7 @@ private fun Step1InputTokenContent(
                     .height(50.dp)
             ) {
                 Text(
-                    text = "下一步 (產生配對碼)",
+                    text = stringResource(R.string.tg_setup_btn_next),
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -325,7 +327,7 @@ private fun Step2ListeningContent(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "步驟 2：請傳送配對碼給機器人",
+                text = stringResource(R.string.tg_setup_step2_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
                 color = Color(0xFF1C1B1F)
@@ -334,7 +336,7 @@ private fun Step2ListeningContent(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "請回到 Telegram，發送此數字給您的機器人",
+                text = stringResource(R.string.tg_setup_step2_desc),
                 fontSize = 13.sp,
                 color = Color(0xFF49454F),
                 textAlign = TextAlign.Center
@@ -363,7 +365,7 @@ private fun Step2ListeningContent(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "載入機器人資訊中...",
+                            text = stringResource(R.string.tg_setup_loading_bot),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF0061A4)
@@ -456,7 +458,7 @@ private fun Step2ListeningContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ContentCopy,
-                            contentDescription = "複製驗證碼",
+                            contentDescription = stringResource(R.string.tg_setup_copy_pin),
                             tint = Color(0xFF6750A4),
                             modifier = Modifier.size(20.dp)
                         )
@@ -485,7 +487,7 @@ private fun Step2ListeningContent(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "正等待訊息... 剩餘 $remainingSeconds 秒",
+                    text = stringResource(R.string.tg_setup_waiting_msg, remainingSeconds),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color(0xFF1C1B1F)
@@ -513,7 +515,7 @@ private fun Step2ListeningContent(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "個人接收",
+                            text = stringResource(R.string.tg_setup_personal_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = Color(0xFF6750A4)
@@ -521,7 +523,7 @@ private fun Step2ListeningContent(
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "1. 在 Telegram 搜尋您的機器人 ID\n2. 點擊「開始 (Start)」\n3. 發送上述 4 位數字",
+                        text = stringResource(R.string.tg_setup_personal_guide),
                         fontSize = 13.sp,
                         color = Color(0xFF1C1B1F),
                         lineHeight = 22.sp
@@ -550,7 +552,7 @@ private fun Step2ListeningContent(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "群組接收",
+                            text = stringResource(R.string.tg_setup_group_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = Color(0xFF0061A4)
@@ -558,7 +560,7 @@ private fun Step2ListeningContent(
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "1. 將您的機器人邀請至群組\n2. 在群組內發送上述 4 位數字",
+                        text = stringResource(R.string.tg_setup_group_guide),
                         fontSize = 13.sp,
                         color = Color(0xFF1C1B1F),
                         lineHeight = 22.sp
@@ -573,7 +575,7 @@ private fun Step2ListeningContent(
                 border = BorderStroke(1.dp, Color(0xFFCAC4D0)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("取消配對", color = Color(0xFF49454F))
+                Text(stringResource(R.string.tg_setup_btn_cancel), color = Color(0xFF49454F))
             }
         }
     }
@@ -606,7 +608,7 @@ private fun TimeoutContent(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "⏳ 配對逾時",
+                text = stringResource(R.string.tg_setup_timeout_title),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFBA1A1A)
@@ -615,7 +617,7 @@ private fun TimeoutContent(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "未在 2 分鐘內收到驗證碼訊息。\n請確認已開啟 Telegram，並將 4 位數字傳送給您的機器人後再試一次。",
+                text = stringResource(R.string.tg_setup_timeout_desc),
                 fontSize = 13.sp,
                 color = Color(0xFF49454F),
                 textAlign = TextAlign.Center,
@@ -634,7 +636,7 @@ private fun TimeoutContent(
             ) {
                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("重新配對", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(stringResource(R.string.tg_setup_btn_retry), fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -644,7 +646,7 @@ private fun TimeoutContent(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("修改 Token", color = Color(0xFF49454F))
+                Text(stringResource(R.string.tg_setup_btn_modify_token), color = Color(0xFF49454F))
             }
         }
     }
@@ -674,7 +676,7 @@ private fun SuccessContent(
             ) {
                 Icon(
                     imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "綁定成功",
+                    contentDescription = stringResource(R.string.tg_setup_success_title),
                     tint = Color(0xFF2E7D32),
                     modifier = Modifier.size(48.dp)
                 )
@@ -683,7 +685,7 @@ private fun SuccessContent(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "綁定成功！",
+                text = stringResource(R.string.tg_setup_success_title),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF2E7D32)
@@ -692,7 +694,7 @@ private fun SuccessContent(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "系統已自動擷取您的 Chat ID 並儲存設定，隨時準備接收警報與系統動態通知。",
+                text = stringResource(R.string.tg_setup_success_desc),
                 fontSize = 13.sp,
                 color = Color(0xFF49454F),
                 textAlign = TextAlign.Center,
@@ -709,7 +711,7 @@ private fun SuccessContent(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "📋 綁定資訊：",
+                        text = stringResource(R.string.tg_setup_info_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = Color(0xFF2E7D32)
@@ -723,7 +725,7 @@ private fun SuccessContent(
                         color = Color(0xFF1B5E20)
                     )
                     Text(
-                        text = "• Bot Status: 已連線測試完成",
+                        text = stringResource(R.string.tg_setup_bot_status),
                         fontSize = 12.sp,
                         color = Color(0xFF388E3C)
                     )
@@ -740,7 +742,7 @@ private fun SuccessContent(
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
-                Text("完成並返回", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(stringResource(R.string.tg_setup_btn_done), fontWeight = FontWeight.Bold, fontSize = 15.sp)
             }
         }
     }
@@ -761,7 +763,7 @@ private fun ErrorContent(
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Text(
-                text = "⚠️ 輸入錯誤",
+                text = stringResource(R.string.tg_setup_error_title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 color = Color(0xFFBA1A1A)
@@ -780,7 +782,7 @@ private fun ErrorContent(
             OutlinedTextField(
                 value = tokenInput,
                 onValueChange = onTokenChange,
-                label = { Text("HTTP API Token") },
+                label = { Text(stringResource(R.string.tg_setup_token_label)) },
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFF6750A4),
@@ -797,7 +799,7 @@ private fun ErrorContent(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("重新試試", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.tg_setup_btn_retry_simple), fontWeight = FontWeight.Bold)
             }
         }
     }

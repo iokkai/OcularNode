@@ -67,9 +67,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.NotificationCategory
 import io.github.iokkai.ocularnode.ui.camera.ResolutionSelectionDialog
 import kotlinx.coroutines.launch
@@ -208,12 +210,12 @@ fun RemoteSettingsScreen(
                 title = {
                     Column {
                         Text(
-                            text = "鏡頭端遠端偏好設定",
+                            text = stringResource(R.string.remote_settings_title),
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp
                         )
                         Text(
-                            text = "正在控制: ${editingName.ifBlank { cameraName }}",
+                            text = stringResource(R.string.remote_settings_controlling, editingName.ifBlank { cameraName }),
                             fontSize = 12.sp,
                             color = brandPrimaryColor,
                             fontWeight = FontWeight.Medium
@@ -224,7 +226,7 @@ fun RemoteSettingsScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(R.string.remote_settings_btn_back),
                             tint = textPrimaryColor
                         )
                     }
@@ -250,7 +252,7 @@ fun RemoteSettingsScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("取消", color = textPrimaryColor, fontWeight = FontWeight.Medium)
+                        Text(stringResource(R.string.remote_settings_btn_cancel), color = textPrimaryColor, fontWeight = FontWeight.Medium)
                     }
 
                     Button(
@@ -319,10 +321,10 @@ fun RemoteSettingsScreen(
 
                                 isSaving = false
                                 if (success) {
-                                    Toast.makeText(context, "已成功將所有變更同步至鏡頭端", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.remote_settings_toast_success), Toast.LENGTH_SHORT).show()
                                     onNavigateBack()
                                 } else {
-                                    Toast.makeText(context, "同步失敗，請檢查網路連線", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.remote_settings_toast_fail), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         },
@@ -338,9 +340,9 @@ fun RemoteSettingsScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("儲存中...", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(stringResource(R.string.remote_settings_btn_saving), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         } else {
-                            Text("💾 儲存並套用變更", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(stringResource(R.string.remote_settings_btn_save), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 }
@@ -353,7 +355,12 @@ fun RemoteSettingsScreen(
                 .padding(paddingValues)
         ) {
             // Category Tabs
-            val tabTitles = listOf("📷 畫質/模式", "🚨 動態偵測", "💾 儲存與維護", "✈️ Telegram")
+            val tabTitles = listOf(
+                stringResource(R.string.remote_tab_quality),
+                stringResource(R.string.remote_tab_motion),
+                stringResource(R.string.remote_tab_storage),
+                stringResource(R.string.remote_tab_telegram)
+            )
             ScrollableTabRow(
                 selectedTabIndex = selectedTab,
                 edgePadding = 16.dp,
@@ -396,7 +403,7 @@ fun RemoteSettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("裝置名稱", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text(stringResource(R.string.remote_dev_name), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 OutlinedTextField(
                                     value = editingName,
@@ -413,7 +420,7 @@ fun RemoteSettingsScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                Text("安防模式", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text(stringResource(R.string.remote_sec_mode), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     val isMon = (localOpMode == "monitor") && !localIsMotion
@@ -429,7 +436,7 @@ fun RemoteSettingsScreen(
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text("👁️ 即時監看模式", fontSize = 12.sp, fontWeight = if (isMon) FontWeight.Bold else FontWeight.Normal)
+                                        Text(stringResource(R.string.remote_mode_live), fontSize = 12.sp, fontWeight = if (isMon) FontWeight.Bold else FontWeight.Normal)
                                     }
                                     Button(
                                         onClick = {
@@ -443,7 +450,7 @@ fun RemoteSettingsScreen(
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text("🚨 動態偵測防護", fontSize = 12.sp, fontWeight = if (!isMon) FontWeight.Bold else FontWeight.Normal)
+                                        Text(stringResource(R.string.remote_mode_guard), fontSize = 12.sp, fontWeight = if (!isMon) FontWeight.Bold else FontWeight.Normal)
                                     }
                                 }
 
@@ -461,7 +468,8 @@ fun RemoteSettingsScreen(
                                     ) {
                                         Icon(Icons.Default.FlipCameraAndroid, contentDescription = null, tint = brandPrimaryColor, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("切換鏡頭 (${if (localLensFacing == "back") "前" else "後"})", color = brandPrimaryColor, fontSize = 11.sp)
+                                        val facingText = if (localLensFacing == "back") stringResource(R.string.remote_lens_front) else stringResource(R.string.remote_lens_back)
+                                        Text(stringResource(R.string.remote_btn_switch_cam, facingText), color = brandPrimaryColor, fontSize = 11.sp)
                                     }
 
                                     Button(
@@ -477,7 +485,7 @@ fun RemoteSettingsScreen(
                                     ) {
                                         Icon(Icons.Default.FlashOn, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text(if (localTorchOn) "關閉補光燈" else "開啟補光燈", fontSize = 11.sp)
+                                        Text(if (localTorchOn) stringResource(R.string.remote_btn_torch_off) else stringResource(R.string.remote_btn_torch_on), fontSize = 11.sp)
                                     }
                                 }
 
@@ -490,8 +498,8 @@ fun RemoteSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column {
-                                        Text("畫面解析度", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                        Text("降低解析度可顯著節省傳輸頻寬", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_resolution), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_resolution_desc), fontSize = 11.sp, color = textSecondaryColor)
                                     }
                                     OutlinedButton(
                                         onClick = { showResPicker = true },
@@ -507,7 +515,7 @@ fun RemoteSettingsScreen(
                                 // Quality Slider
                                 Column {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("JPEG 壓縮品質", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_jpeg_quality), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                         Text("${localQuality.toInt()}%", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     }
                                     Slider(
@@ -522,10 +530,14 @@ fun RemoteSettingsScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 // Night Vision
-                                Text("夜視模式", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text(stringResource(R.string.remote_night_vision), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    val modes = listOf("off" to "關閉", "on" to "黑白夜視", "auto" to "自動切換")
+                                    val modes = listOf(
+                                        "off" to stringResource(R.string.remote_night_off),
+                                        "on" to stringResource(R.string.remote_night_on),
+                                        "auto" to stringResource(R.string.remote_night_auto)
+                                    )
                                     modes.forEach { (modeKey, label) ->
                                         val isSelected = localNightMode.equals(modeKey, ignoreCase = true)
                                         Button(
@@ -548,7 +560,7 @@ fun RemoteSettingsScreen(
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("自動夜視切換基準閥值", fontSize = 12.sp, color = textSecondaryColor)
+                                            Text(stringResource(R.string.remote_night_threshold), fontSize = 12.sp, color = textSecondaryColor)
                                             Text("${localNightLuma.toInt()} Luma", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                         Slider(
@@ -559,7 +571,7 @@ fun RemoteSettingsScreen(
                                         )
 
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("切換磁滯區間 (Hysteresis)", fontSize = 12.sp, color = textSecondaryColor)
+                                            Text(stringResource(R.string.remote_night_hysteresis), fontSize = 12.sp, color = textSecondaryColor)
                                             Text("±${localNightHysteresis.toInt()} Luma", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                         Slider(
@@ -577,10 +589,10 @@ fun RemoteSettingsScreen(
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Column(modifier = Modifier.padding(10.dp)) {
-                                                Text("防頻繁閃爍狀態區間：", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
-                                                Text("• 進入夜視：環境亮度 < $lowCut Luma", fontSize = 11.sp, color = Color(0xFF6750A4))
-                                                Text("• 離開夜視：環境亮度 > $highCut Luma", fontSize = 11.sp, color = Color(0xFF6750A4))
-                                                Text("• 介於 $lowCut ~ $highCut Luma 之間時，保持當前模式不切換", fontSize = 10.sp, color = Color(0xFF79747E))
+                                                Text(stringResource(R.string.remote_night_anti_flicker), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF49454F))
+                                                Text(stringResource(R.string.remote_night_enter, lowCut), fontSize = 11.sp, color = Color(0xFF6750A4))
+                                                Text(stringResource(R.string.remote_night_exit, highCut), fontSize = 11.sp, color = Color(0xFF6750A4))
+                                                Text(stringResource(R.string.remote_night_hold, lowCut, highCut), fontSize = 10.sp, color = Color(0xFF79747E))
                                             }
                                         }
                                     }
@@ -601,9 +613,9 @@ fun RemoteSettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("安防運作模式", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                Text(stringResource(R.string.remote_motion_mode_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("選擇鏡頭端的運作模式與防護機制", fontSize = 11.sp, color = textSecondaryColor)
+                                Text(stringResource(R.string.remote_motion_mode_desc), fontSize = 11.sp, color = textSecondaryColor)
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -621,7 +633,7 @@ fun RemoteSettingsScreen(
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text("👁️ 即時監看模式", fontSize = 12.sp, fontWeight = if (!isDetectionMode) FontWeight.Bold else FontWeight.Medium)
+                                        Text(stringResource(R.string.remote_mode_live), fontSize = 12.sp, fontWeight = if (!isDetectionMode) FontWeight.Bold else FontWeight.Medium)
                                     }
 
                                     // 🚨 動態偵測防護模式
@@ -637,7 +649,7 @@ fun RemoteSettingsScreen(
                                         ),
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text("🚨 動態偵測防護", fontSize = 12.sp, fontWeight = if (isDetectionMode) FontWeight.Bold else FontWeight.Medium)
+                                        Text(stringResource(R.string.remote_mode_guard), fontSize = 12.sp, fontWeight = if (isDetectionMode) FontWeight.Bold else FontWeight.Medium)
                                     }
                                 }
 
@@ -652,9 +664,9 @@ fun RemoteSettingsScreen(
                                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = if (isDetectionMode) 
-                                                "🚨 動態偵測防護模式：鏡頭持續分析畫面移動，一旦觸發即記錄事件、發送告警推播與備份影像。" 
+                                                stringResource(R.string.remote_motion_guard_desc)
                                             else 
-                                                "👁️ 即時監看模式：僅提供即時串流影像，不執行背景影像比對與推播，適合人在家時使用。",
+                                                stringResource(R.string.remote_motion_live_desc),
                                             fontSize = 11.sp,
                                             color = if (isDetectionMode) Color(0xFF6750A4) else Color(0xFF475569),
                                             lineHeight = 16.sp
@@ -679,16 +691,16 @@ fun RemoteSettingsScreen(
                                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
-                                        Text("⚙️ 防護細節與告警參數", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_motion_params_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
                                         Spacer(modifier = Modifier.height(12.dp))
 
                                         // ➔ 敏感度門檻 (Sensitivity)
                                         Column {
                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("動態差異觸發門檻 (Sensitivity)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                                Text(stringResource(R.string.remote_motion_sens_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
                                                 Text(String.format("%.1f%%", localSens), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                             }
-                                            Text("低於此百分比的畫面變動將被忽略 (1% = 極度敏感, 100% = 需要全畫面變動)", fontSize = 11.sp, color = textSecondaryColor)
+                                            Text(stringResource(R.string.remote_motion_sens_desc), fontSize = 11.sp, color = textSecondaryColor)
                                             Slider(
                                                 value = localSens,
                                                 onValueChange = { localSens = it },
@@ -703,10 +715,10 @@ fun RemoteSettingsScreen(
                                         // ➔ 事件冷卻時間 (Cooldown)
                                         Column {
                                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("告警冷卻時間 (Cooldown)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
-                                                Text("${localCooldown.toInt()} 秒", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                Text(stringResource(R.string.remote_motion_cooldown_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                                Text("${localCooldown.toInt()} s", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                             }
-                                            Text("觸發告警後暫停再次告警的時間間隔", fontSize = 11.sp, color = textSecondaryColor)
+                                            Text(stringResource(R.string.remote_motion_cooldown_desc), fontSize = 11.sp, color = textSecondaryColor)
                                             Slider(
                                                 value = localCooldown,
                                                 onValueChange = { localCooldown = it },
@@ -724,8 +736,8 @@ fun RemoteSettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text("異動時鏡頭端發出警報聲", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
-                                                Text("偵測異動時鏡頭手機發出警報鳴聲", fontSize = 11.sp, color = textSecondaryColor)
+                                                Text(stringResource(R.string.remote_motion_alarm_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = textPrimaryColor)
+                                                Text(stringResource(R.string.remote_motion_alarm_desc), fontSize = 11.sp, color = textSecondaryColor)
                                             }
                                             Switch(
                                                 checked = localPlayLocalAlarm,
@@ -741,9 +753,9 @@ fun RemoteSettingsScreen(
                                                 coroutineScope.launch {
                                                     val success = onSendCommand("alarm", "trigger")
                                                     if (success) {
-                                                        Toast.makeText(context, "🚨 已發送測試警報指令至鏡頭端", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, context.getString(R.string.remote_motion_toast_alarm_sent), Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        Toast.makeText(context, "設定失敗", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, context.getString(R.string.remote_motion_toast_alarm_fail), Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             },
@@ -754,7 +766,7 @@ fun RemoteSettingsScreen(
                                         ) {
                                             Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("🚨 測試鏡頭端發聲響", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            Text(stringResource(R.string.remote_motion_btn_test_alarm), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                     }
                                 }
@@ -775,8 +787,8 @@ fun RemoteSettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text("📅 監控排程設定", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
-                                                Text("開啟後僅在排程時段內自動開啟動態偵測防護", fontSize = 11.sp, color = textSecondaryColor)
+                                                Text(stringResource(R.string.remote_motion_sched_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                                Text(stringResource(R.string.remote_motion_sched_desc), fontSize = 11.sp, color = textSecondaryColor)
                                             }
                                             Switch(
                                                 checked = localMotionSchedEnable,
@@ -800,7 +812,7 @@ fun RemoteSettingsScreen(
                                                         shape = RoundedCornerShape(10.dp),
                                                         modifier = Modifier.weight(1f)
                                                     ) {
-                                                        Text("開始時間: $localMotionSchedStart", fontSize = 12.sp)
+                                                        Text(stringResource(R.string.remote_motion_sched_start, localMotionSchedStart), fontSize = 12.sp)
                                                     }
 
                                                     OutlinedButton(
@@ -815,7 +827,7 @@ fun RemoteSettingsScreen(
                                                         shape = RoundedCornerShape(10.dp),
                                                         modifier = Modifier.weight(1f)
                                                     ) {
-                                                        Text("結束時間: $localMotionSchedEnd", fontSize = 12.sp)
+                                                        Text(stringResource(R.string.remote_motion_sched_end, localMotionSchedEnd), fontSize = 12.sp)
                                                     }
                                                 }
                                             }
@@ -842,7 +854,7 @@ fun RemoteSettingsScreen(
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = "推播過濾與智慧分類設定",
+                                                text = stringResource(R.string.remote_ai_filter_title),
                                                 color = textPrimaryColor,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 15.sp
@@ -850,7 +862,7 @@ fun RemoteSettingsScreen(
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "設定 AI 物件辨識與各類別 (人類、寵物、車輛等) 之推播與錄影過濾規則：",
+                                            text = stringResource(R.string.remote_ai_filter_desc),
                                             fontSize = 11.sp,
                                             color = textSecondaryColor
                                         )
@@ -864,13 +876,13 @@ fun RemoteSettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    text = "Google ML Kit AI 智慧物件過濾",
+                                                    text = stringResource(R.string.remote_ai_mlkit_title),
                                                     fontWeight = FontWeight.Bold,
                                                     fontSize = 13.sp,
                                                     color = textPrimaryColor
                                                 )
                                                 Text(
-                                                    text = "自動辨識人體、寵物與車輛並智慧分類，大幅減少風吹草動無效誤報",
+                                                    text = stringResource(R.string.remote_ai_mlkit_desc),
                                                     fontSize = 11.sp,
                                                     color = textSecondaryColor
                                                 )
@@ -897,10 +909,10 @@ fun RemoteSettingsScreen(
                                         ) {
                                             Spacer(modifier = Modifier.weight(1.2f))
                                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                Text("允許推播", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                                Text(stringResource(R.string.remote_ai_allow_push), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                                             }
                                             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                                Text("觸發錄影", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                                Text(stringResource(R.string.remote_ai_trigger_rec), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                         NotificationCategory.values().forEach { category ->
@@ -922,7 +934,7 @@ fun RemoteSettingsScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
-                                                    text = "$iconStr ${category.displayName}",
+                                                    text = "$iconStr ${stringResource(category.titleRes)}",
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Medium,
                                                     color = textPrimaryColor,
@@ -963,16 +975,20 @@ fun RemoteSettingsScreen(
                                         Spacer(modifier = Modifier.height(12.dp))
 
                                         // ➔ 告警媒體類型 (照片 / 影片 / 照片+影片)
-                                        Text("📡 Telegram 告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_tg_media_type_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text("選擇動態偵測觸發時傳送的媒體形式：", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_tg_media_type_desc), fontSize = 11.sp, color = textSecondaryColor)
                                         Spacer(modifier = Modifier.height(10.dp))
 
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 兩者皆傳")
+                                            val types = listOf(
+                                                "photo" to stringResource(R.string.settings_telegram_media_photo),
+                                                "video" to stringResource(R.string.settings_telegram_media_video),
+                                                "both" to stringResource(R.string.settings_telegram_media_both)
+                                            )
                                             types.forEach { (typeKey, label) ->
                                                 val isSelected = localTelegramMediaType == typeKey
                                                 OutlinedButton(
@@ -1010,10 +1026,10 @@ fun RemoteSettingsScreen(
                                     modifier = Modifier.padding(20.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("👁️ 當前處於「即時監看模式」", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF334155))
+                                    Text(stringResource(R.string.remote_live_mode_banner_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF334155))
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        "背景動態比對與推播告警已暫停。點擊上方「🚨 動態偵測防護」即可開啟安防監控並設定觸發門檻、冷卻時間與 AI 物件過濾參數。",
+                                        stringResource(R.string.remote_live_mode_banner_desc),
                                         fontSize = 12.sp,
                                         color = Color(0xFF64748B),
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -1039,8 +1055,8 @@ fun RemoteSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("空間自動循環清理 (Loop Storage)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                        Text("空間或筆數超標時自動刪除最舊紀錄", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_storage_loop_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_storage_loop_desc), fontSize = 11.sp, color = textSecondaryColor)
                                     }
                                     Switch(
                                         checked = localAutoCleanup,
@@ -1054,7 +1070,7 @@ fun RemoteSettingsScreen(
                                 // Storage Limit GB
                                 Column {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("儲存空間上限", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_storage_max_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                         Text(String.format("%.1f GB", localStorageGB), color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     }
                                     Slider(
@@ -1070,8 +1086,8 @@ fun RemoteSettingsScreen(
                                 // Max Events Limit
                                 Column {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("事件數量上限:", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                        Text("${localMaxEvents.toInt()} 筆", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        Text(stringResource(R.string.remote_storage_events_limit), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text("${localMaxEvents.toInt()}", color = brandPrimaryColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                     }
                                     Slider(
                                         value = localMaxEvents,
@@ -1091,8 +1107,8 @@ fun RemoteSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("開機/復電自動啟動監控服務", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                        Text("手機重新開機後背景自動啟動「相機節點」", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_kiosk_autostart_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_kiosk_autostart_desc), fontSize = 11.sp, color = textSecondaryColor)
                                     }
                                     Switch(
                                         checked = localAutoStartOnBoot,
@@ -1110,8 +1126,8 @@ fun RemoteSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("啟用系統日誌紀錄 (Log)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                        Text("開啟後會將運作狀態紀錄至記憶體供排解問題", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_syslog_switch_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_syslog_switch_desc), fontSize = 11.sp, color = textSecondaryColor)
                                     }
                                     Switch(
                                         checked = localSystemLogEnabled,
@@ -1132,14 +1148,14 @@ fun RemoteSettingsScreen(
                                                 isLoadingLogs = false
                                             }
                                         } else {
-                                            Toast.makeText(context, "暫不支援遠端提取日誌", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.remote_syslog_toast_unsupported), Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = RoundedCornerShape(24.dp),
                                     border = BorderStroke(1.dp, brandPrimaryColor)
                                 ) {
-                                    Text("📝 查看系統日誌 (Log)", color = brandPrimaryColor, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.remote_syslog_btn_view), color = brandPrimaryColor, fontWeight = FontWeight.Bold)
                                 }
 
                                 Spacer(modifier = Modifier.height(16.dp))
@@ -1151,8 +1167,8 @@ fun RemoteSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("斷電與低電量 Telegram 警報", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
-                                        Text("拔除電源線或低電量時發送推播通知", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_powercut_title), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_powercut_desc), fontSize = 11.sp, color = textSecondaryColor)
                                     }
                                     Switch(
                                         checked = localPowerCutAlert,
@@ -1180,7 +1196,7 @@ fun RemoteSettingsScreen(
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = "鏡頭端韌體靜默更新 (OTA)",
+                                                text = stringResource(R.string.remote_ota_title),
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp,
                                                 color = textPrimaryColor
@@ -1188,7 +1204,7 @@ fun RemoteSettingsScreen(
                                         }
                                         Spacer(modifier = Modifier.height(6.dp))
                                         Text(
-                                            text = "向 GitHub Releases 查詢最新版 APK。若有新版本，鏡頭端將自動在背景靜默下載安裝並重啟監控服務。",
+                                            text = stringResource(R.string.remote_ota_desc),
                                             fontSize = 11.sp,
                                             color = textSecondaryColor,
                                             lineHeight = 16.sp
@@ -1203,9 +1219,9 @@ fun RemoteSettingsScreen(
                                                     val success = onSendCommand("update", "")
                                                     isTriggeringUpdate = false
                                                     if (success) {
-                                                        Toast.makeText(context, "🚀 已向鏡頭端發送更新指令！若有新版本將自動進行升級並重啟", Toast.LENGTH_LONG).show()
+                                                        Toast.makeText(context, context.getString(R.string.remote_ota_toast_sent), Toast.LENGTH_LONG).show()
                                                     } else {
-                                                        Toast.makeText(context, "發送更新指令失敗，請檢查網路連線", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, context.getString(R.string.remote_ota_toast_fail), Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             },
@@ -1221,11 +1237,11 @@ fun RemoteSettingsScreen(
                                                     strokeWidth = 2.dp
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text("發送指令中...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                Text(stringResource(R.string.remote_ota_sending), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             } else {
                                                 Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text("🚀 立即檢查並更新鏡頭端 (OTA)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                                Text(stringResource(R.string.remote_ota_btn_check), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -1254,7 +1270,7 @@ fun RemoteSettingsScreen(
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
                                         Text(
-                                            text = if (hasRemoteTelegram) "✅ 鏡頭端已綁定 Telegram Bot" else "⚠️ 鏡頭端尚未設定 Telegram 告警",
+                                            text = if (hasRemoteTelegram) stringResource(R.string.remote_tg_status_bound) else stringResource(R.string.remote_tg_status_unbound),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
                                             color = if (hasRemoteTelegram) Color(0xFF2E7D32) else Color(0xFFB3261E)
@@ -1268,15 +1284,15 @@ fun RemoteSettingsScreen(
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                Text("一鍵同步設定", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text(stringResource(R.string.remote_tg_sync_header), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("將目前觀看端的 Telegram Bot Token 與 Chat ID 推送給這台鏡頭裝置：", fontSize = 12.sp, color = textSecondaryColor)
+                                Text(stringResource(R.string.remote_tg_sync_desc), fontSize = 12.sp, color = textSecondaryColor)
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Button(
                                     onClick = {
                                         onSyncTelegram()
-                                        Toast.makeText(context, "已將觀看端 Telegram 設定推送至該鏡頭", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.remote_tg_toast_synced), Toast.LENGTH_SHORT).show()
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
                                     shape = RoundedCornerShape(12.dp),
@@ -1284,21 +1300,25 @@ fun RemoteSettingsScreen(
                                 ) {
                                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text("⚡ 同步觀看端 Telegram 設定至本鏡頭", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text(stringResource(R.string.remote_tg_btn_sync), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                 }
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                Text("告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                Text(stringResource(R.string.remote_tg_media_type), fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("選擇遠端鏡頭觸發告警時傳送至 Telegram 的媒體種類：", fontSize = 12.sp, color = textSecondaryColor)
+                                Text(stringResource(R.string.remote_tg_media_select_desc), fontSize = 12.sp, color = textSecondaryColor)
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 照片+影片")
+                                    val types = listOf(
+                                        "photo" to stringResource(R.string.settings_telegram_media_photo),
+                                        "video" to stringResource(R.string.settings_telegram_media_video),
+                                        "both" to stringResource(R.string.settings_telegram_media_both)
+                                    )
                                     types.forEach { (typeKey, label) ->
                                         val isSelected = localTelegramMediaType == typeKey
                                         OutlinedButton(
@@ -1338,8 +1358,8 @@ fun RemoteSettingsScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("⏰ 通知排程設定", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
-                                        Text("開啟後僅在排程時段內自動發送告警與推播通知", fontSize = 11.sp, color = textSecondaryColor)
+                                        Text(stringResource(R.string.remote_notif_sched_title), fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textPrimaryColor)
+                                        Text(stringResource(R.string.remote_notif_sched_desc), fontSize = 11.sp, color = textSecondaryColor)
                                     }
                                     Switch(
                                         checked = localNotifSchedEnable,
@@ -1363,7 +1383,7 @@ fun RemoteSettingsScreen(
                                                 shape = RoundedCornerShape(10.dp),
                                                 modifier = Modifier.weight(1f)
                                             ) {
-                                                Text("開始時間: $localNotifSchedStart", fontSize = 12.sp)
+                                                Text(stringResource(R.string.remote_motion_sched_start, localNotifSchedStart), fontSize = 12.sp)
                                             }
 
                                             OutlinedButton(
@@ -1378,7 +1398,7 @@ fun RemoteSettingsScreen(
                                                 shape = RoundedCornerShape(10.dp),
                                                 modifier = Modifier.weight(1f)
                                             ) {
-                                                Text("結束時間: $localNotifSchedEnd", fontSize = 12.sp)
+                                                Text(stringResource(R.string.remote_motion_sched_end, localNotifSchedEnd), fontSize = 12.sp)
                                             }
                                         }
                                     }

@@ -181,14 +181,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             _isSyncing.value = true
             val timeFormat = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
             val startTime = timeFormat.format(java.util.Date())
-            _syncStatus.value = "⏳ [$startTime] 正在同步至鏡頭..."
+            _syncStatus.value = "⏳ [$startTime] Syncing to cameras..."
 
             try {
                 val token = _botToken.value
                 val id = _chatId.value
                 val cameras = AppDatabase.getDatabase(getApplication()).cameraDeviceDao().getCamerasListOnce()
                 if (cameras.isEmpty()) {
-                    _syncStatus.value = "⚠️ [$startTime] 尚未連結任何鏡頭裝置"
+                    _syncStatus.value = "⚠️ [$startTime] No camera devices linked"
                     return@launch
                 }
 
@@ -227,14 +227,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
                 val finishTime = timeFormat.format(java.util.Date())
                 if (syncedCount > 0) {
-                    _syncStatus.value = "⚡ [$finishTime] 已成功同步至 $syncedCount 個連線鏡頭"
+                    _syncStatus.value = "⚡ [$finishTime] Successfully synced to $syncedCount connected cameras"
                 } else {
                     val failedList = errors.joinToString(", ")
-                    _syncStatus.value = "❌ [$finishTime] 無法連線至鏡頭: $failedList\n請確認鏡頭端已開啟監控服務且位在相同網路 (或 Tailscale)"
+                    _syncStatus.value = "❌ [$finishTime] Cannot connect to camera: $failedList\nPlease ensure camera service is running on the same network"
                 }
             } catch (e: Exception) {
                 Log.e("SettingsViewModel", "Error syncing to cameras", e)
-                _syncStatus.value = "❌ 同步異常: ${e.message}"
+                _syncStatus.value = "❌ Sync error: ${e.message}"
             } finally {
                 _isSyncing.value = false
             }
@@ -330,7 +330,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val beforeCount = eventDao.getEventCount()
                 if (beforeCount == 0) {
                     cleanOrphanMediaFiles(context, emptyList())
-                    _cleanupStatus.value = "目前無歷史紀錄，已清理媒體資料夾"
+                    _cleanupStatus.value = "No history records found, cleaned media folder"
                     return@launch
                 }
                 // Purge 80% oldest records
@@ -351,10 +351,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 cleanOrphanMediaFiles(context, remainingEvents)
 
                 val afterCount = eventDao.getEventCount()
-                _cleanupStatus.value = "🧹 已成功清理最舊的 $purgeCount 筆歷史快照與媒體檔 (剩餘 $afterCount 筆)"
+                _cleanupStatus.value = "🧹 Successfully cleaned oldest $purgeCount snapshots and media files ($afterCount remaining)"
             } catch (e: Exception) {
                 Log.e("SettingsViewModel", "Error during performManualCleanup", e)
-                _cleanupStatus.value = "清理失敗: ${e.message}"
+                _cleanupStatus.value = "Cleanup failed: ${e.message}"
             }
         }
     }
@@ -395,9 +395,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun testTelegram() {
         _isTesting.value = true
-        _testStatus.value = "發送測試推播中..."
+        _testStatus.value = "Sending test alert..."
         viewModelScope.launch {
-            val (success, msg) = TelegramNotifier.testBotConnection(_botToken.value, _chatId.value)
+            val (success, msg) = TelegramNotifier.testBotConnection(_botToken.value, _chatId.value, getApplication())
             _testStatus.value = msg
             _isTesting.value = false
         }

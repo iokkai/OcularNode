@@ -275,8 +275,9 @@ class CameraStreamService : Service(), LifecycleOwner {
                                 botToken = settingsManager.telegramBotToken,
                                 chatId = settingsManager.telegramChatId,
                                 deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = "🔥 *【高溫降載機制啟動】*",
-                                alertDetails = "裝置電池溫度達到 ${String.format(java.util.Locale.US, "%.1f", tempCelsius)}°C (≥ ${highTempThreshold}°C)！\n為防範手機過熱當機與電池膨脹，系統已自動暫停高耗能【ML Kit AI 分析】與【短片錄影】。\n基礎 Web 串流與 Telegram 文字推播警報仍持續正常運作中。"
+                                alertTitle = getString(R.string.tg_alert_thermal_start_title),
+                                alertDetails = getString(R.string.tg_alert_thermal_start_desc, tempCelsius, highTempThreshold),
+                                context = this@CameraStreamService
                             )
                         }
                     } else if (tempCelsius <= recoveryTempThreshold && _isThermalThrottled.value) {
@@ -289,8 +290,9 @@ class CameraStreamService : Service(), LifecycleOwner {
                                 botToken = settingsManager.telegramBotToken,
                                 chatId = settingsManager.telegramChatId,
                                 deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = "🧊 *【高溫降載機制解除】*",
-                                alertDetails = "裝置電池溫度已回落至 ${String.format(java.util.Locale.US, "%.1f", tempCelsius)}°C (≤ ${recoveryTempThreshold}°C)。\nML Kit AI 分析與短片錄影功能已自動恢復正常運作！"
+                                alertTitle = getString(R.string.tg_alert_thermal_end_title),
+                                alertDetails = getString(R.string.tg_alert_thermal_end_desc, tempCelsius, recoveryTempThreshold),
+                                context = this@CameraStreamService
                             )
                         }
                     }
@@ -308,8 +310,9 @@ class CameraStreamService : Service(), LifecycleOwner {
                                 botToken = settingsManager.telegramBotToken,
                                 chatId = settingsManager.telegramChatId,
                                 deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = "🚨 *【外部電源異常斷電警報】*",
-                                alertDetails = "偵測到由「充電中」轉為「放電中」！家中可能發生停電或變壓器鬆脫。當前剩餘電量: ${batteryPct}%"
+                                alertTitle = getString(R.string.tg_alert_power_cut_title),
+                                alertDetails = getString(R.string.tg_alert_power_cut_desc, batteryPct),
+                                context = this@CameraStreamService
                             )
                         }
                     }
@@ -326,8 +329,9 @@ class CameraStreamService : Service(), LifecycleOwner {
                                 botToken = settingsManager.telegramBotToken,
                                 chatId = settingsManager.telegramChatId,
                                 deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = "🔌 *【外部電源已恢復連接】*",
-                                alertDetails = "設備已重新恢復外接電源供電，正在進行充電。當前電量: ${batteryPct}%"
+                                alertTitle = getString(R.string.tg_alert_power_restore_title),
+                                alertDetails = getString(R.string.tg_alert_power_restore_desc, batteryPct),
+                                context = this@CameraStreamService
                             )
                         }
                     }
@@ -342,8 +346,9 @@ class CameraStreamService : Service(), LifecycleOwner {
                             botToken = settingsManager.telegramBotToken,
                             chatId = settingsManager.telegramChatId,
                             deviceName = settingsManager.cameraDeviceName,
-                            alertTitle = "🪫 *【低電量預警通知】*",
-                            alertDetails = "設備電量已降至 ${batteryPct}% (低於 ${settingsManager.lowBatteryAlertThreshold}%)！若持續未供電，設備可能即將關機。"
+                            alertTitle = getString(R.string.tg_alert_low_battery_title),
+                            alertDetails = getString(R.string.tg_alert_low_battery_desc, batteryPct, settingsManager.lowBatteryAlertThreshold),
+                            context = this@CameraStreamService
                         )
                     }
                 }
@@ -875,7 +880,7 @@ class CameraStreamService : Service(), LifecycleOwner {
             var shouldTriggerRecording = true
 
             if (_isThermalThrottled.value) {
-                aiSummary = "🔥 [高溫降載中] AI 分析已自動暫停"
+                aiSummary = "🔥 [Thermal Throttling] AI analysis paused"
                 Log.w("CameraStreamService", "Thermal Throttling Active: Paused ML Kit AI analysis to prevent device overheating.")
             } else if (settingsManager.mlKitFilterEnabled && frameBitmap != null) {
                 val mlResult = io.github.iokkai.ocularnode.util.MlKitFilterHelper.analyzeFrame(this@CameraStreamService, frameBitmap, enabledCategories, enabledRecordingCategories)
@@ -957,7 +962,8 @@ class CameraStreamService : Service(), LifecycleOwner {
                         deviceName = settingsManager.cameraDeviceName,
                         motionPercentage = percentage,
                         videoFile = videoFile,
-                        aiSummary = aiSummary
+                        aiSummary = aiSummary,
+                        context = this@CameraStreamService
                     )
                     if (sent) {
                         Log.i("CameraStreamService", "Telegram video alert sent successfully for event $eventId")
@@ -1049,7 +1055,8 @@ class CameraStreamService : Service(), LifecycleOwner {
                     deviceName = settingsManager.cameraDeviceName,
                     motionPercentage = percentage,
                     photoBytes = thumbnailBytes,
-                    aiSummary = aiSummary
+                    aiSummary = aiSummary,
+                    context = this@CameraStreamService
                 )
                 if (sent) {
                     database.motionEventDao().insertEvent(event.copy(id = eventId, telegramSentSuccess = true))
@@ -1086,7 +1093,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         }
 
         val channelId = "OcularNode_stream_channel"
-        val channelName = "OcularNode 串流服務"
+        val channelName = getString(R.string.camera_stream_service_title)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
@@ -1102,8 +1109,8 @@ class CameraStreamService : Service(), LifecycleOwner {
         )
 
         val notification: Notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("OcularNode 監控服務中")
-            .setContentText("MJPEG 伺服器與動態偵測運作中 (內網 Tailscale 連線)")
+            .setContentTitle(getString(R.string.camera_stream_service_title))
+            .setContentText(getString(R.string.camera_stream_service_desc))
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentIntent(pendingIntent)
             .setOngoing(true)

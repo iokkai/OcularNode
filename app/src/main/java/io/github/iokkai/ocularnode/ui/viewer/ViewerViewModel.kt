@@ -83,7 +83,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     fun addCamera(name: String, ipAddress: String, port: Int = 8080) {
         viewModelScope.launch(Dispatchers.IO) {
             val camera = CameraDevice(
-                name = name.ifBlank { "鏡頭裝置" },
+                name = name.ifBlank { "Camera Node" },
                 ipAddress = ipAddress.trim(),
                 port = port
             )
@@ -198,10 +198,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                     streamClient.sendControlCommand(camera, "fps", "15")
 
                     val reason = when {
-                        isSevereLowFps -> "FPS極低 ($currentFps FPS)"
-                        isSeverePing -> "高Ping (${pingMs}ms)"
-                        isSevereFrameLag -> "卡頓 (${timeSinceLastFrame}ms)"
-                        else -> "網路與FPS嚴重流失"
+                        isSevereLowFps -> "FPS critically low ($currentFps FPS)"
+                        isSeverePing -> "High Ping (${pingMs}ms)"
+                        isSevereFrameLag -> "Stuttering (${timeSinceLastFrame}ms)"
+                        else -> "Network & FPS loss"
                     }
                     _adaptiveState.value = AdaptiveModeState(
                         isEnabled = true,
@@ -209,7 +209,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                         currentResolution = "360p",
                         currentQuality = 20,
                         targetFps = 15,
-                        labelText = "⚡ Adaptive: 360p ($reason / 品質20%)",
+                        labelText = "⚡ Adaptive: 360p ($reason / Quality 20%)",
                         reasonText = reason,
                         pingMs = pingMs,
                         fps = currentFps
@@ -223,10 +223,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                     streamClient.sendControlCommand(camera, "fps", "20")
 
                     val reason = when {
-                        isModerateLowFps -> "FPS偏低 ($currentFps FPS)"
-                        isHighPing -> "Ping偏高 (${pingMs}ms)"
-                        isFrameLag -> "影格延遲"
-                        else -> "網路與FPS波動"
+                        isModerateLowFps -> "FPS low ($currentFps FPS)"
+                        isHighPing -> "High Ping (${pingMs}ms)"
+                        isFrameLag -> "Frame lag"
+                        else -> "Network & FPS instability"
                     }
                     _adaptiveState.value = AdaptiveModeState(
                         isEnabled = true,
@@ -234,7 +234,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                         currentResolution = "480p",
                         currentQuality = 30,
                         targetFps = 20,
-                        labelText = "⚡ Adaptive: 480p ($reason / 品質30%)",
+                        labelText = "⚡ Adaptive: 480p ($reason / Quality 30%)",
                         reasonText = reason,
                         pingMs = pingMs,
                         fps = currentFps
@@ -255,7 +255,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                         currentQuality = 60,
                         targetFps = 30,
                         labelText = "⚡ Adaptive: Auto (${serverRes} / $currentFps FPS)",
-                        reasonText = "FPS與網路恢復平順",
+                        reasonText = "Smooth connection restored",
                         pingMs = pingMs,
                         fps = currentFps
                     )

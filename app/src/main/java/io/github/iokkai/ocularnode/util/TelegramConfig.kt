@@ -122,7 +122,7 @@ object TelegramConfig {
 
             if (code == 401) {
                 return@withContext CheckUpdatesResponse(
-                    TelegramCheckResult.Error("Bot Token 無效 (HTTP 401 Unauthorized)，請檢查 Token 是否複製正確"),
+                    TelegramCheckResult.Error("Bot Token is invalid (HTTP 401 Unauthorized), please check if the token was copied correctly."),
                     lastUpdateId
                 )
             }

@@ -74,10 +74,10 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Telegram 自動綁定通知",
+                "Telegram Pairing Notification",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "在背景執行 Telegram 配對時發送進度與結果通知"
+                description = "Sends progress and result notifications during background Telegram pairing"
             }
             val manager = getApplication<Application>().getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.createNotificationChannel(channel)
@@ -155,7 +155,7 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
     fun startPairing(tokenInput: String) {
         val token = tokenInput.trim()
         if (token.isBlank()) {
-            _uiState.value = TelegramSetupUiState.Error("請輸入有效的 Telegram Bot Token")
+            _uiState.value = TelegramSetupUiState.Error("Please enter a valid Telegram Bot Token")
             return
         }
 
@@ -177,7 +177,7 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
 
             val botInfo = TelegramConfig.getBotInfo(token)
             if (botInfo == null) {
-                _uiState.value = TelegramSetupUiState.Error("無法取得機器人資訊，請確認 Token 是否正確")
+                _uiState.value = TelegramSetupUiState.Error("Unable to get bot info, please check if Token is correct")
                 return@launch
             }
 
@@ -247,13 +247,13 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
 
                 // 更新本地通知為成功
                 showNotification(
-                    title = "✅ 綁定成功！",
-                    content = "已成功擷取 Chat ID ($chatIdStr)，點擊返回 App 完成設定。",
+                    title = "✅ Pairing Successful!",
+                    content = "Successfully captured Chat ID ($chatIdStr). Tap to return to App.",
                     isOngoing = false
                 )
 
                 // 發送測試歡迎訊息給 Telegram 機器人
-                TelegramNotifier.testBotConnection(token, chatIdStr)
+                TelegramNotifier.testBotConnection(token, chatIdStr, getApplication())
             } else if (fatalErrorMsg != null) {
                 cancelNotification()
                 _uiState.value = TelegramSetupUiState.Error(fatalErrorMsg!!)
@@ -264,8 +264,8 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
 
                     // 更新本地通知為逾時
                     showNotification(
-                        title = "⏳ 配對逾時",
-                        content = "未在 2 分鐘內收到配對碼，點擊返回 App 重新嘗試。",
+                        title = "⏳ Pairing Timed Out",
+                        content = "PIN code not received within 2 minutes. Tap to retry.",
                         isOngoing = false
                     )
                 }

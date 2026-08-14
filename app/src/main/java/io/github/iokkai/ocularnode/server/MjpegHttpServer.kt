@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.delay
 
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.NotificationCategory
 import io.github.iokkai.ocularnode.data.SettingsDataStore
 import kotlinx.coroutines.flow.first
@@ -966,12 +967,115 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
     }
 
     private fun getWebDashboardHtml(): String {
+        val sPageTitle = context.getString(R.string.web_page_title)
+        val sLoading = context.getString(R.string.web_loading)
+        val sConnected = context.getString(R.string.web_connected)
+        val sSettingsBtn = context.getString(R.string.web_settings_btn)
+        val sVideoAlt = context.getString(R.string.web_video_alt)
+        val sBtnRefresh = context.getString(R.string.web_btn_refresh)
+        val sOverviewTitle = context.getString(R.string.web_overview_title)
+        val sStatViewers = context.getString(R.string.web_stat_viewers)
+        val sStatViewersSuffix = context.getString(R.string.web_stat_viewers_suffix)
+        val sStatBattery = context.getString(R.string.web_stat_battery)
+        val sStatFps = context.getString(R.string.web_stat_fps)
+        val sStatNightVision = context.getString(R.string.web_stat_night_vision)
+        val sModeTitle = context.getString(R.string.web_mode_title)
+        val sModeMonitor = context.getString(R.string.web_mode_monitor)
+        val sModeDetection = context.getString(R.string.web_mode_detection)
+        val sControlsTitle = context.getString(R.string.web_controls_title)
+        val sCtrlSwitchLens = context.getString(R.string.web_ctrl_switch_lens)
+        val sCtrlTorch = context.getString(R.string.web_ctrl_torch)
+        val sCtrlSnapshot = context.getString(R.string.web_ctrl_snapshot)
+        val sCtrlSiren = context.getString(R.string.web_ctrl_siren)
+        val sAudioTitle = context.getString(R.string.web_audio_title)
+        val sAudioListen = context.getString(R.string.web_audio_listen)
+        val sAudioMute = context.getString(R.string.web_audio_mute)
+        val sNightTitle = context.getString(R.string.web_night_title)
+        val sNightOff = context.getString(R.string.web_night_off)
+        val sNightOn = context.getString(R.string.web_night_on)
+        val sNightAuto = context.getString(R.string.web_night_auto)
+        val sStorageTitle = context.getString(R.string.web_storage_title)
+        val sStorageAvailable = context.getString(R.string.web_storage_available)
+
+        val sModalTitle = context.getString(R.string.web_modal_title)
+        val sCfgDeviceName = context.getString(R.string.web_cfg_device_name)
+        val sCfgDeviceNamePh = context.getString(R.string.web_cfg_device_name_ph)
+        val sCfgCameraQuality = context.getString(R.string.web_cfg_camera_quality)
+        val sCfgResolution = context.getString(R.string.web_cfg_resolution)
+        val sCfgJpegQuality = context.getString(R.string.web_cfg_jpeg_quality)
+        val sCfgQualityHigh = context.getString(R.string.web_cfg_quality_high)
+        val sCfgQualityBalanced = context.getString(R.string.web_cfg_quality_balanced)
+        val sCfgQualitySmooth = context.getString(R.string.web_cfg_quality_smooth)
+        val sCfgQualityLow = context.getString(R.string.web_cfg_quality_low)
+        val sCfgQualityVeryLow = context.getString(R.string.web_cfg_quality_very_low)
+        val sCfgQualityMinimal = context.getString(R.string.web_cfg_quality_minimal)
+
+        val sCfgMotionAi = context.getString(R.string.web_cfg_motion_ai)
+        val sCfgSensitivity = context.getString(R.string.web_cfg_sensitivity)
+        val sCfgCooldown = context.getString(R.string.web_cfg_cooldown)
+        val sCfgMotionSched = context.getString(R.string.web_cfg_motion_sched)
+        val sCfgStartTime = context.getString(R.string.web_cfg_start_time)
+        val sCfgEndTime = context.getString(R.string.web_cfg_end_time)
+        val sCfgNotifCategories = context.getString(R.string.web_cfg_notif_categories)
+        val sCfgCatHuman = context.getString(R.string.web_cfg_cat_human)
+        val sCfgCatPet = context.getString(R.string.web_cfg_cat_pet)
+        val sCfgCatVehicle = context.getString(R.string.web_cfg_cat_vehicle)
+        val sCfgCatHousehold = context.getString(R.string.web_cfg_cat_household)
+        val sCfgCatEnvironment = context.getString(R.string.web_cfg_cat_environment)
+        val sCfgCatOther = context.getString(R.string.web_cfg_cat_other)
+
+        val sCfgRecordingStorage = context.getString(R.string.web_cfg_recording_storage)
+        val sCfgEventRecording = context.getString(R.string.web_cfg_event_recording)
+        val sCfgMaxStorage = context.getString(R.string.web_cfg_max_storage)
+        val sCfgAutoRecCategories = context.getString(R.string.web_cfg_auto_rec_categories)
+        val sCfgProtectionTg = context.getString(R.string.web_cfg_protection_tg)
+        val sCfgPowerCut = context.getString(R.string.web_cfg_power_cut)
+        val sCfgSysLog = context.getString(R.string.web_cfg_sys_log)
+        val sCfgNotifSched = context.getString(R.string.web_cfg_notif_sched)
+        val sCfgNotifStartTime = context.getString(R.string.web_cfg_notif_start_time)
+        val sCfgNotifEndTime = context.getString(R.string.web_cfg_notif_end_time)
+        val sCfgCancel = context.getString(R.string.web_cfg_cancel)
+        val sCfgSaveApply = context.getString(R.string.web_cfg_save_apply)
+
+        val sPerfTitle = context.getString(R.string.web_perf_title)
+        val sPerfActive = context.getString(R.string.web_perf_active)
+        val sPerfToggle = context.getString(R.string.web_perf_toggle)
+        val sPerfCpu = context.getString(R.string.web_perf_cpu)
+        val sPerfMem = context.getString(R.string.web_perf_mem)
+        val sPerfPing = context.getString(R.string.web_perf_ping)
+        val sPerfRamLegend = context.getString(R.string.web_perf_ram_legend)
+
+        val sEventsTitle = context.getString(R.string.web_events_title)
+        val sEventsRefresh = context.getString(R.string.web_events_refresh)
+        val sEventsClearAll = context.getString(R.string.web_events_clear_all)
+        val sEventsLoading = context.getString(R.string.web_events_loading)
+        val sEventsEmpty = context.getString(R.string.web_events_empty)
+        val sEventsMotionPrefix = context.getString(R.string.web_events_motion_prefix)
+        val sEventsPhoto = context.getString(R.string.web_events_photo)
+        val sEventsVideo = context.getString(R.string.web_events_video)
+
+        val sJsConfigLoadFail = context.getString(R.string.web_js_config_load_fail)
+        val sJsConfigSaved = context.getString(R.string.web_js_config_saved)
+        val sJsConfigSaveFail = context.getString(R.string.web_js_config_save_fail)
+        val sJsConfigSendFail = context.getString(R.string.web_js_config_send_fail)
+        val sJsSnapshotMode = context.getString(R.string.web_js_snapshot_mode)
+        val sJsHotBattery = context.getString(R.string.web_js_hot_battery)
+        val sJsNightActive = context.getString(R.string.web_js_night_active)
+        val sJsNightNormal = context.getString(R.string.web_js_night_normal)
+        val sJsDelConfirm = context.getString(R.string.web_js_del_confirm)
+        val sJsDelFail = context.getString(R.string.web_js_del_fail)
+        val sJsClearConfirm = context.getString(R.string.web_js_clear_confirm)
+        val sJsClearFail = context.getString(R.string.web_js_clear_fail)
+        val sJsCmdFail = context.getString(R.string.web_js_cmd_fail)
+        val sJsAudioUnsupported = context.getString(R.string.web_js_audio_unsupported)
+        val sJsAudioFail = context.getString(R.string.web_js_audio_fail)
+
         return """<!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OcularNode 網頁監控端</title>
+    <title>$sPageTitle</title>
     <style>
         :root {
             --primary: #6750A4;
@@ -1032,64 +1136,64 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 </head>
 <body>
     <header>
-        <h1><span class="badge">OcularNode</span> <span id="dev-name">載入中...</span></h1>
+        <h1><span class="badge">OcularNode</span> <span id="dev-name">$sLoading</span></h1>
         <div style="display: flex; gap: 8px; align-items: center;">
-            <span class="live-tag" id="stream-status-tag">● 連線中</span>
+            <span class="live-tag" id="stream-status-tag">$sConnected</span>
             <span style="font-size: 0.85rem; color: var(--subtext);" id="fps-val">-- FPS</span>
-            <button class="btn btn-primary" style="margin-left: 8px;" onclick="openConfigModal()">⚙️ 進階設定</button>
+            <button class="btn btn-primary" style="margin-left: 8px;" onclick="openConfigModal()">$sSettingsBtn</button>
         </div>
     </header>
 
     <div class="main-container">
         <!-- Video Stream Player -->
         <div class="video-card">
-            <img id="stream" src="/mjpeg" class="video-feed" alt="即時串流畫面" onerror="onStreamError()">
+            <img id="stream" src="/mjpeg" class="video-feed" alt="$sVideoAlt" onerror="onStreamError()">
             <div style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
-                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">720p (品質 60%)</span>
+                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">720p (Quality 60%)</span>
                 <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="zoom-badge">1.0x</span>
             </div>
             <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap;">
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="reloadStream()">🔄 重新整理</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="reloadStream()">$sBtnRefresh</button>
                 <button class="btn" style="padding: 4px 8px; font-size: 0.75rem; background: rgba(15,23,42,0.8);" onclick="rotateStreamServer()">↻</button>
             </div>
         </div>
 
         <!-- Controls Side Panel (Direct Real-time Commands) -->
         <div class="panel-card">
-            <div class="panel-title">📊 狀態概觀</div>
+            <div class="panel-title">$sOverviewTitle</div>
             <div class="stat-grid">
-                <div class="stat-box"><div class="stat-label">觀看人數</div><div class="stat-val" id="clients-val">-- 人</div></div>
-                <div class="stat-box"><div class="stat-label">電池狀態</div><div class="stat-val" id="battery-val">--</div></div>
-                <div class="stat-box"><div class="stat-label">即時幀率</div><div class="stat-val" id="stat-fps-val">-- FPS</div></div>
-                <div class="stat-box"><div class="stat-label">夜視狀態</div><div class="stat-val" id="night-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">$sStatViewers</div><div class="stat-val" id="clients-val">-- $sStatViewersSuffix</div></div>
+                <div class="stat-box"><div class="stat-label">$sStatBattery</div><div class="stat-val" id="battery-val">--</div></div>
+                <div class="stat-box"><div class="stat-label">$sStatFps</div><div class="stat-val" id="stat-fps-val">-- FPS</div></div>
+                <div class="stat-box"><div class="stat-label">$sStatNightVision</div><div class="stat-val" id="night-val">--</div></div>
             </div>
 
-            <div class="panel-title" style="margin-top: 6px;">⚙️ 工作模式切換</div>
+            <div class="panel-title" style="margin-top: 6px;">$sModeTitle</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                <button class="btn" id="btn-mode-monitor" onclick="sendCommand('mode', 'monitor')">👁️ 監看模式</button>
-                <button class="btn" id="btn-mode-detection" onclick="sendCommand('mode', 'detection')">🚨 動態偵測</button>
+                <button class="btn" id="btn-mode-monitor" onclick="sendCommand('mode', 'monitor')">$sModeMonitor</button>
+                <button class="btn" id="btn-mode-detection" onclick="sendCommand('mode', 'detection')">$sModeDetection</button>
             </div>
 
-            <div class="panel-title" style="margin-top: 6px;">🎮 即時硬體控制</div>
+            <div class="panel-title" style="margin-top: 6px;">$sControlsTitle</div>
             <div class="btn-grid">
-                <button class="btn" onclick="sendCommand('camera', 'switch')">🔄 翻轉鏡頭</button>
-                <button class="btn" onclick="sendCommand('torch', 'toggle')">💡 手電筒</button>
-                <button class="btn" onclick="takeSnapshot()">📸 快照截圖</button>
-                <button class="btn btn-danger" onclick="sendCommand('alarm', 'trigger')">🚨 蜂鳴警報</button>
+                <button class="btn" onclick="sendCommand('camera', 'switch')">$sCtrlSwitchLens</button>
+                <button class="btn" onclick="sendCommand('torch', 'toggle')">$sCtrlTorch</button>
+                <button class="btn" onclick="takeSnapshot()">$sCtrlSnapshot</button>
+                <button class="btn btn-danger" onclick="sendCommand('alarm', 'trigger')">$sCtrlSiren</button>
             </div>
 
-            <div class="panel-title" style="margin-top: 6px;">🔊 聲音監聽</div>
-            <button class="btn" id="btn-audio-listen" onclick="toggleAudioListen()">🎧 啟動聲音監聽</button>
+            <div class="panel-title" style="margin-top: 6px;">$sAudioTitle</div>
+            <button class="btn" id="btn-audio-listen" onclick="toggleAudioListen()">$sAudioListen</button>
 
-            <div class="panel-title" style="margin-top: 6px;">🌙 夜視開關</div>
+            <div class="panel-title" style="margin-top: 6px;">$sNightTitle</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-                <button class="btn" id="btn-night-off" onclick="sendCommand('night_vision', 'off')">☀️ 關</button>
-                <button class="btn" id="btn-night-on" onclick="sendCommand('night_vision', 'on')">🌙 開</button>
-                <button class="btn" id="btn-night-auto" onclick="sendCommand('night_vision', 'auto')">🤖 自動</button>
+                <button class="btn" id="btn-night-off" onclick="sendCommand('night_vision', 'off')">$sNightOff</button>
+                <button class="btn" id="btn-night-on" onclick="sendCommand('night_vision', 'on')">$sNightOn</button>
+                <button class="btn" id="btn-night-auto" onclick="sendCommand('night_vision', 'auto')">$sNightAuto</button>
             </div>
 
-            <div class="panel-title" style="margin-top: 6px;">💾 儲存空間狀況</div>
-            <div class="stat-box"><div class="stat-label">可用容量</div><div class="stat-val" id="storage-val">-- / --</div></div>
+            <div class="panel-title" style="margin-top: 6px;">$sStorageTitle</div>
+            <div class="stat-box"><div class="stat-label">$sStorageAvailable</div><div class="stat-val" id="storage-val">-- / --</div></div>
         </div>
     </div>
 
@@ -1097,21 +1201,21 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
     <div id="config-modal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>⚙️ 進階設定</h2>
+                <h2>$sModalTitle</h2>
                 <button class="btn" style="padding: 4px 10px;" onclick="closeConfigModal()">✕</button>
             </div>
 
             <!-- Device Name -->
             <div class="form-group">
-                <label class="form-label">鏡頭裝置名稱</label>
-                <input type="text" id="cfg-dev-name" class="form-control" placeholder="例：客廳鏡頭">
+                <label class="form-label">$sCfgDeviceName</label>
+                <input type="text" id="cfg-dev-name" class="form-control" placeholder="$sCfgDeviceNamePh">
             </div>
 
             <!-- Camera Config -->
-            <div class="panel-title" style="margin-top: 4px;">📷 相機與畫質</div>
+            <div class="panel-title" style="margin-top: 4px;">$sCfgCameraQuality</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
-                    <label class="form-label">預設解析度</label>
+                    <label class="form-label">$sCfgResolution</label>
                     <select id="cfg-resolution" class="form-control">
                         <option value="1080p">1080p</option>
                         <option value="960p">960p</option>
@@ -1121,95 +1225,95 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">JPEG 畫質</label>
+                    <label class="form-label">$sCfgJpegQuality</label>
                     <select id="cfg-quality" class="form-control">
-                        <option value="90">90% (高品質)</option>
-                        <option value="75">75% (平衡)</option>
-                        <option value="50">50% (流暢)</option>
-                        <option value="30">30% (省流量)</option>
-                        <option value="20">20% (超省流量)</option>
-                        <option value="15">15% (極限壓縮)</option>
+                        <option value="90">$sCfgQualityHigh</option>
+                        <option value="75">$sCfgQualityBalanced</option>
+                        <option value="50">$sCfgQualitySmooth</option>
+                        <option value="30">$sCfgQualityLow</option>
+                        <option value="20">$sCfgQualityVeryLow</option>
+                        <option value="15">$sCfgQualityMinimal</option>
                     </select>
                 </div>
             </div>
 
             <!-- Motion Detection & AI Category Filters -->
-            <div class="panel-title" style="margin-top: 4px;">🚨 動態偵測與 AI 過濾</div>
+            <div class="panel-title" style="margin-top: 4px;">$sCfgMotionAi</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
-                    <label class="form-label">靈敏度 (1 - 10)</label>
+                    <label class="form-label">$sCfgSensitivity</label>
                     <input type="number" id="cfg-motion-sens" class="form-control" min="1" max="10" value="5">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">警報冷卻時間 (秒)</label>
+                    <label class="form-label">$sCfgCooldown</label>
                     <input type="number" id="cfg-motion-cooldown" class="form-control" min="5" max="300" value="10">
                 </div>
             </div>
 
             <div style="margin-top: 8px; border-top: 1px dashed #334155; padding-top: 8px;">
-                <label class="checkbox-item"><input type="checkbox" id="cfg-motion-sched-enable"> 啟用動態監控排程 (僅在排程時間內自動啟動防護)</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-motion-sched-enable"> $sCfgMotionSched</label>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
                     <div class="form-group">
-                        <label class="form-label">監控開始時間</label>
+                        <label class="form-label">$sCfgStartTime</label>
                         <input type="time" id="cfg-motion-sched-start" class="form-control" value="22:00">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">監控結束時間</label>
+                        <label class="form-label">$sCfgEndTime</label>
                         <input type="time" id="cfg-motion-sched-end" class="form-control" value="06:00">
                     </div>
                 </div>
             </div>
 
-            <div class="form-label" style="margin-top: 10px;">動態推播過濾 (觸發通知之類別)</div>
+            <div class="form-label" style="margin-top: 10px;">$sCfgNotifCategories</div>
             <div class="checkbox-group">
-                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HUMAN_AND_ACTIVITY" checked> 人類與活動</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-PET_AND_ANIMAL" checked> 寵物與動物</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-VEHICLE_AND_TRANSPORT" checked> 交通工具</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HOUSEHOLD_ITEM" checked> 居家物品</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-ENVIRONMENT_AND_NATURE" checked> 環境與自然</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-OTHER" checked> 其他異動</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HUMAN_AND_ACTIVITY" checked> $sCfgCatHuman</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-PET_AND_ANIMAL" checked> $sCfgCatPet</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-VEHICLE_AND_TRANSPORT" checked> $sCfgCatVehicle</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-HOUSEHOLD_ITEM" checked> $sCfgCatHousehold</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-ENVIRONMENT_AND_NATURE" checked> $sCfgCatEnvironment</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-cat-OTHER" checked> $sCfgCatOther</label>
             </div>
 
             <!-- Recording & Storage -->
-            <div class="panel-title" style="margin-top: 4px;">🎥 自動錄影與容量上限</div>
+            <div class="panel-title" style="margin-top: 4px;">$sCfgRecordingStorage</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                     <label class="checkbox-item" style="margin-top: 24px;">
-                        <input type="checkbox" id="cfg-event-recording" checked> 啟用事件自動錄影
+                        <input type="checkbox" id="cfg-event-recording" checked> $sCfgEventRecording
                     </label>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">影片容量上限 (GB)</label>
+                    <label class="form-label">$sCfgMaxStorage</label>
                     <input type="number" id="cfg-max-storage" class="form-control" min="1" max="100" step="0.5" value="10.0">
                 </div>
             </div>
 
-            <div class="form-label">自動錄影過濾 (觸發自動錄影之類別)</div>
+            <div class="form-label">$sCfgAutoRecCategories</div>
             <div class="checkbox-group">
-                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-HUMAN_AND_ACTIVITY" checked> 人類與活動</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-PET_AND_ANIMAL" checked> 寵物與動物</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-VEHICLE_AND_TRANSPORT" checked> 交通工具</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-HOUSEHOLD_ITEM" checked> 居家物品</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-ENVIRONMENT_AND_NATURE" checked> 環境與自然</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-OTHER" checked> 其他異動</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-HUMAN_AND_ACTIVITY" checked> $sCfgCatHuman</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-PET_AND_ANIMAL" checked> $sCfgCatPet</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-VEHICLE_AND_TRANSPORT" checked> $sCfgCatVehicle</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-HOUSEHOLD_ITEM" checked> $sCfgCatHousehold</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-ENVIRONMENT_AND_NATURE" checked> $sCfgCatEnvironment</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-rec-cat-OTHER" checked> $sCfgCatOther</label>
             </div>
 
             <!-- Protection & Telegram -->
-            <div class="panel-title" style="margin-top: 4px;">⚡ 自動防護與 Telegram 警報</div>
+            <div class="panel-title" style="margin-top: 4px;">$sCfgProtectionTg</div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <label class="checkbox-item"><input type="checkbox" id="cfg-power-cut" checked> 斷電推播警報</label>
-                <label class="checkbox-item"><input type="checkbox" id="cfg-sys-log" checked> 系統日誌紀錄</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-power-cut" checked> $sCfgPowerCut</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-sys-log" checked> $sCfgSysLog</label>
             </div>
 
             <div style="margin-top: 8px; border-top: 1px dashed #334155; padding-top: 8px;">
-                <label class="checkbox-item"><input type="checkbox" id="cfg-notif-sched-enable"> 啟用通知排程 (僅在排程時間內發送推播與響聲)</label>
+                <label class="checkbox-item"><input type="checkbox" id="cfg-notif-sched-enable"> $sCfgNotifSched</label>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
                     <div class="form-group">
-                        <label class="form-label">通知開始時間</label>
+                        <label class="form-label">$sCfgNotifStartTime</label>
                         <input type="time" id="cfg-notif-sched-start" class="form-control" value="22:00">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">通知結束時間</label>
+                        <label class="form-label">$sCfgNotifEndTime</label>
                         <input type="time" id="cfg-notif-sched-end" class="form-control" value="06:00">
                     </div>
                 </div>
@@ -1227,27 +1331,27 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
             <!-- Modal Actions -->
             <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px; border-top: 1px solid #334155; padding-top: 12px;">
-                <button class="btn" onclick="closeConfigModal()">取消</button>
-                <button class="btn btn-primary" onclick="saveConfigBatch()">💾 儲存並套用</button>
+                <button class="btn" onclick="closeConfigModal()">$sCfgCancel</button>
+                <button class="btn btn-primary" onclick="saveConfigBatch()">$sCfgSaveApply</button>
             </div>
         </div>
     </div>
 
     <!-- Canvas Native Chart Section -->
-<details style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
+    <details style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
         <summary class="panel-title" style="cursor: pointer; outline: none; list-style: none;">
             <div style="display: inline-flex; align-items: center; gap: 8px;">
-                <span>📈 節點資源與效能趨勢</span>
-                <span style="font-size: 0.8rem; color: var(--accent-green);">● 系統運作中</span>
+                <span>$sPerfTitle</span>
+                <span style="font-size: 0.8rem; color: var(--accent-green);">$sPerfActive</span>
             </div>
-            <span style="float: right; font-size: 0.8rem; color: var(--subtext);">▼ 點擊展開/折疊</span>
+            <span style="float: right; font-size: 0.8rem; color: var(--subtext);">$sPerfToggle</span>
         </summary>
         
         <div style="padding-top: 16px;">
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">
-                <div class="stat-box"><div class="stat-label">CPU 使用率</div><div class="stat-val" id="cpu-stat-val">--%</div></div>
-                <div class="stat-box"><div class="stat-label">記憶體占用</div><div class="stat-val" id="mem-stat-val">--%</div></div>
-                <div class="stat-box"><div class="stat-label">連線延遲 (Ping)</div><div class="stat-val" id="ping-stat-val">-- ms</div></div>
+                <div class="stat-box"><div class="stat-label">$sPerfCpu</div><div class="stat-val" id="cpu-stat-val">--%</div></div>
+                <div class="stat-box"><div class="stat-label">$sPerfMem</div><div class="stat-val" id="mem-stat-val">--%</div></div>
+                <div class="stat-box"><div class="stat-label">$sPerfPing</div><div class="stat-val" id="ping-stat-val">-- ms</div></div>
             </div>
             <canvas id="perf-canvas" width="800" height="160"></canvas>
         </div>
@@ -1255,16 +1359,16 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
     <details style="width: 100%; max-width: 900px; margin-top: 20px;" class="panel-card">
         <summary class="panel-title" style="cursor: pointer; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
-            <span>📁 動態警報事件與紀錄</span>
+            <span>$sEventsTitle</span>
             <div style="display: flex; gap: 6px;">
-                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); fetchEvents()">🔄 重整</button>
-                <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); clearAllEvents()">🧹 清除全部</button>
+                <button class="btn" style="padding: 4px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); fetchEvents()">$sEventsRefresh</button>
+                <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="event.stopPropagation(); clearAllEvents()">$sEventsClearAll</button>
             </div>
         </summary>
         
         <div style="padding-top: 16px;">
             <div id="events-container" style="display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 8px;">
-                <div style="color: var(--subtext); text-align: center; padding: 16px;">載入事件紀錄中...</div>
+                <div style="color: var(--subtext); text-align: center; padding: 16px;">$sEventsLoading</div>
             </div>
         </div>
     </details>
@@ -1332,7 +1436,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
                 document.getElementById('config-modal').style.display = 'flex';
             } catch (e) {
-                alert('無法載入系統組態: ' + e);
+                alert('$sJsConfigLoadFail' + e);
             }
         }
 
@@ -1393,14 +1497,14 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 });
                 const result = await res.json();
                 if (result.status === 'ok') {
-                    alert('✅ 系統組態已成功套用！');
+                    alert('$sJsConfigSaved');
                     closeConfigModal();
                     fetchStatus();
                 } else {
-                    alert('❌ 儲存失敗: ' + (result.message || '未知錯誤'));
+                    alert('$sJsConfigSaveFail' + (result.message || 'Unknown error'));
                 }
             } catch (e) {
-                alert('發送組態設定失敗: ' + e);
+                alert('$sJsConfigSendFail' + e);
             }
         }
 
@@ -1408,7 +1512,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             const img = document.getElementById('stream');
             if (img) {
                 img.src = '/mjpeg?t=' + Date.now();
-                document.getElementById('stream-status-tag').innerText = '● 連線中';
+                document.getElementById('stream-status-tag').innerText = '$sConnected';
                 document.getElementById('stream-status-tag').style.background = 'var(--accent-green)';
             }
         }
@@ -1417,7 +1521,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             console.warn('MJPEG stream connection error, trying snapshot fallback...');
             const tag = document.getElementById('stream-status-tag');
             if (tag) {
-                tag.innerText = '⚠️ 快照模式';
+                tag.innerText = '$sJsSnapshotMode';
                 tag.style.background = '#F59E0B';
             }
             const img = document.getElementById('stream');
@@ -1589,7 +1693,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             ctx.fillStyle = '#22C55E';
             ctx.fillRect(80, 10, 12, 12);
             ctx.fillStyle = '#F8FAFC';
-            ctx.fillText('記憶體 %', 98, 20);
+            ctx.fillText('$sPerfRamLegend', 98, 20);
         }
 
         async function fetchStatus() {
@@ -1600,11 +1704,11 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 const data = await res.json();
 
                 const devName = document.getElementById('dev-name');
-                if (devName) devName.innerText = data.deviceName || 'OcularNode 鏡頭';
+                if (devName) devName.innerText = data.deviceName || 'OcularNode Camera';
 
-                let battTxt = (data.batteryLevel >= 0 ? data.batteryLevel + '%' : '未知');
+                let battTxt = (data.batteryLevel >= 0 ? data.batteryLevel + '%' : '--');
                 if (data.batteryTemp && data.batteryTemp > 0) battTxt += ' (' + data.batteryTemp.toFixed(1) + '°C)';
-                if (data.isThermalThrottled) battTxt += ' 🔥 高溫';
+                if (data.isThermalThrottled) battTxt += ' $sJsHotBattery';
                 const battEl = document.getElementById('battery-val');
                 if (battEl) battEl.innerText = battTxt;
 
@@ -1613,7 +1717,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 if (rotEl) rotEl.innerText = rotVal + '°';
 
                 const clientsEl = document.getElementById('clients-val');
-                if (clientsEl) clientsEl.innerText = (data.connectedClients || 0) + ' 人';
+                if (clientsEl) clientsEl.innerText = (data.connectedClients || 0) + ' $sStatViewersSuffix';
 
                 const fpsEl = document.getElementById('fps-val');
                 if (fpsEl) fpsEl.innerText = (data.fps || 0) + ' FPS';
@@ -1623,7 +1727,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 const resBadge = document.getElementById('res-badge');
                 if (resBadge) {
                     const resStr = data.resolution || '720p';
-                    const qualStr = data.quality !== undefined ? ' (品質 ' + data.quality + '%)' : '';
+                    const qualStr = data.quality !== undefined ? ' (Quality ' + data.quality + '%)' : '';
                     resBadge.innerText = resStr + qualStr;
                 }
 
@@ -1644,7 +1748,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
                 const opMode = data.operatingMode || 'monitor';
                 const modeEl = document.getElementById('mode-val');
-                if (modeEl) modeEl.innerText = (opMode === 'monitor' ? '👁️ 監看' : '🚨 動態偵測');
+                if (modeEl) modeEl.innerText = (opMode === 'monitor' ? '$sModeMonitor' : '$sModeDetection');
 
                 const btnMon = document.getElementById('btn-mode-monitor');
                 if (btnMon) btnMon.style.background = (opMode === 'monitor' ? 'var(--primary)' : '#334155');
@@ -1653,7 +1757,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
                 const nMode = data.nightVisionMode || 'auto';
                 const nightEl = document.getElementById('night-val');
-                if (nightEl) nightEl.innerText = (data.isNightVisionActive ? '夜視中 (' + nMode + ')' : '一般 (' + nMode + ')');
+                if (nightEl) nightEl.innerText = (data.isNightVisionActive ? '$sJsNightActive (' + nMode + ')' : '$sJsNightNormal (' + nMode + ')');
 
                 const btnNOff = document.getElementById('btn-night-off');
                 if (btnNOff) btnNOff.style.background = (nMode === 'off' ? 'var(--primary)' : '#334155');
@@ -1679,7 +1783,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 if (!container) return;
 
                 if (!Array.isArray(events) || events.length === 0) {
-                    container.innerHTML = '<div style="color: var(--subtext); text-align: center; padding: 16px;">目前尚無動態警報紀錄</div>';
+                    container.innerHTML = '<div style="color: var(--subtext); text-align: center; padding: 16px;">$sEventsEmpty</div>';
                     return;
                 }
 
@@ -1688,16 +1792,16 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                     var ev = events[i];
                     var imgTag = ev.thumbnailBase64 ? '<img src="data:image/jpeg;base64,' + ev.thumbnailBase64 + '" style="width:84px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #334155;">' : '<div style="width:84px; height:64px; background:#1E293B; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94A3B8;">📷</div>';
                     
-                    var videoBtn = ev.hasVideo ? '<a href="' + ev.videoUrl + '" target="_blank" class="btn" style="background:#2563EB; font-size:0.8rem; padding:4px 8px;">🎬 影片</a>' : '';
+                    var videoBtn = ev.hasVideo ? '<a href="' + ev.videoUrl + '" target="_blank" class="btn" style="background:#2563EB; font-size:0.8rem; padding:4px 8px;">$sEventsVideo</a>' : '';
 
                     htmlStr += '<div style="background:#0F172A; border:1px solid #334155; border-radius:12px; padding:10px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
                         imgTag +
                         '<div style="flex:1; min-width:160px;">' +
-                        '<div style="font-weight:bold; font-size:0.95rem; color:#F1F5F9;">🚨 動態觸發 (' + ev.motionPercentage + '%)</div>' +
+                        '<div style="font-weight:bold; font-size:0.95rem; color:#F1F5F9;">$sEventsMotionPrefix (' + ev.motionPercentage + '%)</div>' +
                         '<div style="font-size:0.8rem; color:var(--subtext); margin-top:2px;">📅 ' + ev.formattedTime + '</div>' +
                         '</div>' +
                         '<div style="display:flex; gap:6px; align-items:center;">' +
-                        '<a href="' + ev.downloadUrl + '" download class="btn btn-primary" style="font-size:0.8rem; padding:4px 8px;">⬇️ 照片</a>' +
+                        '<a href="' + ev.downloadUrl + '" download class="btn btn-primary" style="font-size:0.8rem; padding:4px 8px;">$sEventsPhoto</a>' +
                         videoBtn +
                         '<button onclick="deleteEvent(' + ev.id + ')" class="btn btn-danger" style="padding:4px 8px;">🗑️</button>' +
                         '</div>' +
@@ -1710,23 +1814,23 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
         }
 
         async function deleteEvent(id) {
-            if (confirm('確定要刪除這筆動態事件與快照嗎？')) {
+            if (confirm('$sJsDelConfirm')) {
                 try {
                     await fetch('/events/delete?id=' + id);
                     fetchEvents();
                 } catch (e) {
-                    alert('刪除失敗: ' + e);
+                    alert('$sJsDelFail' + e);
                 }
             }
         }
 
         async function clearAllEvents() {
-            if (confirm('確定要清除所有動態事件紀錄嗎？')) {
+            if (confirm('$sJsClearConfirm')) {
                 try {
                     await fetch('/events/clear');
                     fetchEvents();
                 } catch (e) {
-                    alert('清除失敗: ' + e);
+                    alert('$sJsClearFail' + e);
                 }
             }
         }
@@ -1743,7 +1847,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 });
                 setTimeout(fetchStatus, 300);
             } catch (e) {
-                alert('發送控制指令失敗: ' + e);
+                alert('$sJsCmdFail' + e);
             }
         }
 
@@ -1788,18 +1892,18 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
 
                 const response = await fetch('/audio');
                 if (!response.body) {
-                    alert('瀏覽器不支援串流音訊');
+                    alert('$sJsAudioUnsupported');
                     return;
                 }
                 audioReader = response.body.getReader();
                 isAudioListening = true;
                 if (btn) {
-                    btn.innerText = '🔊 關閉聲音監聽';
+                    btn.innerText = '$sAudioMute';
                     btn.style.background = '#EF4444';
                 }
                 readAudioStream();
             } catch (e) {
-                alert('無法啟動聲音監聽: ' + e);
+                alert('$sJsAudioFail' + e);
                 stopAudioListen();
             }
         }
@@ -1816,7 +1920,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
             }
             const btn = document.getElementById('btn-audio-listen');
             if (btn) {
-                btn.innerText = '🎧 啟動聲音監聽';
+                btn.innerText = '$sAudioListen';
                 btn.style.background = '#334155';
             }
         }

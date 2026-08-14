@@ -36,14 +36,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import io.github.iokkai.ocularnode.R
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import androidx.compose.ui.zIndex
 
 @Composable
 fun BlackScreenOverlay(
@@ -174,14 +176,14 @@ fun BlackScreenOverlay(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "省電模式運作中",
+                    text = stringResource(R.string.power_saving_active),
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "連按兩下 (Double Tap) 解除省電模式",
+                    text = stringResource(R.string.power_saving_double_tap),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 14.sp
                 )

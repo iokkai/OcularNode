@@ -16,6 +16,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.core.content.pm.PackageInfoCompat
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.SettingsManager
 import io.github.iokkai.ocularnode.receiver.AdminReceiver
 import io.github.iokkai.ocularnode.receiver.PackageInstallReceiver
@@ -89,7 +90,7 @@ object ZeroTouchProvisionManager {
      */
     suspend fun getLatestReleaseApkUrl(githubOwner: String, githubRepo: String): String = withContext(Dispatchers.IO) {
         if (githubOwner.isBlank() || githubRepo.isBlank()) {
-            throw Exception("GitHub Owner 或 Repo 未設定，無法動態獲取更新網址")
+            throw Exception("GitHub Owner or Repo is not configured")
         }
 
         val apiUrl = "https://api.github.com/repos/$githubOwner/$githubRepo/releases/latest"
@@ -106,20 +107,20 @@ object ZeroTouchProvisionManager {
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw Exception("GitHub Releases API 請求失敗，HTTP Code: ${response.code}")
+                throw Exception("GitHub Releases API request failed, HTTP Code: ${response.code}")
             }
 
-            val jsonStr = response.body?.string() ?: throw Exception("回傳內容為空")
+            val jsonStr = response.body?.string() ?: throw Exception("Response body is empty")
             val jsonObject = JSONObject(jsonStr)
 
             val assets = jsonObject.optJSONArray("assets")
             if (assets == null || assets.length() == 0) {
-                throw Exception("該 Release 內沒有包含任何可下載的檔案 (Assets)")
+                throw Exception("Release does not contain any downloadable assets")
             }
 
             val bestApkUrl = findBestMatchingApkUrl(assets)
-                ?: throw Exception("在 Release Assets 中找不到副檔名為 .apk 的檔案")
-            Log.i(TAG, "成功取得動態適配架構之 APK 網址: $bestApkUrl")
+                ?: throw Exception("No .apk asset found in Release assets")
+            Log.i(TAG, "Successfully resolved APK download URL: $bestApkUrl")
             return@withContext bestApkUrl
         }
     }
@@ -273,7 +274,7 @@ object ZeroTouchProvisionManager {
                 progressPercent = 0,
                 downloadedBytes = 0L,
                 totalBytes = -1L,
-                status = "正在連接下載 Tailscale APK..."
+                status = "Connecting to download Tailscale APK..."
             )
 
             val client = OkHttpClient.Builder()
@@ -284,10 +285,10 @@ object ZeroTouchProvisionManager {
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.e(TAG, "下載 APK 失敗 HTTP ${response.code}")
+                    Log.e(TAG, "Failed to download APK HTTP ${response.code}")
                     _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
                         isDownloading = false,
-                        status = "下載 Tailscale APK 失敗 (HTTP ${response.code})"
+                        status = "Failed to download Tailscale APK (HTTP ${response.code})"
                     )
                     return@withContext null
                 }
@@ -316,7 +317,7 @@ object ZeroTouchProvisionManager {
                                     progressPercent = percent,
                                     downloadedBytes = bytesRead,
                                     totalBytes = totalBytes,
-                                    status = if (percent >= 0) "正在下載 Tailscale APK ($percent%)..." else "正在下載 Tailscale APK (${bytesRead / 1024 / 1024} MB)..."
+                                    status = if (percent >= 0) "Downloading Tailscale APK ($percent%)..." else "Downloading Tailscale APK (${bytesRead / 1024 / 1024} MB)..."
                                 )
                             }
                         }
@@ -329,16 +330,16 @@ object ZeroTouchProvisionManager {
                     progressPercent = 100,
                     downloadedBytes = destFile.length(),
                     totalBytes = destFile.length(),
-                    status = "Tailscale APK 下載完成，正在進行靜默安裝..."
+                    status = "Tailscale APK download completed, installing silently..."
                 )
-                Log.i(TAG, "Tailscale APK 下載成功: ${destFile.absolutePath} (${destFile.length()} bytes)")
+                Log.i(TAG, "Tailscale APK download successful: ${destFile.absolutePath} (${destFile.length()} bytes)")
                 destFile
             }
         } catch (e: Exception) {
-            Log.e(TAG, "下載 Tailscale APK 異常", e)
+            Log.e(TAG, "Error downloading Tailscale APK", e)
             _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
                 isDownloading = false,
-                status = "下載 Tailscale 異常: ${e.localizedMessage}"
+                status = "Error downloading Tailscale: ${e.localizedMessage}"
             )
             null
         }
@@ -438,15 +439,15 @@ object ZeroTouchProvisionManager {
                 activity.startLockTask()
                 val settings = SettingsManager(context)
                 settings.isKioskModeActive = true
-                Log.i(TAG, "已成功啟動 Kiosk 死鎖模式 (Lock Task)")
-                Toast.makeText(activity, "🔒 已啟動 Kiosk 死鎖模式", Toast.LENGTH_SHORT).show()
+                Log.i(TAG, "Successfully activated Kiosk Lock Task mode")
+                Toast.makeText(activity, activity.getString(R.string.toast_kiosk_enabled), Toast.LENGTH_SHORT).show()
                 return true
             } else {
-                Log.w(TAG, "未取得 Lock Task 權限，無法鎖定螢幕")
+                Log.w(TAG, "Lock Task permission not granted, unable to lock screen")
                 return false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "啟用 Kiosk 死鎖模式異常", e)
+            Log.e(TAG, "Error enabling Kiosk Lock Task mode", e)
             return false
         }
     }
@@ -459,11 +460,11 @@ object ZeroTouchProvisionManager {
             activity.stopLockTask()
             val settings = SettingsManager(activity.applicationContext)
             settings.isKioskModeActive = false
-            Toast.makeText(activity, "已順利解除 Kiosk 死鎖模式！", Toast.LENGTH_LONG).show()
-            Log.i(TAG, "已解除 Kiosk 死鎖模式 (Lock Task Ended)")
+            Toast.makeText(activity, activity.getString(R.string.toast_kiosk_disabled), Toast.LENGTH_LONG).show()
+            Log.i(TAG, "Kiosk Lock Task mode deactivated")
             return true
         } catch (e: Exception) {
-            Log.e(TAG, "解除 Kiosk 死鎖模式異常", e)
+            Log.e(TAG, "Error disabling Kiosk Lock Task mode", e)
             return false
         }
     }

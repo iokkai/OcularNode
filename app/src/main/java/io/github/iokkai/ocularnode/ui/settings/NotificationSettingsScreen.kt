@@ -28,6 +28,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.data.NotificationCategory
 import io.github.iokkai.ocularnode.data.SettingsDataStore
 import io.github.iokkai.ocularnode.data.SettingsManager
@@ -67,7 +69,7 @@ fun NotificationSettingsScreen(
                     titleContentColor = Color(0xFF1C1B1F),
                     navigationIconContentColor = Color(0xFF1C1B1F)
                 ),
-                title = { Text("智慧分類通知設定", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.notif_settings_title), fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -93,7 +95,7 @@ fun NotificationSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "💡 提示：此頁面為本機鏡頭預設類別設定。若您在監控端管理多台鏡頭，可直接點擊該鏡頭的「遠端偏好設定」獨立設定每一台鏡頭的推播過濾與分類！",
+                        text = stringResource(R.string.notif_settings_hint),
                         fontSize = 12.sp,
                         color = Color(0xFF49454F),
                         lineHeight = 18.sp
@@ -102,7 +104,7 @@ fun NotificationSettingsScreen(
             }
 
             Text(
-                text = "請選擇在動態偵測時，您希望收到哪些類別的推播通知：",
+                text = stringResource(R.string.notif_settings_prompt),
                 fontSize = 13.sp,
                 color = Color(0xFF49454F),
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -118,7 +120,7 @@ fun NotificationSettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Notifications, contentDescription = null, tint = Color(0xFF6750A4))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("推播類別開關", color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(stringResource(R.string.notif_settings_group_title), color = Color(0xFF1C1B1F), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -128,8 +130,8 @@ fun NotificationSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Google ML Kit AI 物件過濾總開關", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
-                            Text("開啟後啟用本機 AI 分析物件類別與人臉", fontSize = 12.sp, color = Color(0xFF49454F))
+                            Text(stringResource(R.string.notif_settings_mlkit_master_title), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
+                            Text(stringResource(R.string.notif_settings_mlkit_master_desc), fontSize = 12.sp, color = Color(0xFF49454F))
                         }
                         Switch(
                             checked = mlKitFilterEnabled,
@@ -152,10 +154,10 @@ fun NotificationSettingsScreen(
                     ) {
                         Spacer(modifier = Modifier.weight(1.2f))
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text("允許推播", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.notif_settings_allow_push), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         }
                         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Text("觸發錄影", fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.notif_settings_trigger_record), fontSize = 13.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -178,7 +180,7 @@ fun NotificationSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "$iconStr ${category.displayName}",
+                                text = "$iconStr ${stringResource(category.titleRes)}",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF1C1B1F),
@@ -219,7 +221,7 @@ fun NotificationSettingsScreen(
             
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "說明：系統會使用 ML 模型分析影像內容，當偵測到對應的類別且開關為開啟時，才會傳送通知。若未偵測到任何分類標籤，會依據「其他」類別的設定來決定。",
+                text = stringResource(R.string.notif_settings_footer_desc),
                 fontSize = 12.sp,
                 color = Color(0xFF49454F)
             )

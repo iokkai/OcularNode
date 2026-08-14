@@ -68,11 +68,11 @@ import io.github.iokkai.ocularnode.ui.viewer.LiveMonitorScreen
 import io.github.iokkai.ocularnode.ui.viewer.ViewerListScreen
 import io.github.iokkai.ocularnode.ui.viewer.ViewerViewModel
 
-enum class AppTab(val title: String, val icon: ImageVector) {
-    CAMERA("鏡頭端", Icons.Default.Videocam),
-    VIEWER("觀看端", Icons.Default.Visibility),
-    ALERTS("警報紀錄", Icons.Default.Notifications),
-    SETTINGS("設定", Icons.Default.Settings)
+enum class AppTab(@StringRes val titleRes: Int, val icon: ImageVector) {
+    CAMERA(R.string.tab_camera, Icons.Default.Videocam),
+    VIEWER(R.string.tab_viewer, Icons.Default.Visibility),
+    ALERTS(R.string.tab_events, Icons.Default.Notifications),
+    SETTINGS(R.string.tab_settings, Icons.Default.Settings)
 }
 
 class MainActivity : ComponentActivity() {
@@ -232,7 +232,7 @@ fun MainAppScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "零接觸部署中",
+                        text = stringResource(R.string.provisioning_in_progress),
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = Color(0xFF1C1B1F)
@@ -313,13 +313,13 @@ fun MainAppScreen(
                                             }
                                         }
                                     ) {
-                                        Icon(tab.icon, contentDescription = tab.title)
+                                        Icon(tab.icon, contentDescription = stringResource(tab.titleRes))
                                     }
                                 } else {
-                                    Icon(tab.icon, contentDescription = tab.title)
+                                    Icon(tab.icon, contentDescription = stringResource(tab.titleRes))
                                 }
                             },
-                            label = { Text(tab.title, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
+                            label = { Text(stringResource(tab.titleRes), fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Color(0xFF1D192B),
                                 selectedTextColor = Color(0xFF1D192B),
@@ -395,7 +395,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "歡迎使用 OcularNode",
+                    text = stringResource(R.string.onboarding_welcome),
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1C1B1F)
@@ -404,7 +404,7 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "請選擇此裝置的主要用途：\n(後續可隨時於「設定」頁面進行修改)",
+                    text = stringResource(R.string.onboarding_select_role_desc),
                     fontSize = 13.sp,
                     color = Color(0xFF49454F),
                     textAlign = TextAlign.Center
@@ -434,8 +434,8 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("鏡頭端 (攝影機)", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
-                            Text("作為監控攝影機，錄影、串流與警報", color = Color(0xFF49454F), fontSize = 12.sp)
+                            Text(stringResource(R.string.role_camera_option), fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
+                            Text(stringResource(R.string.role_camera_desc), color = Color(0xFF49454F), fontSize = 12.sp)
                         }
                     }
                 }
@@ -464,8 +464,8 @@ fun InitialRoleSelectionDialog(onSelectRole: (String) -> Unit) {
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
-                            Text("觀看端 (監控螢幕)", fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
-                            Text("作為隨身螢幕，遠端查看鏡頭畫面", color = Color(0xFF49454F), fontSize = 12.sp)
+                            Text(stringResource(R.string.role_viewer_option), fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F), fontSize = 15.sp)
+                            Text(stringResource(R.string.role_viewer_desc), color = Color(0xFF49454F), fontSize = 12.sp)
                         }
                     }
                 }

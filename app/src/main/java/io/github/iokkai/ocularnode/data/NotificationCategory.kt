@@ -1,12 +1,20 @@
 package io.github.iokkai.ocularnode.data
 
-enum class NotificationCategory(val displayName: String) {
-    HUMAN_AND_ACTIVITY("人類與活動"),
-    PET_AND_ANIMAL("寵物與動物"),
-    VEHICLE_AND_TRANSPORT("交通工具"),
-    HOUSEHOLD_ITEM("居家物品"),
-    ENVIRONMENT_AND_NATURE("環境與自然"),
-    OTHER("其他")
+import android.content.Context
+import androidx.annotation.StringRes
+import io.github.iokkai.ocularnode.R
+
+enum class NotificationCategory(@StringRes val titleRes: Int, val displayName: String) {
+    HUMAN_AND_ACTIVITY(R.string.category_human_and_activity, "Human & Activity"),
+    PET_AND_ANIMAL(R.string.category_pet_and_animal, "Pet & Animal"),
+    VEHICLE_AND_TRANSPORT(R.string.category_vehicle_and_transport, "Vehicle & Transport"),
+    HOUSEHOLD_ITEM(R.string.category_household_item, "Household Item"),
+    ENVIRONMENT_AND_NATURE(R.string.category_environment_and_nature, "Environment & Nature"),
+    OTHER(R.string.category_other, "Other");
+
+    fun getLocalizedTitle(context: Context): String {
+        return context.getString(titleRes)
+    }
 }
 
 object LabelMapper {

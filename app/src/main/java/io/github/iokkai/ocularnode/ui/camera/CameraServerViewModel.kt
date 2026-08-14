@@ -29,7 +29,7 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val _isBlackScreenActive = MutableStateFlow(false)
     val isBlackScreenActive: StateFlow<Boolean> = _isBlackScreenActive.asStateFlow()
 
-    private val _serverUrl = MutableStateFlow("未啟動")
+    private val _serverUrl = MutableStateFlow("Not Started")
     val serverUrl: StateFlow<String> = _serverUrl.asStateFlow()
 
     private val _tailscaleIp = MutableStateFlow<String?>(null)

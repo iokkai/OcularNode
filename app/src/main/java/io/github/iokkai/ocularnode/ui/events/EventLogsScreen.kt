@@ -62,9 +62,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.iokkai.ocularnode.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.github.iokkai.ocularnode.data.CameraDevice
@@ -91,7 +93,14 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
         when (selectedFilter) {
             "ALERT" -> events.filter { !it.aiFiltered }
             "AI_FILTER" -> events.filter { it.aiFiltered }
-            "PET" -> events.filter { it.aiSummary.contains("寵物") || it.aiSummary.contains("Cat") || it.aiSummary.contains("Dog") }
+            "PET" -> events.filter {
+                it.aiSummary.contains("Pet", ignoreCase = true) ||
+                it.aiSummary.contains("Cat", ignoreCase = true) ||
+                it.aiSummary.contains("Dog", ignoreCase = true) ||
+                it.aiSummary.contains("Animal", ignoreCase = true) ||
+                it.aiSummary.contains("寵物") ||
+                it.aiSummary.contains("動物")
+            }
             else -> events
         }
     }
@@ -115,7 +124,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "動態偵測紀錄",
+                        text = stringResource(R.string.events_title),
                         color = Color(0xFF1C1B1F),
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
@@ -131,7 +140,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "♻️ 上限 ${if (viewModel.settingsManager.storageLimitGB < 1.0f) "500MB" else "${viewModel.settingsManager.storageLimitGB.toInt()}GB"}",
+                                text = "♻️ ${if (viewModel.settingsManager.storageLimitGB < 1.0f) "500MB" else "${viewModel.settingsManager.storageLimitGB.toInt()}GB"}",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF0284C7)
@@ -140,7 +149,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                     }
                 }
                 Text(
-                    text = "列出偵測到的快照與時間點，提供即時預覽與下載",
+                    text = stringResource(R.string.events_subtitle),
                     color = Color(0xFF49454F),
                     fontSize = 12.sp
                 )
@@ -150,7 +159,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                 IconButton(
                     onClick = {
                         if (events.isEmpty()) {
-                            Toast.makeText(context, "目前尚無任何紀錄", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.events_empty), Toast.LENGTH_SHORT).show()
                         } else {
                             showClearConfirmDialog = true
                         }
@@ -158,7 +167,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "全部刪除",
+                        contentDescription = stringResource(R.string.events_btn_clear_all),
                         tint = if (events.isNotEmpty()) Color(0xFFB3261E) else Color(0xFF9E9E9E)
                     )
                 }
@@ -183,7 +192,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF6750A4), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("從鏡頭端同步紀錄:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
+                            Text(stringResource(R.string.events_sync_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C1B1F))
                         }
 
                         Button(
@@ -201,11 +210,11 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                             if (isSyncingRemote) {
                                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("同步中...", fontSize = 11.sp)
+                                Text(stringResource(R.string.events_syncing), fontSize = 11.sp)
                             } else {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("同步歷史紀錄", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.events_btn_sync), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -244,28 +253,28 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                 FilterChip(
                     selected = selectedFilter == "ALL",
                     onClick = { selectedFilter = "ALL" },
-                    label = { Text("全部 (${events.size})", fontSize = 12.sp) }
+                    label = { Text("${stringResource(R.string.events_filter_all)} (${events.size})", fontSize = 12.sp) }
                 )
             }
             item {
                 FilterChip(
                     selected = selectedFilter == "PET",
                     onClick = { selectedFilter = "PET" },
-                    label = { Text("🐶 寵物偵測", fontSize = 12.sp) }
+                    label = { Text("🐶 ${stringResource(R.string.events_filter_pet)}", fontSize = 12.sp) }
                 )
             }
             item {
                 FilterChip(
                     selected = selectedFilter == "ALERT",
                     onClick = { selectedFilter = "ALERT" },
-                    label = { Text("🚨 通知類別", fontSize = 12.sp) }
+                    label = { Text("🚨 ${stringResource(R.string.events_filter_motion)}", fontSize = 12.sp) }
                 )
             }
             item {
                 FilterChip(
                     selected = selectedFilter == "AI_FILTER",
                     onClick = { selectedFilter = "AI_FILTER" },
-                    label = { Text("已過濾", fontSize = 12.sp) }
+                    label = { Text(stringResource(R.string.events_filter_ai), fontSize = 12.sp) }
                 )
             }
         }
@@ -286,7 +295,7 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                         modifier = Modifier.size(64.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("無符合條件的動態偵測紀錄", color = Color(0xFF49454F), fontSize = 15.sp)
+                    Text(stringResource(R.string.events_empty), color = Color(0xFF49454F), fontSize = 15.sp)
                 }
             }
         } else {
@@ -314,8 +323,8 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
     if (showClearConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showClearConfirmDialog = false },
-            title = { Text("確定要清空所有紀錄？", fontWeight = FontWeight.Bold) },
-            text = { Text("此動作將會刪除本頁面上所有的動態偵測快照與事件紀錄。") },
+            title = { Text(stringResource(R.string.events_clear_dialog_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.events_clear_dialog_desc)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -324,12 +333,12 @@ fun EventLogsScreen(viewModel: EventLogsViewModel) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
                 ) {
-                    Text("確定清空")
+                    Text(stringResource(R.string.events_clear_confirm))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { showClearConfirmDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         )
@@ -407,7 +416,7 @@ fun EventCard(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFFFFB4AB), modifier = Modifier.size(12.dp))
                             Spacer(modifier = Modifier.width(2.dp))
-                            Text("錄影", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.events_badge_video), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -418,7 +427,7 @@ fun EventCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "畫面變化${"%.1f".format(event.motionPercentage)}%",
+                        text = stringResource(R.string.events_motion_change, event.motionPercentage),
                         color = Color(0xFF1C1B1F),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -456,7 +465,7 @@ fun EventCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (event.aiFiltered) "AI 攔截" else if (event.telegramSentSuccess) "Telegram 已發送" else "未連線/失敗",
+                        text = if (event.aiFiltered) stringResource(R.string.events_status_filtered) else if (event.telegramSentSuccess) stringResource(R.string.events_status_telegram) else stringResource(R.string.events_status_failed),
                         color = if (event.aiFiltered) Color(0xFF6750A4) else if (event.telegramSentSuccess) Color(0xFF2E7D32) else Color(0xFF49454F),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
@@ -473,7 +482,7 @@ fun EventCard(
                             val videoFile = File(event.videoPath!!)
                             val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
                             videoFile.copyTo(targetFile, overwrite = true)
-                            Toast.makeText(context, "📥 錄影檔 (.mp4) 已下載至影片庫！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
                         } else if (thumbnailBitmap != null) {
                             val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                             val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
@@ -481,10 +490,10 @@ fun EventCard(
                             thumbnailBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
                             fos.flush()
                             fos.close()
-                            Toast.makeText(context, "📥 照片已下載並儲存至相簿！", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Exception) {
-                        Toast.makeText(context, "儲存失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                     }
                 }) {
                     Icon(
@@ -556,7 +565,7 @@ fun SnapshotPreviewDialog(
                     }
 
                     Text(
-                        text = if (showVideoMode) "🎥 事件動態錄影 (.mp4)" else "📷 動態偵測快照細節",
+                        text = if (showVideoMode) stringResource(R.string.events_preview_video_title) else stringResource(R.string.events_preview_photo_title),
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -569,7 +578,7 @@ fun SnapshotPreviewDialog(
                                 val videoFile = File(event.videoPath!!)
                                 val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
                                 videoFile.copyTo(targetFile, overwrite = true)
-                                Toast.makeText(context, "📥 錄影檔 (.mp4) 已儲存至影片庫！", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
                             } else if (bitmap != null) {
                                 val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                                 val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
@@ -577,10 +586,10 @@ fun SnapshotPreviewDialog(
                                 bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
                                 fos.flush()
                                 fos.close()
-                                Toast.makeText(context, "📥 快照圖片已儲存至相簿！", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
-                            Toast.makeText(context, "下載失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
                     }) {
                         Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
@@ -605,7 +614,7 @@ fun SnapshotPreviewDialog(
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                "📷 瞬間快照",
+                                stringResource(R.string.events_tab_snapshot),
                                 color = if (!showVideoMode) Color(0xFF381E72) else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
@@ -620,7 +629,7 @@ fun SnapshotPreviewDialog(
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                "🎥 動態錄影",
+                                stringResource(R.string.events_tab_video),
                                 color = if (showVideoMode) Color(0xFF381E72) else Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
@@ -663,7 +672,7 @@ fun SnapshotPreviewDialog(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        Text("無法載入媒體檔案", color = Color.Gray)
+                        Text(stringResource(R.string.events_media_load_failed), color = Color.Gray)
                     }
                 }
 
@@ -676,24 +685,24 @@ fun SnapshotPreviewDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("📍 鏡頭來源: ${event.cameraName}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(stringResource(R.string.events_source_cam, event.cameraName), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("🕒 時間點: $formattedTime", color = Color(0xFFCAC4D0), fontSize = 13.sp)
+                        Text(stringResource(R.string.events_time_point, formattedTime), color = Color(0xFFCAC4D0), fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("📊 動態異動比例: ${"%.1f".format(event.motionPercentage)}%", color = Color(0xFFE8DEF8), fontSize = 13.sp)
+                        Text(stringResource(R.string.events_motion_ratio, event.motionPercentage), color = Color(0xFFE8DEF8), fontSize = 13.sp)
 
                         if (event.snapshotPath != null) {
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("📁 快照檔案: ${event.snapshotPath}", color = Color.Gray, fontSize = 10.sp)
+                            Text("📁 ${event.snapshotPath}", color = Color.Gray, fontSize = 10.sp)
                         }
                         if (event.videoPath != null) {
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text("🎬 錄影檔案: ${event.videoPath}", color = Color(0xFFD0BCFF), fontSize = 10.sp)
+                            Text("🎬 ${event.videoPath}", color = Color(0xFFD0BCFF), fontSize = 10.sp)
                         }
 
                         if (event.aiSummary.isNotBlank()) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("🤖 AI 偵測分析: ${event.aiSummary}", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("🤖 AI: ${event.aiSummary}", color = Color(0xFFD0BCFF), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -705,9 +714,9 @@ fun SnapshotPreviewDialog(
                                         val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
                                         val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
                                         File(event.videoPath!!).copyTo(targetFile, overwrite = true)
-                                        Toast.makeText(context, "📥 動態錄影 (.mp4) 已下載至影片庫！", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "儲存失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0BCFF), contentColor = Color(0xFF381E72)),
@@ -716,7 +725,7 @@ fun SnapshotPreviewDialog(
                             ) {
                                 Icon(Icons.Default.Videocam, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("下載並儲存完整動態錄影檔 (.mp4)", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.events_btn_download_video), fontWeight = FontWeight.Bold)
                             }
                         } else if (bitmap != null) {
                             Button(
@@ -728,9 +737,9 @@ fun SnapshotPreviewDialog(
                                         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
                                         fos.flush()
                                         fos.close()
-                                        Toast.makeText(context, "📥 快照影像已下載並儲存至系統相簿！", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
-                                        Toast.makeText(context, "儲存失敗: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD0BCFF), contentColor = Color(0xFF381E72)),
@@ -739,7 +748,7 @@ fun SnapshotPreviewDialog(
                             ) {
                                 Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("下載與儲存快照影像至相簿", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.events_btn_download_photo), fontWeight = FontWeight.Bold)
                             }
                         }
                     }

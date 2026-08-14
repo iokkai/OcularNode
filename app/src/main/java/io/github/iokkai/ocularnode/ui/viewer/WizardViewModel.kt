@@ -112,7 +112,7 @@ class WizardViewModel : ViewModel() {
     fun verifyApiKey(context: Context) {
         val apiKey = _uiState.value.apiKey.trim()
         if (apiKey.isBlank()) {
-            _uiState.update { it.copy(apiKeyVerifyError = "請輸入 Auth Key 或 API Key") }
+            _uiState.update { it.copy(apiKeyVerifyError = "Please enter Auth Key or API Key") }
             return
         }
 
@@ -154,7 +154,7 @@ class WizardViewModel : ViewModel() {
                             true
                         } else {
                             val errBody = response.body?.string() ?: ""
-                            throw Exception("驗證失敗 (HTTP ${response.code}): ${response.message} $errBody")
+                            throw Exception("Verification failed (HTTP ${response.code}): ${response.message} $errBody")
                         }
                     }
                 }
@@ -178,7 +178,7 @@ class WizardViewModel : ViewModel() {
                     it.copy(
                         isVerifyingApiKey = false,
                         isApiKeyVerified = false,
-                        apiKeyVerifyError = e.localizedMessage ?: "網路連線失敗，請檢查 API Key"
+                        apiKeyVerifyError = e.localizedMessage ?: "Network connection failed, please check API Key"
                     )
                 }
             }
@@ -231,11 +231,11 @@ class WizardViewModel : ViewModel() {
                         httpClient.newCall(request).execute().use { response ->
                             val respStr = response.body?.string() ?: ""
                             if (!response.isSuccessful) {
-                                throw Exception("申請 Auth Key 失敗 (HTTP ${response.code}): $respStr")
+                                throw Exception("Failed to request Auth Key (HTTP ${response.code}): $respStr")
                             }
                             val respJson = JSONObject(respStr)
                             respJson.optString("key").ifBlank {
-                                throw Exception("無法從回應解析 Auth Key")
+                                throw Exception("Unable to parse Auth Key from response")
                             }
                         }
                     }
@@ -249,7 +249,7 @@ class WizardViewModel : ViewModel() {
 
                 // 1.6 Fetch APK Checksum (Required for Android 9+ DO provisioning)
                 val checksum = io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.getApkSha256Checksum(fetchedApkUrl)
-                    ?: throw Exception("無法取得 APK 的 Checksum (SHA-256)，這在 Android 9+ 以上版本的部署中是必須的。請確認網路連線或該網址有效。")
+                    ?: throw Exception("Unable to get APK Checksum (SHA-256), required for Android 9+ provisioning. Please check network connection.")
 
                 // 2. Build DO Provisioning JSON
                 val extrasBundle = JSONObject().apply {
@@ -292,14 +292,14 @@ class WizardViewModel : ViewModel() {
                         )
                     }
                 } else {
-                    throw Exception("生成 QR Code 圖片失敗")
+                    throw Exception("Failed to generate QR Code bitmap")
                 }
 
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isGeneratingQrCode = false,
-                        qrCodeError = e.localizedMessage ?: "產生部署條碼失敗"
+                        qrCodeError = e.localizedMessage ?: "Failed to generate provisioning QR code"
                     )
                 }
             }

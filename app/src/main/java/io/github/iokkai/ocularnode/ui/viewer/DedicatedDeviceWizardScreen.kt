@@ -66,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -74,6 +75,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.iokkai.ocularnode.R
 
 /**
  * 觀看端專用設備 (Device Owner) 部署引導精靈
@@ -98,11 +100,11 @@ fun DedicatedDeviceWizardScreen(
                 title = {
                     Text(
                         text = when (uiState.currentStep) {
-                            1 -> "專用設備部署 (1/4)"
-                            2 -> "專用設備部署 (2/4)"
-                            3 -> "連線參數與金鑰 (3/4)"
-                            4 -> "掃描部署專用設備 (4/4)"
-                            else -> "製作專用設備"
+                            1 -> stringResource(R.string.wizard_nav_title_1)
+                            2 -> stringResource(R.string.wizard_nav_title_2)
+                            3 -> stringResource(R.string.wizard_nav_title_3)
+                            4 -> stringResource(R.string.wizard_nav_title_4)
+                            else -> stringResource(R.string.wizard_nav_title_default)
                         },
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
@@ -120,7 +122,7 @@ fun DedicatedDeviceWizardScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(R.string.wizard_btn_back)
                         )
                     }
                 },
@@ -192,7 +194,12 @@ fun DedicatedDeviceWizardScreen(
  */
 @Composable
 private fun WizardStepper(currentStep: Int) {
-    val steps = listOf("1. 準備", "2. 重置", "3. 參數", "4. 部署")
+    val steps = listOf(
+        stringResource(R.string.wizard_step_prep),
+        stringResource(R.string.wizard_step_reset),
+        stringResource(R.string.wizard_step_config),
+        stringResource(R.string.wizard_step_provision)
+    )
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -287,13 +294,13 @@ fun StepWarningScreen(
         // 標題與說明
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                text = "升級為專用設備",
+                text = stringResource(R.string.wizard_s1_header),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "透過啟用 Android 官方的裝置管理員，專用設備模式能提供最高等級的監控穩定度，確保相機 24 小時不中斷穩定運作、開機自動啟動，且絕不被其他 App 通知或休眠打擾。",
+                text = stringResource(R.string.wizard_s1_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 22.sp
@@ -325,7 +332,7 @@ fun StepWarningScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.WarningAmber,
-                        contentDescription = "警告",
+                        contentDescription = stringResource(R.string.wizard_s1_warn_icon),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(24.dp)
                     )
@@ -336,13 +343,13 @@ fun StepWarningScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "請準備一台您不再使用的舊手機！",
+                        text = stringResource(R.string.wizard_s1_warn_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Text(
-                        text = "接下來的步驟需要將該手機「恢復原廠設定」，這會清空該手機上的所有照片、帳號與個人資料。請絕對確保不是使用您現在的日常主用手機！",
+                        text = stringResource(R.string.wizard_s1_warn_body),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
                         lineHeight = 20.sp
@@ -372,7 +379,7 @@ fun StepWarningScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "我了解這會清空舊手機的資料",
+                    text = stringResource(R.string.wizard_s1_chk_erase),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface
@@ -390,7 +397,7 @@ fun StepWarningScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
-                text = "我已準備好舊手機，下一步",
+                text = stringResource(R.string.wizard_s1_btn_next),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -407,14 +414,12 @@ fun StepResetScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    val resetSteps = remember {
-        listOf(
-            "拿起您的舊手機（準備當監視器的那台）。",
-            "進入舊手機的「設定」>「系統」>「重置選項」。",
-            "選擇「清除所有資料（恢復原廠設定）」並等待手機重新開機。",
-            "當舊手機出現「Hello」或「歡迎」的初始設定畫面時，請先停在此畫面！"
-        )
-    }
+    val resetSteps = listOf(
+        stringResource(R.string.wizard_s2_step1),
+        stringResource(R.string.wizard_s2_step2),
+        stringResource(R.string.wizard_s2_step3),
+        stringResource(R.string.wizard_s2_step4)
+    )
 
     Column(
         modifier = Modifier
@@ -425,7 +430,7 @@ fun StepResetScreen(
     ) {
         // 標題
         Text(
-            text = "第一步：重置您的舊手機",
+            text = stringResource(R.string.wizard_s2_header),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -452,7 +457,7 @@ fun StepResetScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
-                text = "舊手機已回到歡迎畫面，下一步",
+                text = stringResource(R.string.wizard_s2_btn_next),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -488,7 +493,7 @@ fun StepNetworkAndApiKeyScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Text(
-            text = "第二步：設定連線參數",
+            text = stringResource(R.string.wizard_s3_header),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -521,7 +526,7 @@ fun StepNetworkAndApiKeyScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "舊手機 Wi-Fi 連線設定",
+                            text = stringResource(R.string.wizard_s3_wifi_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -531,14 +536,14 @@ fun StepNetworkAndApiKeyScreen(
                         onClick = onAutoFillWifi,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("📥 帶入當前 Wi-Fi", fontSize = 12.sp)
+                        Text(stringResource(R.string.wizard_s3_wifi_btn_autofill), fontSize = 12.sp)
                     }
                 }
 
                 OutlinedTextField(
                     value = uiState.wifiSsid,
                     onValueChange = onSsidChange,
-                    label = { Text("Wi-Fi SSID (名稱)") },
+                    label = { Text(stringResource(R.string.wizard_s3_wifi_ssid_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -547,14 +552,14 @@ fun StepNetworkAndApiKeyScreen(
                 OutlinedTextField(
                     value = uiState.wifiPassword,
                     onValueChange = onPasswordChange,
-                    label = { Text("Wi-Fi 密碼 (無密碼可留空)") },
+                    label = { Text(stringResource(R.string.wizard_s3_wifi_pwd_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
 
                 Text(
-                    text = "💡 建議：請確認 Wi-Fi 支援 2.4GHz 頻段，以確保舊款手機連線順暢。",
+                    text = stringResource(R.string.wizard_s3_wifi_hint),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -583,14 +588,14 @@ fun StepNetworkAndApiKeyScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Tailscale 授權金鑰設定",
+                        text = stringResource(R.string.wizard_s3_ts_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
                 Text(
-                    text = "支援直接輸入 Auth Key (tskey-auth-...) 或輸入 API Key (tskey-api-...)：",
+                    text = stringResource(R.string.wizard_s3_ts_prompt),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -612,14 +617,14 @@ fun StepNetworkAndApiKeyScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("前往 Tailscale 取得金鑰 (跳轉網頁)")
+                    Text(stringResource(R.string.wizard_s3_ts_btn_web))
                 }
 
                 OutlinedTextField(
                     value = uiState.apiKey,
                     onValueChange = onApiKeyChange,
-                    label = { Text("貼上 Auth Key 或 API Key") },
-                    placeholder = { Text("tskey-auth-... 或 tskey-api-...") },
+                    label = { Text(stringResource(R.string.wizard_s3_ts_key_label)) },
+                    placeholder = { Text(stringResource(R.string.wizard_s3_ts_key_placeholder)) },
                     singleLine = true,
                     visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -627,7 +632,7 @@ fun StepNetworkAndApiKeyScreen(
                         IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
                             Icon(
                                 imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (isApiKeyVisible) "隱藏金鑰" else "顯示金鑰"
+                                contentDescription = if (isApiKeyVisible) stringResource(R.string.wizard_s3_ts_key_hide) else stringResource(R.string.wizard_s3_ts_key_show)
                             )
                         }
                     },
@@ -648,9 +653,9 @@ fun StepNetworkAndApiKeyScreen(
                             strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("驗證中...")
+                        Text(stringResource(R.string.wizard_s3_ts_btn_verifying))
                     } else {
-                        Text("驗證並儲存金鑰")
+                        Text(stringResource(R.string.wizard_s3_ts_btn_verify))
                     }
                 }
 
@@ -662,11 +667,11 @@ fun StepNetworkAndApiKeyScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "驗證成功",
+                            contentDescription = stringResource(R.string.wizard_s3_ts_success_icon),
                             tint = Color(0xFF2E7D32)
                         )
                         Text(
-                            text = "金鑰驗證成功，已安全儲存！",
+                            text = stringResource(R.string.wizard_s3_ts_success_text),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFF2E7D32),
                             fontWeight = FontWeight.Bold
@@ -695,7 +700,7 @@ fun StepNetworkAndApiKeyScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
-                text = "產生部署條碼",
+                text = stringResource(R.string.wizard_s3_btn_gen_qr),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -714,13 +719,11 @@ fun StepScanScreen(
 ) {
     val scrollState = rememberScrollState()
 
-    val secretSteps = remember {
-        listOf(
-            "【步驟 1：點擊 6 次】在舊手機「Hello / 歡迎」畫面的空白處連續快速點擊 6 次喚醒相機。",
-            "【步驟 2：連線 Wi-Fi】若舊手機提示「需要連線 Wi-Fi 以下載條碼讀取器」，請直接在舊手機上點選 Wi-Fi 連線（此為 Android 官方自動下載 Google 掃描模組所需）。",
-            "【步驟 3：自動開啟相機掃描】下載完成後舊手機相機會自動開啟，請對準下方 QR Code 進行掃描。"
-        )
-    }
+    val secretSteps = listOf(
+        stringResource(R.string.wizard_s4_step1),
+        stringResource(R.string.wizard_s4_step2),
+        stringResource(R.string.wizard_s4_step3)
+    )
 
     Column(
         modifier = Modifier
@@ -732,7 +735,7 @@ fun StepScanScreen(
     ) {
         // 標題
         Text(
-            text = "第三步：喚醒隱藏掃描器",
+            text = stringResource(R.string.wizard_s4_header),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -778,7 +781,7 @@ fun StepScanScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "向 Tailscale 申請 Auth Key 中...",
+                            text = stringResource(R.string.wizard_s4_req_ts_key),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -789,7 +792,7 @@ fun StepScanScreen(
                 uiState.qrCodeBitmap != null -> {
                     Image(
                         bitmap = uiState.qrCodeBitmap.asImageBitmap(),
-                        contentDescription = "部署專用 QR Code",
+                        contentDescription = stringResource(R.string.wizard_s4_qr_desc),
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(12.dp)
@@ -803,7 +806,7 @@ fun StepScanScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "生成失敗：${uiState.qrCodeError}",
+                            text = stringResource(R.string.wizard_s4_qr_error, uiState.qrCodeError ?: ""),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center
@@ -814,7 +817,7 @@ fun StepScanScreen(
                                 containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("重新嘗試")
+                            Text(stringResource(R.string.wizard_s4_btn_retry))
                         }
                     }
                 }
@@ -832,7 +835,7 @@ fun StepScanScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Text(
-                            text = "(部署專用 QR Code)",
+                            text = stringResource(R.string.wizard_s4_qr_placeholder),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -861,7 +864,7 @@ fun StepScanScreen(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "等待舊手機掃描並完成部署...",
+                    text = stringResource(R.string.wizard_waiting_scan),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -887,7 +890,7 @@ fun StepScanScreen(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "已完成掃描，返回主畫面",
+                text = stringResource(R.string.wizard_btn_finish),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -906,21 +909,21 @@ fun StepScanScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "💡 貼心提醒與常見問題",
+                    text = stringResource(R.string.wizard_s4_faq_header),
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.primary
                 )
 
                 Text(
-                    text = "• 為什麼舊手機點 6 次後會要求先連 Wi-Fi？\n這是 Android 原廠官方機制！出廠重置後舊手機尚未內建條碼掃描模組，連上 Wi-Fi 後約 3~5 秒會由 Google 自動下載並開啟相機。",
+                    text = stringResource(R.string.wizard_s4_faq1),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 16.sp
                 )
 
                 Text(
-                    text = "• 連續點擊 6 次沒有反應？\n請在「Hello / 歡迎」文字上方的純空白區域，以每秒 2~3 次的頻率快速連點 6 次。",
+                    text = stringResource(R.string.wizard_s4_faq2),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 16.sp

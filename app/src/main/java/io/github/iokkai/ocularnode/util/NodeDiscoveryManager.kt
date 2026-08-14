@@ -216,10 +216,10 @@ object NodeDiscoveryManager {
 
         if (matched != null) {
             val updated = matched.copy(
-                name = if (matched.name.isBlank() || matched.name.startsWith("鏡頭")) name else matched.name,
+                name = if (matched.name.isBlank() || matched.name.startsWith("Camera") || matched.name.startsWith("鏡頭")) name else matched.name,
                 isOnline = true,
                 lastOnlineTimestamp = System.currentTimeMillis(),
-                modelInfo = "OcularNode (自動發現)"
+                modelInfo = "OcularNode (Auto-Discovered)"
             )
             dao.updateCamera(updated)
         } else {
@@ -229,7 +229,7 @@ object NodeDiscoveryManager {
                 port = port,
                 isOnline = true,
                 lastOnlineTimestamp = System.currentTimeMillis(),
-                modelInfo = "OcularNode (自動發現)"
+                modelInfo = "OcularNode (Auto-Discovered)"
             )
             dao.insertCamera(newNode)
         }
