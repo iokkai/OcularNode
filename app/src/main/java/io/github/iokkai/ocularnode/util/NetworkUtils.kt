@@ -58,10 +58,30 @@ object NetworkUtils {
 
     /**
      * 取得當前已連線的 Wi-Fi SSID (若有)
+     * 在 Android 8.1+ / 12+ 需要 ACCESS_FINE_LOCATION 權限以及開啟 GPS
      */
     fun getCurrentWifiSsid(context: Context): String? {
         return try {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                val activeNetwork = connectivityManager?.activeNetwork
+                val capabilities = connectivityManager?.getNetworkCapabilities(activeNetwork)
+                if (capabilities != null && capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+                    val wifiInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        capabilities.transportInfo as? android.net.wifi.WifiInfo
+                    } else {
+                        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+                        @Suppress("DEPRECATION")
+                        wifiManager?.connectionInfo
+                    }
+                    val ssid = wifiInfo?.ssid
+                    if (ssid != null && ssid != "<unknown ssid>" && ssid.isNotBlank()) {
+                        return ssid.removePrefix("\"").removeSuffix("\"")
+                    }
+                }
+            }
             val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+            @Suppress("DEPRECATION")
             val wifiInfo = wifiManager?.connectionInfo
             val ssid = wifiInfo?.ssid
             if (ssid == null || ssid == "<unknown ssid>" || ssid.isBlank()) {

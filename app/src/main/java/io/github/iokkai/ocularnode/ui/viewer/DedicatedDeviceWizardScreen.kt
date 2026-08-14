@@ -1,7 +1,13 @@
 package io.github.iokkai.ocularnode.ui.viewer
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -90,6 +96,39 @@ fun DedicatedDeviceWizardScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted) {
+            val filled = viewModel.autoFillCurrentWifi(context)
+            if (!filled) {
+                Toast.makeText(context, context.getString(R.string.wizard_wifi_autofill_failed), Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, context.getString(R.string.wizard_wifi_permission_denied), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val onAutoFillWifiRequested: () -> Unit = {
+        val fineGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (fineGranted || coarseGranted) {
+            val filled = viewModel.autoFillCurrentWifi(context)
+            if (!filled) {
+                Toast.makeText(context, context.getString(R.string.wizard_wifi_autofill_failed), Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, context.getString(R.string.wizard_wifi_permission_prompt), Toast.LENGTH_SHORT).show()
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadSavedApiKey(context)
@@ -158,7 +197,7 @@ fun DedicatedDeviceWizardScreen(
 
                         2 -> StepResetScreen(
                             onNext = {
-                                viewModel.autoFillCurrentWifi(context)
+                                onAutoFillWifiRequested()
                                 viewModel.goToStep(3)
                             }
                         )
@@ -167,7 +206,7 @@ fun DedicatedDeviceWizardScreen(
                             uiState = uiState,
                             onSsidChange = { viewModel.setWifiSsid(it) },
                             onPasswordChange = { viewModel.setWifiPassword(it) },
-                            onAutoFillWifi = { viewModel.autoFillCurrentWifi(context) },
+                            onAutoFillWifi = onAutoFillWifiRequested,
                             onApiKeyChange = { viewModel.setApiKey(it) },
                             onVerifyApiKey = { viewModel.verifyApiKey(context) },
                             onNext = {

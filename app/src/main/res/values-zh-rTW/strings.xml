@@ -132,6 +132,9 @@
     <string name="wizard_s3_wifi_ssid_label">Wi-Fi SSID (名稱)</string>
     <string name="wizard_s3_wifi_pwd_label">Wi-Fi 密碼 (無密碼可留空)</string>
     <string name="wizard_s3_wifi_hint">💡 建議：請確認 Wi-Fi 支援 2.4GHz 頻段，以確保舊款手機連線順暢。</string>
+    <string name="wizard_wifi_permission_prompt">正在請求定位權限以自動讀取當前連線的 Wi-Fi 名稱</string>
+    <string name="wizard_wifi_permission_denied">因 Android 隱私限制，請直接手動輸入 Wi-Fi 名稱</string>
+    <string name="wizard_wifi_autofill_failed">無法讀取 Wi-Fi 名稱（請確認已連線 Wi-Fi 且開啟 GPS 定位），或請直接手動輸入</string>
     <string name="wizard_s3_ts_title">Tailscale 授權金鑰設定</string>
     <string name="wizard_s3_ts_prompt">支援直接輸入 Auth Key (tskey-auth-...) 或輸入 API Key (tskey-api-...)：</string>
     <string name="wizard_s3_ts_btn_web">前往 Tailscale 取得金鑰 (跳轉網頁)</string>

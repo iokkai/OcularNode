@@ -80,10 +80,13 @@ class WizardViewModel : ViewModel() {
         }
     }
 
-    fun autoFillCurrentWifi(context: Context) {
+    fun autoFillCurrentWifi(context: Context): Boolean {
         val currentSsid = io.github.iokkai.ocularnode.util.NetworkUtils.getCurrentWifiSsid(context)
-        if (!currentSsid.isNullOrBlank()) {
+        return if (!currentSsid.isNullOrBlank()) {
             _uiState.update { it.copy(wifiSsid = currentSsid) }
+            true
+        } else {
+            false
         }
     }
 
