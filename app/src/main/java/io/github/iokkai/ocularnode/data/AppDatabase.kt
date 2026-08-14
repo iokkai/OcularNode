@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [CameraDevice::class, MotionEvent::class],
@@ -18,13 +20,55 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Ensure new columns in motion_events exist safely
+                try {
+                    db.execSQL("ALTER TABLE motion_events ADD COLUMN aiSummary TEXT NOT NULL DEFAULT ''")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE motion_events ADD COLUMN aiFiltered INTEGER NOT NULL DEFAULT 0")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE motion_events ADD COLUMN snapshotPath TEXT")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE motion_events ADD COLUMN videoPath TEXT")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE motion_events ADD COLUMN remoteId INTEGER")
+                } catch (_: Exception) {}
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Ensure new columns in camera_devices exist safely
+                try {
+                    db.execSQL("ALTER TABLE camera_devices ADD COLUMN lastOnlineTimestamp INTEGER NOT NULL DEFAULT 0")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE camera_devices ADD COLUMN batteryLevel INTEGER NOT NULL DEFAULT -1")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE camera_devices ADD COLUMN isOnline INTEGER NOT NULL DEFAULT 0")
+                } catch (_: Exception) {}
+                try {
+                    db.execSQL("ALTER TABLE camera_devices ADD COLUMN modelInfo TEXT NOT NULL DEFAULT ''")
+                } catch (_: Exception) {}
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "ocularnode.db"
-                ).fallbackToDestructiveMigration(dropAllTables = true).build()
+                )
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+                    .build()
                 INSTANCE = instance
                 instance
             }
