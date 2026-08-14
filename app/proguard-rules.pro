@@ -1,21 +1,52 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Project specific ProGuard / R8 rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Moshi ---
+-dontwarn com.squareup.moshi.**
+-keepclasseswithmembers class * {
+    @com.squareup.moshi.Json <fields>;
+}
+-keepclasseswithmembers class * {
+    @com.squareup.moshi.JsonClass <fields>;
+}
+-keep class * extends com.squareup.moshi.JsonAdapter {
+    public <init>(...);
+}
+-keep class * implements com.squareup.moshi.JsonAdapter {
+    public <init>(...);
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Retrofit & OkHttp ---
+-dontwarn retrofit2.**
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keepattributes Signature, InnerClasses, EnclosingMethod
+-keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keepclassmembers,allowshrinking,allowobfuscation interface * {
+    @retrofit2.http.* <methods>;
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Kotlin Coroutines ---
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepclassmembernames class kotlinx.coroutines.** {
+    volatile <fields>;
+}
+
+# --- AndroidX Room ---
+-dontwarn androidx.room.paging.**
+-keep class * extends androidx.room.RoomDatabase
+
+# --- ML Kit ---
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**
+
+# --- ZXing ---
+-keep class com.google.zxing.** { *; }
+-dontwarn com.google.zxing.**
+
+# --- AndroidX Security Crypto ---
+-keep class androidx.security.crypto.** { *; }
+
+# --- Data Models ---
+-keep class io.github.iokkai.ocularnode.data.** { *; }
+

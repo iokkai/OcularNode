@@ -54,6 +54,33 @@ object ZeroTouchProvisionManager {
     }
 
     /**
+     * 從 Release Assets 列表中挑選最符合當前裝置 CPU 架構的 APK 下載網址
+     */
+    fun findBestMatchingApkUrl(assets: org.json.JSONArray): String? {
+        val apkUrls = mutableListOf<String>()
+        for (i in 0 until assets.length()) {
+            val downloadUrl = assets.optJSONObject(i)?.optString("browser_download_url", "") ?: ""
+            if (downloadUrl.endsWith(".apk", ignoreCase = true)) {
+                apkUrls.add(downloadUrl)
+            }
+        }
+        if (apkUrls.isEmpty()) return null
+
+        val isArm = Build.SUPPORTED_ABIS.any { it.contains("arm", ignoreCase = true) }
+        val isX86 = Build.SUPPORTED_ABIS.any { it.contains("x86", ignoreCase = true) }
+
+        // 優先匹配裝置對應的架構關鍵字 (arm 或 x86)
+        if (isArm) {
+            apkUrls.firstOrNull { it.contains("arm", ignoreCase = true) }?.let { return it }
+        } else if (isX86) {
+            apkUrls.firstOrNull { it.contains("x86", ignoreCase = true) }?.let { return it }
+        }
+
+        // 若無明確標註架構或單一通用 APK，回傳第一個找到的 APK
+        return apkUrls.first()
+    }
+
+    /**
      * 動態從 GitHub Releases API 取得最新版 APK 的真實下載網址
      * @param githubOwner GitHub 擁有者
      * @param githubRepo GitHub 儲存庫名稱
@@ -90,16 +117,10 @@ object ZeroTouchProvisionManager {
                 throw Exception("該 Release 內沒有包含任何可下載的檔案 (Assets)")
             }
 
-            // 尋找第一個以 .apk 結尾的檔案
-            for (i in 0 until assets.length()) {
-                val asset = assets.getJSONObject(i)
-                val downloadUrl = asset.optString("browser_download_url", "")
-                if (downloadUrl.endsWith(".apk", ignoreCase = true)) {
-                    Log.i(TAG, "成功取得動態 APK 網址: $downloadUrl")
-                    return@withContext downloadUrl
-                }
-            }
-            throw Exception("在 Release Assets 中找不到副檔名為 .apk 的檔案")
+            val bestApkUrl = findBestMatchingApkUrl(assets)
+                ?: throw Exception("在 Release Assets 中找不到副檔名為 .apk 的檔案")
+            Log.i(TAG, "成功取得動態適配架構之 APK 網址: $bestApkUrl")
+            return@withContext bestApkUrl
         }
     }
 
@@ -503,16 +524,16 @@ object ZeroTouchProvisionManager {
                 if (remoteVersionCode > currentVersionCode) {
                     Log.i(TAG, "發現新版本 ($tagName)！準備背景下載 APK 並執行特權靜默更新...")
 
-                    // 2. 背景下載：取得 assets[0].browser_download_url
+                    // 2. 背景下載：挑選符合當前裝置架構之 APK browser_download_url
                     val assets = jsonObject.optJSONArray("assets")
                     if (assets == null || assets.length() == 0) {
                         Log.e(TAG, "Release 中未包含可供下載的 assets APK 檔案")
                         return@withContext
                     }
 
-                    val downloadUrl = assets.getJSONObject(0).optString("browser_download_url", "")
-                    if (downloadUrl.isBlank()) {
-                        Log.e(TAG, "無法取得 APK 下載 URL")
+                    val downloadUrl = findBestMatchingApkUrl(assets)
+                    if (downloadUrl.isNullOrBlank()) {
+                        Log.e(TAG, "無法取得符合裝置架構的 APK 下載 URL")
                         return@withContext
                     }
 
