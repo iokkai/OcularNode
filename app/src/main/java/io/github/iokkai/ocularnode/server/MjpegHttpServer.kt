@@ -1113,11 +1113,11 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                 <div class="form-group">
                     <label class="form-label">預設解析度</label>
                     <select id="cfg-resolution" class="form-control">
-                        <option value="Max">Max (感光元件最大畫面)</option>
-                        <option value="1080p">1080p (Full HD)</option>
-                        <option value="720p">720p (HD)</option>
-                        <option value="480p">480p (SD)</option>
-                        <option value="360p">360p (Low)</option>
+                        <option value="1080p">1080p</option>
+                        <option value="960p">960p</option>
+                        <option value="720p">720p</option>
+                        <option value="480p">480p</option>
+                        <option value="360p">360p</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1128,7 +1128,7 @@ private fun sendJsonResponse(output: OutputStream, statusCode: Int, json: String
                         <option value="50">50% (流暢)</option>
                         <option value="30">30% (省流量)</option>
                         <option value="20">20% (超省流量)</option>
-                        <option value="15">15% (極限壓縮/推薦最大視野)</option>
+                        <option value="15">15% (極限壓縮)</option>
                     </select>
                 </div>
             </div>

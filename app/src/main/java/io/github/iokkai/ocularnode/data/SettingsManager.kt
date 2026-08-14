@@ -87,8 +87,11 @@ class SettingsManager(context: Context) {
         get() = prefs.getInt(KEY_DEFAULT_QUALITY, 60)
         set(value) = prefs.edit().putInt(KEY_DEFAULT_QUALITY, value).apply()
 
-    var defaultResolution: String // "Max", "1080p", "720p", "480p", "360p"
-        get() = prefs.getString(KEY_DEFAULT_RESOLUTION, "Max") ?: "Max"
+    var defaultResolution: String // "720p", "960p", "480p", "360p", "1080p"
+        get() {
+            val res = prefs.getString(KEY_DEFAULT_RESOLUTION, "720p") ?: "720p"
+            return if (res.equals("Max", ignoreCase = true)) "720p" else res
+        }
         set(value) = prefs.edit().putString(KEY_DEFAULT_RESOLUTION, value).apply()
 
     var operatingMode: String // "monitor" (監看模式) or "detection" (自動偵測模式)

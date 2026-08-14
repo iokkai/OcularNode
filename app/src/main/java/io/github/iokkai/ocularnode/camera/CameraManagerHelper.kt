@@ -68,7 +68,7 @@ class CameraManagerHelper(private val context: Context) {
     var isTorchOn: Boolean = false
         private set
     var jpegQuality: Int = 60
-    var currentResolutionString: String = "Max"
+    var currentResolutionString: String = "720p"
     var nightVisionMode: String = "auto" // "off", "on", "auto"
     var isNightVisionActive: Boolean = false
         private set
@@ -163,26 +163,17 @@ class CameraManagerHelper(private val context: Context) {
 
         val targetSize = getTargetSize(currentResolutionString)
 
-        val resolutionSelector = if (currentResolutionString.equals("Max", ignoreCase = true) || targetSize == null) {
-            ResolutionSelector.Builder()
-                .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
-                .setAspectRatioStrategy(
-                    androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
+        val resolutionSelector = ResolutionSelector.Builder()
+            .setResolutionStrategy(
+                ResolutionStrategy(
+                    targetSize,
+                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                 )
-                .build()
-        } else {
-            ResolutionSelector.Builder()
-                .setResolutionStrategy(
-                    ResolutionStrategy(
-                        targetSize,
-                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-                    )
-                )
-                .setAspectRatioStrategy(
-                    androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY
-                )
-                .build()
-        }
+            )
+            .setAspectRatioStrategy(
+                androidx.camera.core.resolutionselector.AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+            )
+            .build()
 
         val imageAnalysisBuilder = ImageAnalysis.Builder()
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -321,14 +312,14 @@ class CameraManagerHelper(private val context: Context) {
         bindCameraUseCases()
     }
 
-    private fun getTargetSize(res: String): Size? {
+    private fun getTargetSize(res: String): Size {
         return when (res.lowercase(Locale.ROOT)) {
-            "max" -> null
-            "1080p" -> Size(1920, 1080)
-            "720p" -> Size(1280, 720)
-            "480p" -> Size(854, 480)
-            "360p" -> Size(640, 360)
-            else -> null
+            "1080p" -> Size(1440, 1080)
+            "960p" -> Size(1280, 960)
+            "720p" -> Size(960, 720)
+            "480p" -> Size(640, 480)
+            "360p" -> Size(480, 360)
+            else -> Size(960, 720)
         }
     }
 

@@ -733,11 +733,11 @@ fun ResolutionSelectionDialog(
     onDismiss: () -> Unit
 ) {
     val options = listOf(
-        "Max" to "全感光元件 • 最大畫面 (不限長寬比)",
-        "1080p" to "1920x1080 • 超高畫質 (16:9)",
-        "720p" to "1280x720 • 高畫質 (16:9)",
-        "480p" to "854x480 • 標準畫質",
-        "360p" to "640x360 • 流暢"
+        "1080p" to "1440x1080",
+        "960p" to "1280x960",
+        "720p" to "960x720",
+        "480p" to "640x480",
+        "360p" to "480x360"
     )
 
     AlertDialog(
