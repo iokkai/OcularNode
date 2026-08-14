@@ -89,10 +89,13 @@ class CameraManagerHelper(private val context: Context) {
     var autoNightVisionThreshold: Float = 45.0f
     var autoNightVisionHysteresis: Float = 8.0f
 
-    // Motion Detection State
-    private var prevLumaMatrix: FloatArray? = null
-    private var prevMatrixWidth = 0
-    private var prevMatrixHeight = 0
+    // Motion Detection State (Zero-allocation reusable buffers)
+    private val motionGridWidth = 32
+    private val motionGridHeight = 24
+    private val totalMotionCells = motionGridWidth * motionGridHeight
+    private val currentLumaGrid = FloatArray(totalMotionCells)
+    private val prevLumaGrid = FloatArray(totalMotionCells)
+    private var hasPrevLuma = false
     private var lastMotionTime = 0L
     private var cameraStartTime = 0L
     private val isProcessingFrame = AtomicBoolean(false)
@@ -622,111 +625,119 @@ class CameraManagerHelper(private val context: Context) {
 
     private fun analyzeMotion(imageProxy: androidx.camera.core.ImageProxy, yBuffer: ByteBuffer, yRowStride: Int, width: Int, height: Int, avgLuma: Float, bitmap: Bitmap?, rotation: Int) {
         val now = System.currentTimeMillis()
-        val gridWidth = 32
-        val gridHeight = 24
-        val totalCells = gridWidth * gridHeight
-        val currentLumaGrid = FloatArray(totalCells)
+        val gridWidth = motionGridWidth
+        val gridHeight = motionGridHeight
+        val totalCells = totalMotionCells
 
         val cellW = width / gridWidth
         val cellH = height / gridHeight
 
         yBuffer.rewind()
         for (gy in 0 until gridHeight) {
+            val sampleY = gy * cellH + cellH / 2
+            val rowOffset = sampleY * yRowStride
+            val gridRowOffset = gy * gridWidth
             for (gx in 0 until gridWidth) {
                 val sampleX = gx * cellW + cellW / 2
-                val sampleY = gy * cellH + cellH / 2
-                val index = sampleY * yRowStride + sampleX
+                val index = rowOffset + sampleX
                 if (index < yBuffer.capacity()) {
-                    currentLumaGrid[gy * gridWidth + gx] = (yBuffer.get(index).toInt() and 0xFF).toFloat()
+                    currentLumaGrid[gridRowOffset + gx] = (yBuffer.get(index).toInt() and 0xFF).toFloat()
                 }
             }
         }
 
-        val prev = prevLumaMatrix
-        if (prev != null && prev.size == totalCells) {
+        if (hasPrevLuma) {
             var diffCells = 0
-            // 使用固定的亮度變化門檻 (原為公式: 25.0f - motionSensitivity * 1.8f)
+            var positiveDiffs = 0
+            var negativeDiffs = 0
             val thresholdDelta = 15.0f
 
             for (i in 0 until totalCells) {
-                val diff = Math.abs(currentLumaGrid[i] - prev[i])
-                if (diff > thresholdDelta) {
+                val delta = currentLumaGrid[i] - prevLumaGrid[i]
+                val absDelta = Math.abs(delta)
+                if (absDelta > thresholdDelta) {
                     diffCells++
+                    if (delta > 0) positiveDiffs++ else negativeDiffs++
                 }
             }
 
-            val motionRatio = (diffCells.toFloat() / totalCells) * 100f
-            // 直接使用設定值 (動態差異觸發門檻 %) 作為判定標準
-            val triggerRatioThreshold = motionSensitivity.coerceIn(1.0f, 100.0f)
+            // 全域光影突變過濾 (例如開關燈、閃光、大面積雲層陰影突變：超過 65% 網格變動且 85% 以上同方向增亮/變暗)
+            val isGlobalIlluminationChange = diffCells > (totalCells * 0.65f) && 
+                (positiveDiffs > diffCells * 0.85f || negativeDiffs > diffCells * 0.85f)
 
+            if (isGlobalIlluminationChange) {
+                io.github.iokkai.ocularnode.util.AppLogger.d("CameraManagerHelper", "忽略全域光影突變 (開關燈/環境光驟變) diffCells=$diffCells, +:$positiveDiffs, -:$negativeDiffs")
+            } else {
+                val motionRatio = (diffCells.toFloat() / totalCells) * 100f
+                // 直接使用設定值 (動態差異觸發門檻 %) 作為判定標準
+                val triggerRatioThreshold = motionSensitivity.coerceIn(1.0f, 100.0f)
 
-            if (motionRatio > triggerRatioThreshold) {
-                if (now - cameraStartTime < 5000L) {
-                    io.github.iokkai.ocularnode.util.AppLogger.d("CameraManagerHelper", "忽略開機初期的不穩定動態變化")
-                    return
-                }
-
-                // Motion detected!
-
-                val cooldownMs = (motionCooldownSeconds * 1000L).coerceAtLeast(2000L)
-                if (now - lastMotionTime > cooldownMs) {
-                    io.github.iokkai.ocularnode.util.AppLogger.d("CameraManagerHelper", "觸發動態警報! 當前變動比例: ${String.format("%.2f", motionRatio)}% > 門檻: ${String.format("%.1f", triggerRatioThreshold)}%")
-                    lastMotionTime = now
-                    
-                    try {
-                        var activeBitmap = bitmap ?: try { imageProxy.toBitmap() } catch(e: Exception) { null }
-                        if (activeBitmap != null) {
-                            // 保留高清 HD 解析度 (最高長邊限制 1280px，清晰度高且不會超過網路傳輸負荷)
-                            val maxDimension = 1280f
-                            val srcWidth = activeBitmap.width.toFloat()
-                            val srcHeight = activeBitmap.height.toFloat()
-                            val scaleFactor = if (Math.max(srcWidth, srcHeight) > maxDimension) {
-                                maxDimension / Math.max(srcWidth, srcHeight)
-                            } else {
-                                1.0f
-                            }
-
-                            val targetW = (srcWidth * scaleFactor).toInt().coerceAtLeast(1)
-                            val targetH = (srcHeight * scaleFactor).toInt().coerceAtLeast(1)
-
-                            val scaledBitmap = if (scaleFactor < 1.0f) {
-                                Bitmap.createScaledBitmap(activeBitmap, targetW, targetH, true)
-                            } else {
-                                activeBitmap
-                            }
-
-                            val matrix = Matrix()
-                            val totalRotation = settingsManager.streamRotation % 360
-                            if (totalRotation != 0) matrix.postRotate(totalRotation.toFloat())
-                            val rotated = if (totalRotation != 0 || scaledBitmap != activeBitmap) {
-                                Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.width, scaledBitmap.height, matrix, true)
-                            } else {
-                                scaledBitmap
-                            }
+                if (motionRatio > triggerRatioThreshold) {
+                    if (now - cameraStartTime < 5000L) {
+                        io.github.iokkai.ocularnode.util.AppLogger.d("CameraManagerHelper", "忽略開機初期的不穩定動態變化")
+                    } else {
+                        // Motion detected!
+                        val cooldownMs = (motionCooldownSeconds * 1000L).coerceAtLeast(2000L)
+                        if (now - lastMotionTime > cooldownMs) {
+                            io.github.iokkai.ocularnode.util.AppLogger.d("CameraManagerHelper", "觸發動態警報! 當前變動比例: ${String.format("%.2f", motionRatio)}% > 門檻: ${String.format("%.1f", triggerRatioThreshold)}%")
+                            lastMotionTime = now
                             
-                            val thumbStream = ByteArrayOutputStream()
-                            // 提升 JPEG 壓縮品質至 85% (原 50% 會產生嚴重馬賽克與模糊)
-                            rotated.compress(Bitmap.CompressFormat.JPEG, 85, thumbStream)
-                            val thumbnailBytes = thumbStream.toByteArray()
-                            
-                            onMotionDetected?.invoke(motionRatio, thumbnailBytes, rotated)
-                        } else {
-                            onMotionDetected?.invoke(motionRatio, ByteArray(0), null)
+                            try {
+                                var activeBitmap = bitmap ?: try { imageProxy.toBitmap() } catch(e: Exception) { null }
+                                if (activeBitmap != null) {
+                                    // 保留高清 HD 解析度 (最高長邊限制 1280px，清晰度高且不會超過網路傳輸負荷)
+                                    val maxDimension = 1280f
+                                    val srcWidth = activeBitmap.width.toFloat()
+                                    val srcHeight = activeBitmap.height.toFloat()
+                                    val scaleFactor = if (Math.max(srcWidth, srcHeight) > maxDimension) {
+                                        maxDimension / Math.max(srcWidth, srcHeight)
+                                    } else {
+                                        1.0f
+                                    }
+
+                                    val targetW = (srcWidth * scaleFactor).toInt().coerceAtLeast(1)
+                                    val targetH = (srcHeight * scaleFactor).toInt().coerceAtLeast(1)
+
+                                    val scaledBitmap = if (scaleFactor < 1.0f) {
+                                        Bitmap.createScaledBitmap(activeBitmap, targetW, targetH, true)
+                                    } else {
+                                        activeBitmap
+                                    }
+
+                                    val matrix = Matrix()
+                                    val totalRotation = settingsManager.streamRotation % 360
+                                    if (totalRotation != 0) matrix.postRotate(totalRotation.toFloat())
+                                    val rotated = if (totalRotation != 0 || scaledBitmap != activeBitmap) {
+                                        Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.width, scaledBitmap.height, matrix, true)
+                                    } else {
+                                        scaledBitmap
+                                    }
+                                    
+                                    val thumbStream = ByteArrayOutputStream()
+                                    // 提升 JPEG 壓縮品質至 85% (原 50% 會產生嚴重馬賽克與模糊)
+                                    rotated.compress(Bitmap.CompressFormat.JPEG, 85, thumbStream)
+                                    val thumbnailBytes = thumbStream.toByteArray()
+                                    
+                                    onMotionDetected?.invoke(motionRatio, thumbnailBytes, rotated)
+                                } else {
+                                    onMotionDetected?.invoke(motionRatio, ByteArray(0), null)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("CameraManagerHelper", "Error generating thumbnail", e)
+                            }
                         }
-                    } catch (e: Exception) {
-                        Log.e("CameraManagerHelper", "Error generating thumbnail", e)
                     }
                 }
             }
         }
 
-        prevLumaMatrix = currentLumaGrid
-        prevMatrixWidth = gridWidth
-        prevMatrixHeight = gridHeight
+        // 複製當前網格作為下一幀的比對基準 (零額外記憶體配置)
+        System.arraycopy(currentLumaGrid, 0, prevLumaGrid, 0, totalCells)
+        hasPrevLuma = true
     }
 
     fun release() {
-        prevLumaMatrix = null
+        hasPrevLuma = false
 
         try {
             cameraProvider?.unbindAll()

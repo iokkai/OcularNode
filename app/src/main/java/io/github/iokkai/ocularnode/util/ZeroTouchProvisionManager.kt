@@ -439,26 +439,32 @@ object ZeroTouchProvisionManager {
                 val settings = SettingsManager(context)
                 settings.isKioskModeActive = true
                 Log.i(TAG, "已成功啟動 Kiosk 死鎖模式 (Lock Task)")
+                Toast.makeText(activity, "🔒 已啟動 Kiosk 死鎖模式", Toast.LENGTH_SHORT).show()
+                return true
             } else {
                 Log.w(TAG, "未取得 Lock Task 權限，無法鎖定螢幕")
+                return false
             }
         } catch (e: Exception) {
             Log.e(TAG, "啟用 Kiosk 死鎖模式異常", e)
+            return false
         }
     }
 
     /**
      * 停用 Kiosk 螢幕死鎖模式 (逃生門)
      */
-    fun disableKioskMode(activity: Activity) {
+    fun disableKioskMode(activity: Activity): Boolean {
         try {
             activity.stopLockTask()
             val settings = SettingsManager(activity.applicationContext)
             settings.isKioskModeActive = false
             Toast.makeText(activity, "已順利解除 Kiosk 死鎖模式！", Toast.LENGTH_LONG).show()
             Log.i(TAG, "已解除 Kiosk 死鎖模式 (Lock Task Ended)")
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "解除 Kiosk 死鎖模式異常", e)
+            return false
         }
     }
 

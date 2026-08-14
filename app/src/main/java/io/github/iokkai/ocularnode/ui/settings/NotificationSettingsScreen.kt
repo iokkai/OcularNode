@@ -162,6 +162,14 @@ fun NotificationSettingsScreen(
                     NotificationCategory.values().forEach { category ->
                         val isEnabled by dataStore.getCategoryEnabled(category).collectAsState(initial = true)
                         val isRecordingEnabled by dataStore.getCategoryRecordingEnabled(category).collectAsState(initial = true)
+                        val iconStr = when (category) {
+                            NotificationCategory.HUMAN_AND_ACTIVITY -> "🚶 👨‍👩‍👧"
+                            NotificationCategory.PET_AND_ANIMAL -> "🐶 🐱"
+                            NotificationCategory.VEHICLE_AND_TRANSPORT -> "🚗 🚲"
+                            NotificationCategory.HOUSEHOLD_ITEM -> "🛋️ 📦"
+                            NotificationCategory.ENVIRONMENT_AND_NATURE -> "🌿 🏞️"
+                            NotificationCategory.OTHER -> "❓"
+                        }
                         
                         Row(
                             modifier = Modifier
@@ -170,8 +178,8 @@ fun NotificationSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = category.displayName,
-                                fontSize = 15.sp,
+                                text = "$iconStr ${category.displayName}",
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF1C1B1F),
                                 modifier = Modifier.weight(1.2f)

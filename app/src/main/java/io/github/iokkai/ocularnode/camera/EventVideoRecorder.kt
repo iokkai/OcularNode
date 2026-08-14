@@ -129,8 +129,7 @@ class EventVideoRecorder(
                 }
             }
         } else if (state.get() == RecorderState.RECORDING) {
-            // 如果已經在錄影中，則延長錄影時間
-            onFinishedCallbacks.add(onFinished)
+            // 如果已經在錄影中，則延長錄影時間（不重複註冊完成回呼，避免 Telegram 重複發送同一影片）
             val maxFrames = fps * maxRecordSeconds
             val currentTarget = dynamicTargetPostFrames.get()
             // 延長 basePostRecordSeconds，但不能超過最大限制

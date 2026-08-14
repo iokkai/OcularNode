@@ -485,8 +485,26 @@ object MlKitFilterHelper {
         enabledCategories: Set<NotificationCategory>,
         enabledRecordingCategories: Set<NotificationCategory>
     ): MlKitAnalysisResult = withContext(Dispatchers.IO) {
+        var scaledBitmap: Bitmap? = null
         try {
-            val inputImage = InputImage.fromBitmap(bitmap, 0)
+            // 適度降採樣至長邊最大 640px，降低 ML Kit 推論耗時與記憶體佔用達 50% 以上
+            val maxDimension = 640f
+            val srcWidth = bitmap.width.toFloat()
+            val srcHeight = bitmap.height.toFloat()
+            val scaleFactor = if (Math.max(srcWidth, srcHeight) > maxDimension) {
+                maxDimension / Math.max(srcWidth, srcHeight)
+            } else {
+                1.0f
+            }
+            val targetBitmap = if (scaleFactor < 1.0f) {
+                val tw = (srcWidth * scaleFactor).toInt().coerceAtLeast(1)
+                val th = (srcHeight * scaleFactor).toInt().coerceAtLeast(1)
+                Bitmap.createScaledBitmap(bitmap, tw, th, true).also { scaledBitmap = it }
+            } else {
+                bitmap
+            }
+
+            val inputImage = InputImage.fromBitmap(targetBitmap, 0)
 
             // 使用 kotlinx.coroutines.tasks.await() 來處理 Play Services Task
             val detectedObjects = try {
@@ -495,7 +513,7 @@ object MlKitFilterHelper {
                 emptyList()
             }
 
-val imageLabels = try {
+            val imageLabels = try {
                 imageLabeler.process(inputImage).await()
             } catch (e: Exception) {
                 emptyList()
@@ -505,32 +523,6 @@ val imageLabels = try {
             val allLabelTexts = (detectedObjects.flatMap { it.labels }.map { it.text } + imageLabels.map { it.text })
                                 .map { it.lowercase() }
                                 .distinct()
-
-            // 1. 判斷是否有匹配到「開啟」或「關閉」的類別
-            var hasEnabledCategory = false
-            var hasDisabledCategory = false
-            var triggerCategoryName = ""
-
-            for (label in allLabelTexts) {
-                val cat = LabelMapper.getCategory(label)
-                if (cat != NotificationCategory.OTHER) {
-                    if (enabledCategories.contains(cat)) {
-                        hasEnabledCategory = true
-                        triggerCategoryName = cat.displayName // 記錄觸發的類別名稱用於 Log
-                        break // 只要有一個開啟的類別命中，就確定放行，不用再檢查了！
-                    } else {
-                        hasDisabledCategory = true
-                    }
-                }
-            }
-
-            // 判斷該次推播是否因為類別設定被攔截
-            // 邏輯：如果有找到標籤，且「沒有任何開啟的類別」但「有關閉的類別」，則攔截。
-            val isCategoryEnabled = if (allLabelTexts.isNotEmpty() && !hasEnabledCategory && hasDisabledCategory) {
-                false
-            } else {
-                true // 包含完全沒辨識出具體類別 (OTHER) 的情況，預設放行
-            }
 
             val personKeywords = listOf("person", "human", "man", "woman", "boy", "girl", "child", "people", "hand", "dude", "clown", "face", "head", "portrait", "hair", "skin", "nose", "eye", "mouth", "smile", "skateboarder", "deejay", "grandparent", "crowd", "musician", "singer", "superhero", "model", "groom", "baby", "bride", "joker", "supervillain")
             val petKeywords = listOf(
@@ -543,54 +535,66 @@ val imageLabels = try {
             val hasPerson = allLabelTexts.any { label -> personKeywords.any { label.contains(it) } }
             val hasPet = allLabelTexts.any { label -> petKeywords.any { label.contains(it) } }
 
-            // 二階段判斷邏輯：
-            // - 若類別被關閉 (!isCategoryEnabled)：攔截推播
-            // - 若識別只有人類 (hasPerson && !hasPet)：視為主人在家，攔截推播通知 (進入冷卻，不警報)
-            // - 若有寵物 (hasPet) 或未辨識出人類 (!hasPerson)：正常發送事件推播
-            var hasEnabledRecordingCategory = false
-            var hasDisabledRecordingCategory = false
+            // 各分類獨立開關判斷：
+            // 將偵測到的標籤映射至分類，並分別收集「開啟」與「關閉」的分類
+            val detectedCategories = mutableSetOf<NotificationCategory>()
+            val translatedLabels = allLabelTexts.map { labelTranslations[it] ?: it }
+
             for (label in allLabelTexts) {
                 val cat = LabelMapper.getCategory(label)
-                if (cat != NotificationCategory.OTHER) {
-                    if (enabledRecordingCategories.contains(cat)) {
-                        hasEnabledRecordingCategory = true
-                        break
-                    } else {
-                        hasDisabledRecordingCategory = true
-                    }
-                }
-            }
-            
-            val isRecordingCategoryEnabled = if (allLabelTexts.isNotEmpty() && !hasEnabledRecordingCategory && hasDisabledRecordingCategory) {
-                false
-            } else {
-                true
+                detectedCategories.add(cat)
             }
 
-            val shouldSuppress = !isCategoryEnabled || (hasPerson && !hasPet)
-            val shouldTriggerRecording = isRecordingCategoryEnabled && !(hasPerson && !hasPet)
-            
-            val translatedLabels = allLabelTexts.map { labelTranslations[it] ?: it }
-            
-            val summaryText = when {
-                !isCategoryEnabled -> "$allLabelTexts 類別停用通知"
-                hasPerson && hasPet -> "人類 + 寵物 (發送警報)"
-                hasPerson -> "已過濾純人類畫面"
-                hasPet -> "偵測到寵物 (發送警報)"
-                translatedLabels.isNotEmpty() -> "畫面異動 [${translatedLabels.take(3).joinToString()}]"
-                else -> "動態異動 (未分類)"
+            val enabledMatchedNotifCats = detectedCategories.filter { enabledCategories.contains(it) }
+            val disabledMatchedNotifCats = detectedCategories.filter { !enabledCategories.contains(it) }
+
+            val enabledMatchedRecCats = detectedCategories.filter { enabledRecordingCategories.contains(it) }
+            val disabledMatchedRecCats = detectedCategories.filter { !enabledRecordingCategories.contains(it) }
+
+            // 1. 推播決策：只要命中任何一個開啟的分類即發出通知；若所有命中的分類皆被使用者關閉則攔截
+            val shouldSuppressNotification = if (detectedCategories.isNotEmpty()) {
+                enabledMatchedNotifCats.isEmpty()
+            } else {
+                !enabledCategories.contains(NotificationCategory.OTHER)
+            }
+
+            // 2. 錄影決策：只要命中任何一個開啟錄影的分類即啟動錄影
+            val shouldTriggerRecording = if (detectedCategories.isNotEmpty()) {
+                enabledMatchedRecCats.isNotEmpty()
+            } else {
+                enabledRecordingCategories.contains(NotificationCategory.OTHER)
+            }
+
+            // 3. 組合 summaryText 顯示分類與標籤內容
+            val labelsPreview = translatedLabels.take(5).joinToString(", ")
+            val summaryText = if (!shouldSuppressNotification) {
+                val enabledCatNames = enabledMatchedNotifCats.map { it.displayName }.distinct().joinToString("/")
+                if (enabledCatNames.isNotBlank() && labelsPreview.isNotBlank()) {
+                    "[$enabledCatNames] $labelsPreview"
+                } else if (labelsPreview.isNotBlank()) {
+                    "偵測到: $labelsPreview"
+                } else {
+                    "動態異動 (未分類)"
+                }
+            } else {
+                val disabledCatNames = disabledMatchedNotifCats.map { it.displayName }.distinct().joinToString("/")
+                if (disabledCatNames.isNotBlank()) {
+                    "已過濾 [$disabledCatNames: $labelsPreview] (類別已停用)"
+                } else {
+                    "已過濾動態通知 (類別已停用)"
+                }
             }
 
             AppLogger.d(TAG, "原始物件標籤: $allLabelTexts")
-            AppLogger.d(TAG, "命中開啟類別: $hasEnabledCategory (觸發類別: $triggerCategoryName), 命中關閉類別: $hasDisabledCategory")
-            AppLogger.d(TAG, "是否包含人臉/人類 (hasPerson): $hasPerson, 是否包含寵物 (hasPet): $hasPet")
-            AppLogger.d(TAG, "最終過濾決定: suppress=$shouldSuppress (原因: $summaryText)")
+            AppLogger.d(TAG, "翻譯標籤: $translatedLabels")
+            AppLogger.d(TAG, "偵測分類: $detectedCategories, 命中開啟推播分類: $enabledMatchedNotifCats, 關閉分類: $disabledMatchedNotifCats")
+            AppLogger.d(TAG, "最終決定: suppressNotif=$shouldSuppressNotification, triggerRec=$shouldTriggerRecording (摘要: $summaryText)")
 
             MlKitAnalysisResult(
                 hasPerson = hasPerson,
                 hasPet = hasPet,
                 detectedLabels = translatedLabels,
-                shouldSuppressNotification = shouldSuppress,
+                shouldSuppressNotification = shouldSuppressNotification,
                 shouldTriggerRecording = shouldTriggerRecording,
                 summaryText = summaryText
             )
@@ -604,6 +608,8 @@ val imageLabels = try {
                 shouldTriggerRecording = true, // 發生錯誤時預設允許錄影
                 summaryText = "畫面異動"
             )
+        } finally {
+            scaledBitmap?.recycle()
         }
     }
 }

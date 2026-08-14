@@ -969,7 +969,7 @@ class CameraStreamService : Service(), LifecycleOwner {
 
             // Video Recording Debounce & Prolonging Logic
             if (!shouldTriggerRecording) {
-                Log.i("CameraStreamService", "ML Kit Filter: Recording suppressed based on category settings or human-only rule.")
+                Log.i("CameraStreamService", "ML Kit Filter: Recording suppressed based on category settings ($aiSummary).")
             } else if (_isThermalThrottled.value) {
                 Log.w("CameraStreamService", "Thermal Throttling Active: Video recording paused to prevent device overheating.")
             } else if (settingsManager.eventVideoRecordingEnabled) {
@@ -1023,7 +1023,7 @@ class CameraStreamService : Service(), LifecycleOwner {
             }
 
             if (shouldSuppressNotification) {
-                Log.i("CameraStreamService", "ML Kit Filter: Human detected (owner at home). Notification & Alarm suppressed.")
+                Log.i("CameraStreamService", "ML Kit Filter: Notification suppressed based on category settings ($aiSummary).")
                 return@launch
             }
 

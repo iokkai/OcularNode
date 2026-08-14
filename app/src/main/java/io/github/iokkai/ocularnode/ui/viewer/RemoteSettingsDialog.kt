@@ -952,6 +952,44 @@ fun RemoteSettingsScreen(
                                                 }
                                             }
                                         }
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(1.dp)
+                                                .background(Color(0xFFE2E8F0))
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        // ➔ 告警媒體類型 (照片 / 影片 / 照片+影片)
+                                        Text("📡 Telegram 告警媒體類型", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = textPrimaryColor)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("選擇動態偵測觸發時傳送的媒體形式：", fontSize = 11.sp, color = textSecondaryColor)
+                                        Spacer(modifier = Modifier.height(10.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            val types = listOf("photo" to "📸 照片", "video" to "🎥 影片", "both" to "🖼️ 兩者皆傳")
+                                            types.forEach { (typeKey, label) ->
+                                                val isSelected = localTelegramMediaType == typeKey
+                                                OutlinedButton(
+                                                    onClick = { localTelegramMediaType = typeKey },
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    border = BorderStroke(1.dp, if (isSelected) brandPrimaryColor else Color(0xFFCAC4D0)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = if (isSelected) Color(0xFFE8DEF8) else Color.Transparent,
+                                                        contentColor = if (isSelected) brandPrimaryColor else textSecondaryColor
+                                                    ),
+                                                    modifier = Modifier.weight(1f),
+                                                    contentPadding = PaddingValues(vertical = 8.dp, horizontal = 4.dp)
+                                                ) {
+                                                    Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }

@@ -19,6 +19,23 @@ object TelegramNotifier {
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
+    private suspend fun <T> executeWithRetry(maxRetries: Int = 2, delayMs: Long = 1000L, block: () -> T): T {
+        var lastException: Exception? = null
+        for (attempt in 0..maxRetries) {
+            try {
+                return block()
+            } catch (e: java.io.IOException) {
+                lastException = e
+                if (attempt < maxRetries) {
+                    kotlinx.coroutines.delay(delayMs * (attempt + 1))
+                }
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+        throw lastException ?: java.io.IOException("Max retries exceeded")
+    }
+
     suspend fun sendMotionAlert(
         botToken: String,
         chatId: String,
@@ -39,43 +56,45 @@ object TelegramNotifier {
                     aiLine +
                     "⏰ 時間: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
 
-            if (photoBytes != null && photoBytes.isNotEmpty()) {
-                // Send photo with caption
-                val url = "https://api.telegram.org/bot$botToken/sendPhoto"
-                val requestBody = MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
-                    .addFormDataPart("chat_id", chatId)
-                    .addFormDataPart("caption", caption)
-                    .addFormDataPart("parse_mode", "Markdown")
-                    .addFormDataPart(
-                        "photo",
-                        "motion_alert.jpg",
-                        photoBytes.toRequestBody("image/jpeg".toMediaType())
-                    )
-                    .build()
+            executeWithRetry {
+                if (photoBytes != null && photoBytes.isNotEmpty()) {
+                    // Send photo with caption
+                    val url = "https://api.telegram.org/bot$botToken/sendPhoto"
+                    val requestBody = MultipartBody.Builder()
+                        .setType(MultipartBody.FORM)
+                        .addFormDataPart("chat_id", chatId)
+                        .addFormDataPart("caption", caption)
+                        .addFormDataPart("parse_mode", "Markdown")
+                        .addFormDataPart(
+                            "photo",
+                            "motion_alert.jpg",
+                            photoBytes.toRequestBody("image/jpeg".toMediaType())
+                        )
+                        .build()
 
-                val request = Request.Builder().url(url).post(requestBody).build()
-                val response = client.newCall(request).execute()
-                val success = response.isSuccessful
-                response.close()
-                return@withContext success
-            } else {
-                // Send text message
-                val url = "https://api.telegram.org/bot$botToken/sendMessage"
-                val jsonBody = """
-                    {
-                        "chat_id": "$chatId",
-                        "text": "$caption",
-                        "parse_mode": "Markdown"
-                    }
-                """.trimIndent()
+                    val request = Request.Builder().url(url).post(requestBody).build()
+                    val response = client.newCall(request).execute()
+                    val success = response.isSuccessful
+                    response.close()
+                    success
+                } else {
+                    // Send text message
+                    val url = "https://api.telegram.org/bot$botToken/sendMessage"
+                    val jsonBody = """
+                        {
+                            "chat_id": "$chatId",
+                            "text": "$caption",
+                            "parse_mode": "Markdown"
+                        }
+                    """.trimIndent()
 
-                val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
-                val request = Request.Builder().url(url).post(requestBody).build()
-                val response = client.newCall(request).execute()
-                val success = response.isSuccessful
-                response.close()
-                return@withContext success
+                    val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
+                    val request = Request.Builder().url(url).post(requestBody).build()
+                    val response = client.newCall(request).execute()
+                    val success = response.isSuccessful
+                    response.close()
+                    success
+                }
             }
         } catch (e: Exception) {
             Log.e("TelegramNotifier", "Error sending Telegram notification", e)
@@ -116,11 +135,13 @@ object TelegramNotifier {
                 )
                 .build()
 
-            val request = Request.Builder().url(url).post(requestBody).build()
-            val response = client.newCall(request).execute()
-            val success = response.isSuccessful
-            response.close()
-            return@withContext success
+            executeWithRetry {
+                val request = Request.Builder().url(url).post(requestBody).build()
+                val response = client.newCall(request).execute()
+                val success = response.isSuccessful
+                response.close()
+                success
+            }
         } catch (e: Exception) {
             Log.e("TelegramNotifier", "Error sending Telegram video notification", e)
             return@withContext false
@@ -177,11 +198,13 @@ object TelegramNotifier {
             }
 
             val requestBody = jsonObj.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder().url(url).post(requestBody).build()
-            val response = client.newCall(request).execute()
-            val success = response.isSuccessful
-            response.close()
-            return@withContext success
+            executeWithRetry {
+                val request = Request.Builder().url(url).post(requestBody).build()
+                val response = client.newCall(request).execute()
+                val success = response.isSuccessful
+                response.close()
+                success
+            }
         } catch (e: Exception) {
             Log.e("TelegramNotifier", "Error sending Telegram system alert", e)
             return@withContext false
