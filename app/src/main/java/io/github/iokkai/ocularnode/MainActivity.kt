@@ -33,9 +33,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -121,6 +124,7 @@ fun MainAppScreen(
     }
     var viewingMonitorDevice by remember { mutableStateOf<CameraDevice?>(null) }
     val unreadCount by eventLogsViewModel.unreadCount.collectAsState()
+    val tailscaleProgress by io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager.tailscaleDownloadProgress.collectAsState()
 
     // Force CAMERA role & sync if Device Owner
     LaunchedEffect(isDeviceOwner) {
@@ -184,6 +188,89 @@ fun MainAppScreen(
                 currentTab = if (selectedRole == "VIEWER") AppTab.VIEWER else AppTab.CAMERA
             }
         )
+    }
+
+    // 零接觸部署 / Tailscale APK 下載進度對話框
+    if (tailscaleProgress.isDownloading) {
+        Dialog(
+            onDismissRequest = { /* 下載核心套件時不允許點擊外部退出 */ },
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFF6750A4)),
+                modifier = Modifier.fillMaxWidth().padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color(0xFFE8DEF8), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PhoneAndroid,
+                            contentDescription = null,
+                            tint = Color(0xFF6750A4),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "零接觸部署中",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1C1B1F)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = tailscaleProgress.status,
+                        fontSize = 13.sp,
+                        color = Color(0xFF49454F),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (tailscaleProgress.progressPercent >= 0) {
+                        LinearProgressIndicator(
+                            progress = { tailscaleProgress.progressPercent / 100f },
+                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            color = Color(0xFF6750A4),
+                            trackColor = Color(0xFFE8DEF8)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "${tailscaleProgress.progressPercent}%",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF6750A4)
+                            )
+                            if (tailscaleProgress.totalBytes > 0) {
+                                Text(
+                                    text = "${tailscaleProgress.downloadedBytes / (1024 * 1024)} MB / ${tailscaleProgress.totalBytes / (1024 * 1024)} MB",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF79747E)
+                                )
+                            }
+                        }
+                    } else {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            color = Color(0xFF6750A4),
+                            trackColor = Color(0xFFE8DEF8)
+                        )
+                    }
+                }
+            }
+        }
     }
 
     Scaffold(

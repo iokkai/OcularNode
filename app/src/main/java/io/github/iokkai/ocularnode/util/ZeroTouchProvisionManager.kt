@@ -18,8 +18,11 @@ import android.widget.Toast
 import androidx.core.content.pm.PackageInfoCompat
 import io.github.iokkai.ocularnode.data.SettingsManager
 import io.github.iokkai.ocularnode.receiver.AdminReceiver
+import io.github.iokkai.ocularnode.receiver.PackageInstallReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -29,11 +32,22 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
+data class TailscaleDownloadProgress(
+    val isDownloading: Boolean = false,
+    val progressPercent: Int = 0,
+    val downloadedBytes: Long = 0L,
+    val totalBytes: Long = 0L,
+    val status: String = ""
+)
+
 object ZeroTouchProvisionManager {
 
     private const val TAG = "ZeroTouchProvision"
     private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
-    private val DEFAULT_TAILSCALE_APK_URL = io.github.iokkai.ocularnode.BuildConfig.TAILSCALE_APK_URL.ifBlank { "https://pkgs.tailscale.com/stable/tailscale-v1.80.0-arm64.apk" }
+    private val DEFAULT_TAILSCALE_APK_URL = io.github.iokkai.ocularnode.BuildConfig.TAILSCALE_APK_URL.ifBlank { "https://pkgs.tailscale.com/stable/tailscale-android-universal-1.102.2.apk" }
+
+    private val _tailscaleDownloadProgress = MutableStateFlow(TailscaleDownloadProgress())
+    val tailscaleDownloadProgress = _tailscaleDownloadProgress.asStateFlow()
 
     fun getAdminComponent(context: Context): ComponentName {
         return ComponentName(context, AdminReceiver::class.java)
@@ -226,36 +240,85 @@ object ZeroTouchProvisionManager {
     }
 
     /**
-     * 背景靜默下載 Tailscale APK
+     * 背景靜默下載 Tailscale APK，並即時更新下載進度條狀態
      */
     suspend fun downloadTailscaleApk(context: Context, downloadUrl: String): File? = withContext(Dispatchers.IO) {
         try {
             val url = downloadUrl.ifBlank { DEFAULT_TAILSCALE_APK_URL }
             Log.i(TAG, "開始下載 Tailscale APK: $url")
 
+            _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
+                isDownloading = true,
+                progressPercent = 0,
+                downloadedBytes = 0L,
+                totalBytes = -1L,
+                status = "正在連接下載 Tailscale APK..."
+            )
+
             val client = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(180, TimeUnit.SECONDS)
                 .build()
 
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.e(TAG, "下載 APK 失敗 HTTP ${response.code}")
+                    _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
+                        isDownloading = false,
+                        status = "下載 Tailscale APK 失敗 (HTTP ${response.code})"
+                    )
                     return@withContext null
                 }
 
+                val body = response.body
+                val totalBytes = body?.contentLength() ?: -1L
                 val destFile = File(context.cacheDir, "tailscale_download.apk")
-                response.body?.byteStream()?.use { input ->
+
+                body?.byteStream()?.use { input ->
                     FileOutputStream(destFile).use { output ->
-                        input.copyTo(output)
+                        val buffer = ByteArray(16384)
+                        var bytesRead = 0L
+                        var read: Int
+                        var lastEmitTime = System.currentTimeMillis()
+
+                        while (input.read(buffer).also { read = it } != -1) {
+                            output.write(buffer, 0, read)
+                            bytesRead += read
+
+                            val now = System.currentTimeMillis()
+                            if (now - lastEmitTime > 200 || (totalBytes > 0 && bytesRead == totalBytes)) {
+                                lastEmitTime = now
+                                val percent = if (totalBytes > 0) ((bytesRead * 100) / totalBytes).toInt().coerceIn(0, 100) else -1
+                                _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
+                                    isDownloading = true,
+                                    progressPercent = percent,
+                                    downloadedBytes = bytesRead,
+                                    totalBytes = totalBytes,
+                                    status = if (percent >= 0) "正在下載 Tailscale APK ($percent%)..." else "正在下載 Tailscale APK (${bytesRead / 1024 / 1024} MB)..."
+                                )
+                            }
+                        }
+                        output.flush()
                     }
                 }
+
+                _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
+                    isDownloading = false,
+                    progressPercent = 100,
+                    downloadedBytes = destFile.length(),
+                    totalBytes = destFile.length(),
+                    status = "Tailscale APK 下載完成，正在進行靜默安裝..."
+                )
                 Log.i(TAG, "Tailscale APK 下載成功: ${destFile.absolutePath} (${destFile.length()} bytes)")
                 destFile
             }
         } catch (e: Exception) {
             Log.e(TAG, "下載 Tailscale APK 異常", e)
+            _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
+                isDownloading = false,
+                status = "下載 Tailscale 異常: ${e.localizedMessage}"
+            )
             null
         }
     }
@@ -269,6 +332,9 @@ object ZeroTouchProvisionManager {
             val packageInstaller = context.packageManager.packageInstaller
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(TAILSCALE_PACKAGE)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                }
             }
 
             val sessionId = packageInstaller.createSession(params)
@@ -281,7 +347,7 @@ object ZeroTouchProvisionManager {
                 }
             }
 
-            val intent = Intent(context, AdminReceiver::class.java).apply {
+            val intent = Intent(context, PackageInstallReceiver::class.java).apply {
                 action = "io.github.iokkai.ocularnode.ACTION_INSTALL_COMPLETE"
             }
             val pendingIntent = PendingIntent.getBroadcast(
@@ -508,6 +574,9 @@ object ZeroTouchProvisionManager {
             val packageInstaller = context.packageManager.packageInstaller
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
                 setAppPackageName(context.packageName)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                }
             }
 
             val sessionId = packageInstaller.createSession(params)
@@ -520,7 +589,7 @@ object ZeroTouchProvisionManager {
                 }
             }
 
-            val intent = Intent(context, AdminReceiver::class.java).apply {
+            val intent = Intent(context, PackageInstallReceiver::class.java).apply {
                 action = "io.github.iokkai.ocularnode.ACTION_INSTALL_COMPLETE"
             }
             val pendingIntent = PendingIntent.getBroadcast(

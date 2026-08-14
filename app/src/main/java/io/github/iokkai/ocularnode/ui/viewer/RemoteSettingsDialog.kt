@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Button
@@ -92,6 +93,7 @@ fun RemoteSettingsScreen(
     var remoteLogsList by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoadingLogs by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
+    var isTriggeringUpdate by remember { mutableStateOf(false) }
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
 
     val surfaceBgColor = Color(0xFFFDF8FF)
@@ -1119,6 +1121,76 @@ fun RemoteSettingsScreen(
                                         onCheckedChange = { localPowerCutAlert = it },
                                         colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = brandPrimaryColor)
                                     )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // 🚀 遠端檢查並更新鏡頭端 (Silent OTA)
+                                Card(
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF3EDF7)),
+                                    border = BorderStroke(1.dp, Color(0xFFE8DEF8)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.SystemUpdate,
+                                                contentDescription = null,
+                                                tint = brandPrimaryColor,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "鏡頭端韌體靜默更新 (OTA)",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = textPrimaryColor
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "向 GitHub Releases 查詢最新版 APK。若有新版本，鏡頭端將自動在背景靜默下載安裝並重啟監控服務。",
+                                            fontSize = 11.sp,
+                                            color = textSecondaryColor,
+                                            lineHeight = 16.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+
+                                        Button(
+                                            onClick = {
+                                                if (isTriggeringUpdate) return@Button
+                                                isTriggeringUpdate = true
+                                                coroutineScope.launch {
+                                                    val success = onSendCommand("update", "")
+                                                    isTriggeringUpdate = false
+                                                    if (success) {
+                                                        Toast.makeText(context, "🚀 已向鏡頭端發送更新指令！若有新版本將自動進行升級並重啟", Toast.LENGTH_LONG).show()
+                                                    } else {
+                                                        Toast.makeText(context, "發送更新指令失敗，請檢查網路連線", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
+                                            shape = RoundedCornerShape(12.dp),
+                                            enabled = !isTriggeringUpdate,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            if (isTriggeringUpdate) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(16.dp),
+                                                    color = Color.White,
+                                                    strokeWidth = 2.dp
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("發送指令中...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            } else {
+                                                Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("🚀 立即檢查並更新鏡頭端 (OTA)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

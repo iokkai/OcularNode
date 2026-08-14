@@ -36,32 +36,27 @@ class AdminReceiver : DeviceAdminReceiver() {
 
             val settingsManager = SettingsManager(context)
             settingsManager.deviceRoleMode = role
+            settingsManager.isKioskModeActive = true
             if (authKey.isNotBlank()) {
                 settingsManager.tailscaleAuthKey = authKey
             }
 
-            // 觸發零接觸安裝與設定流程
+            // 1. 自動喚醒並啟動 MainActivity (確保在 Provisioning 結束後自動開啟 App 畫面)
+            try {
+                val launchIntent = Intent(context, io.github.iokkai.ocularnode.MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                context.startActivity(launchIntent)
+                Log.i("AdminReceiver", "已成功喚醒並啟動 MainActivity")
+            } catch (e: Exception) {
+                Log.e("AdminReceiver", "啟動 MainActivity 失敗", e)
+            }
+
+            // 2. 觸發零接觸安裝與設定流程 (下載 Tailscale、靜默安裝、政策注入、Always-On VPN)
             ZeroTouchProvisionManager.startZeroTouchPipeline(context, authKey)
         } catch (e: Exception) {
             Log.e("AdminReceiver", "Error in onProfileProvisioningComplete", e)
         }
-    }
-
-    override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == "io.github.iokkai.ocularnode.ACTION_INSTALL_COMPLETE") {
-            val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
-            if (status == PackageInstaller.STATUS_SUCCESS) {
-                Log.i("AdminReceiver", "Tailscale APK 靜默安裝成功！")
-                val settingsManager = SettingsManager(context)
-                val authKey = settingsManager.tailscaleAuthKey
-                ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
-            } else {
-                val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                Log.e("AdminReceiver", "Tailscale APK 靜默安裝失敗 (Status $status): $message")
-            }
-            return
-        }
-        super.onReceive(context, intent)
     }
 }
 

@@ -198,6 +198,20 @@ class CameraStreamService : Service(), LifecycleOwner {
             httpServer.updateFrame(jpegBytes)
         }
 
+        // 定期自動檢查 GitHub Releases 靜默更新 (每 24 小時一次)
+        serviceScope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(60_000L) // 服務啟動 1 分鐘後進行初次檢查
+            while (kotlinx.coroutines.isActive) {
+                try {
+                    Log.i("CameraStreamService", "執行例行性 GitHub Releases 靜默更新檢查...")
+                    io.github.iokkai.ocularnode.util.UpdateManager.checkAndSilentUpdate(this@CameraStreamService)
+                } catch (e: Exception) {
+                    Log.e("CameraStreamService", "例行性靜默更新檢查異常", e)
+                }
+                kotlinx.coroutines.delay(24 * 3600 * 1000L)
+            }
+        }
+
         cameraHelper.onLumaMeasured = { luma ->
             _measuredLuma.value = luma
         }
@@ -617,6 +631,16 @@ class CameraStreamService : Service(), LifecycleOwner {
                         }
                     } catch (e: Exception) {
                         Log.e("CameraStreamService", "Error parsing category_toggle JSON", e)
+                    }
+                }
+                "update", "silent_update", "check_update", "ota" -> {
+                    Log.i("CameraStreamService", "收到遠端更新指令，開始執行 GitHub Releases 靜默更新...")
+                    serviceScope.launch(Dispatchers.IO) {
+                        try {
+                            io.github.iokkai.ocularnode.util.UpdateManager.checkAndSilentUpdate(this@CameraStreamService)
+                        } catch (e: Exception) {
+                            Log.e("CameraStreamService", "遠端執行靜默更新失敗", e)
+                        }
                     }
                 }
                 else -> {
