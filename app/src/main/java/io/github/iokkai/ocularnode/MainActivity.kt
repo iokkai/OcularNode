@@ -1,12 +1,19 @@
 package io.github.iokkai.ocularnode
 
+import android.app.NotificationManager
+import android.app.admin.DevicePolicyManager
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,14 +37,13 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -49,15 +55,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.annotation.StringRes
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.res.stringResource
-import io.github.iokkai.ocularnode.ui.theme.*
 import io.github.iokkai.ocularnode.data.CameraDevice
 import io.github.iokkai.ocularnode.data.SettingsManager
 import io.github.iokkai.ocularnode.service.CameraStreamService
@@ -104,7 +109,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
     }
@@ -119,8 +124,8 @@ fun MainAppScreen(
 ) {
     val roleMode by settingsViewModel.roleMode.collectAsState()
     val isBlackScreenActive by cameraServerViewModel.isBlackScreenActive.collectAsState()
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val dpm = remember(context) { context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager }
+    val context = LocalContext.current
+    val dpm = remember(context) { context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager }
     val isDeviceOwner = remember(context, dpm) { dpm?.isDeviceOwnerApp(context.packageName) == true }
 
     var currentTab by remember {
@@ -180,12 +185,12 @@ fun MainAppScreen(
                 currentTab = AppTab.VIEWER
             }
             try {
-                val serviceIntent = android.content.Intent(context, CameraStreamService::class.java)
+                val serviceIntent = Intent(context, CameraStreamService::class.java)
                 context.stopService(serviceIntent)
-                val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
                 notificationManager?.cancel(1001)
             } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Error stopping service on VIEWER role sync", e)
+                Log.e("MainActivity", "Error stopping service on VIEWER role sync", e)
             }
         }
     }
