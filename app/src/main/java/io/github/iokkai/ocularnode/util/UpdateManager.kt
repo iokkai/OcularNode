@@ -85,7 +85,7 @@ object UpdateManager {
                 }
 
                 // 比對版本號
-                val remoteVersionCode = tagName.replace("v", "").replace(".", "").filter { it.isDigit() }.toLongOrNull() ?: 0L
+                val remoteVersionCode = parseVersionCodeFromTag(tagName)
                 val currentVersionName = io.github.iokkai.ocularnode.BuildConfig.VERSION_NAME
 
                 val packageInfo = try {
@@ -100,13 +100,12 @@ object UpdateManager {
                 val currentVersionCode = packageInfo?.let { PackageInfoCompat.getLongVersionCode(it) }
                     ?: io.github.iokkai.ocularnode.BuildConfig.VERSION_CODE.toLong()
 
-                val isNewer = if (remoteVersionCode > 0 && currentVersionCode > 0) {
-                    remoteVersionCode > currentVersionCode
-                } else {
-                    val cleanTag = tagName.removePrefix("v").trim()
-                    val cleanCurrent = currentVersionName.removePrefix("v").trim()
-                    cleanTag.isNotBlank() && cleanTag != cleanCurrent
-                }
+                val isNewer = isRemoteNewer(
+                    remoteTagName = tagName,
+                    remoteVersionCode = remoteVersionCode,
+                    currentVersionName = currentVersionName,
+                    currentVersionCode = currentVersionCode
+                )
 
                 Log.i(TAG, "Current: $currentVersionName (Code: $currentVersionCode), Remote: $tagName (Code: $remoteVersionCode), isNewer=$isNewer")
 
@@ -137,5 +136,30 @@ object UpdateManager {
         githubRepo: String = io.github.iokkai.ocularnode.BuildConfig.GITHUB_REPO
     ) {
         ZeroTouchProvisionManager.checkAndSilentUpdate(context, githubOwner, githubRepo)
+    }
+
+    /**
+     * 從 Release Tag 解析版本數字代碼 (例如 "v1.2.0" -> 120L)
+     */
+    fun parseVersionCodeFromTag(tagName: String): Long {
+        return tagName.replace("v", "").replace(".", "").filter { it.isDigit() }.toLongOrNull() ?: 0L
+    }
+
+    /**
+     * 比較遠端版本與本地版本，判斷是否為更新的版本
+     */
+    fun isRemoteNewer(
+        remoteTagName: String,
+        remoteVersionCode: Long = parseVersionCodeFromTag(remoteTagName),
+        currentVersionName: String,
+        currentVersionCode: Long
+    ): Boolean {
+        return if (remoteVersionCode > 0 && currentVersionCode > 0) {
+            remoteVersionCode > currentVersionCode
+        } else {
+            val cleanTag = remoteTagName.removePrefix("v").trim()
+            val cleanCurrent = currentVersionName.removePrefix("v").trim()
+            cleanTag.isNotBlank() && cleanTag != cleanCurrent
+        }
     }
 }

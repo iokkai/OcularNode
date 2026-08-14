@@ -47,21 +47,23 @@ class ScheduleManager(
     }
 
     companion object {
-        fun isCurrentTimeInSchedule(start: String, end: String): Boolean {
+        fun isCurrentTimeInSchedule(start: String, end: String, testCalendar: Calendar? = null): Boolean {
             try {
-                val now = Calendar.getInstance()
+                val now = testCalendar ?: Calendar.getInstance()
                 val currentH = now.get(Calendar.HOUR_OF_DAY)
                 val currentM = now.get(Calendar.MINUTE)
                 val currentTotalM = currentH * 60 + currentM
 
                 val startParts = start.split(":")
-                val startH = startParts.getOrNull(0)?.toIntOrNull() ?: 22
-                val startM = startParts.getOrNull(1)?.toIntOrNull() ?: 0
+                val startH = startParts.getOrNull(0)?.toIntOrNull() ?: return false
+                val startM = startParts.getOrNull(1)?.toIntOrNull() ?: return false
+                if (startH !in 0..23 || startM !in 0..59) return false
                 val startTotalM = startH * 60 + startM
 
                 val endParts = end.split(":")
-                val endH = endParts.getOrNull(0)?.toIntOrNull() ?: 6
-                val endM = endParts.getOrNull(1)?.toIntOrNull() ?: 0
+                val endH = endParts.getOrNull(0)?.toIntOrNull() ?: return false
+                val endM = endParts.getOrNull(1)?.toIntOrNull() ?: return false
+                if (endH !in 0..23 || endM !in 0..59) return false
                 val endTotalM = endH * 60 + endM
 
                 return if (startTotalM < endTotalM) {
