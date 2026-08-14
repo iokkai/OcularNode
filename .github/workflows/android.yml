@@ -1,0 +1,34 @@
+name: Android CI
+
+# 觸發條件：當推送到 main 分支或建立針對 main 的 Pull Request 時自動執行
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    name: Run Unit Tests & Build Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: ☕ 設定 JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: ⚙️ 賦予 Gradle 執行權限
+        run: chmod +x gradlew
+
+      - name: 🧪 執行自動化單元測試
+        run: ./gradlew testArmDebugUnitTest
+
+      - name: 🔨 驗證建置 (Assemble ARM Debug APK)
+        run: ./gradlew assembleArmDebug
