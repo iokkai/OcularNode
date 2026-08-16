@@ -29,7 +29,6 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
     // 剔除第三方套件中未使用的多國語言資源，只保留正體中文與英文
-    resourceConfigurations.addAll(listOf("zh-rTW", "en"))
 
     // Default configuration for OTA updates and Tailscale download (can be overridden by .env)
     buildConfigField("String", "GITHUB_OWNER", "\"iokkai\"")
@@ -74,6 +73,9 @@ android {
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+  }
+  androidResources {
+    localeFilters += listOf("zh-rTW", "en")
   }
   buildFeatures {
     compose = true
@@ -147,4 +149,10 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.tooling)
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+  compilerOptions {
+    freeCompilerArgs.add("-Xannotation-default-target=param-property")
+  }
 }
