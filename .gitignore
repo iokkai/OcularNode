@@ -17,3 +17,9 @@ local.properties
 .env
 debug.keystore
 .vscode/settings.json
+
+# IDE settings
+/.idea/deviceManager.xml
+
+# Build outputs
+/app/arm/
