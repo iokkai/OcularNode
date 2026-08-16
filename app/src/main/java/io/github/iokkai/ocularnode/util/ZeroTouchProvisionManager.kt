@@ -67,14 +67,13 @@ object ZeroTouchProvisionManager {
         }
         if (apkUrls.isEmpty()) return null
 
-        val isArm = Build.SUPPORTED_ABIS.any { it.contains("arm", ignoreCase = true) }
-        val isX86 = Build.SUPPORTED_ABIS.any { it.contains("x86", ignoreCase = true) }
+        val primaryAbi = Build.SUPPORTED_ABIS.firstOrNull() ?: ""
 
-        // 優先匹配裝置對應的架構關鍵字 (arm 或 x86)
-        if (isArm) {
-            apkUrls.firstOrNull { it.contains("arm", ignoreCase = true) }?.let { return it }
-        } else if (isX86) {
+        // 優先匹配裝置對應的原生架構關鍵字 (避免模擬器同時支援 x86 與 arm 轉譯造成誤判)
+        if (primaryAbi.startsWith("x86", ignoreCase = true)) {
             apkUrls.firstOrNull { it.contains("x86", ignoreCase = true) }?.let { return it }
+        } else {
+            apkUrls.firstOrNull { it.contains("arm", ignoreCase = true) }?.let { return it }
         }
 
         // 若無明確標註架構或單一通用 APK，回傳第一個找到的 APK
