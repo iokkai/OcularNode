@@ -533,6 +533,7 @@ fun SnapshotPreviewDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val formattedTime = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault()).format(Date(event.timestamp))
     val hasVideo = !event.videoPath.isNullOrEmpty() && File(event.videoPath).exists()
     var showVideoMode by remember { mutableStateOf(hasVideo) }
