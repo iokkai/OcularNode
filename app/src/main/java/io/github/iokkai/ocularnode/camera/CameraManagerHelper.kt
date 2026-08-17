@@ -154,7 +154,7 @@ class CameraManagerHelper(private val context: Context) {
         bindCameraUseCases()
     }
 
-    @Suppress("OPT_IN_USAGE")
+    @androidx.annotation.OptIn(androidx.camera.camera2.interop.ExperimentalCamera2Interop::class)
     fun bindCameraUseCases(
         lifecycleOwner: LifecycleOwner? = currentLifecycleOwner,
         previewSurface: Preview.SurfaceProvider? = currentPreviewSurface

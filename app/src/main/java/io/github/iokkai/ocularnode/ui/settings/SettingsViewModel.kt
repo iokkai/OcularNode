@@ -20,11 +20,11 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
-    init {
-        io.github.iokkai.ocularnode.util.AppLogger.isEnabled = SettingsManager.getInstance(application).systemLogEnabled
-    }
-
     val settingsManager = SettingsManager.getInstance(application)
+
+    init {
+        io.github.iokkai.ocularnode.util.AppLogger.isEnabled = settingsManager.systemLogEnabled
+    }
 
     private val _roleMode = MutableStateFlow(settingsManager.deviceRoleMode)
     val roleMode: StateFlow<String> = _roleMode.asStateFlow()
@@ -416,8 +416,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _isTesting.value = true
         _testStatus.value = "Sending test alert..."
         viewModelScope.launch {
-            val (success, msg) = TelegramNotifier.testBotConnection(_botToken.value, _chatId.value, getApplication())
-            _testStatus.value = msg
+            val testResult = TelegramNotifier.testBotConnection(_botToken.value, _chatId.value, getApplication())
+            _testStatus.value = testResult.second
             _isTesting.value = false
         }
     }
