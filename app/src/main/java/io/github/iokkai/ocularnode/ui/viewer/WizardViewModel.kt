@@ -249,6 +249,7 @@ class WizardViewModel : ViewModel() {
                     )
                     put("android.app.extra.PROVISIONING_WIFI_SSID", ssid)
                     put("android.app.extra.PROVISIONING_WIFI_PASSWORD", password)
+                    put("android.app.extra.PROVISIONING_LEAVE_ALL_SYSTEM_APPS_ENABLED", true)
                     put("android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE", extrasBundle)
                 }
 

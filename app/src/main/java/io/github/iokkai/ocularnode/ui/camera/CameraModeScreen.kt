@@ -106,7 +106,14 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val batteryTemp by viewModel.batteryTemp.collectAsState()
 
     var showResolutionDialog by remember { mutableStateOf(false) }
+    var showTailscaleOnboardingDialog by remember { mutableStateOf(false) }
     var isAddressSectionExpanded by remember { mutableStateOf(true) }
+
+    if (showTailscaleOnboardingDialog) {
+        io.github.iokkai.ocularnode.ui.common.TailscaleOnboardingDialog(
+            onDismiss = { showTailscaleOnboardingDialog = false }
+        )
+    }
 
     if (showResolutionDialog) {
         ResolutionSelectionDialog(
@@ -419,7 +426,13 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
                                             val isTailscaleInstalled = remember(context) { io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) }
                                             OutlinedButton(
-                                                onClick = { io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context) },
+                                                onClick = {
+                                                    if (isTailscaleInstalled) {
+                                                        io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context)
+                                                    } else {
+                                                        showTailscaleOnboardingDialog = true
+                                                    }
+                                                },
                                                 shape = RoundedCornerShape(12.dp),
                                                 border = BorderStroke(1.dp, AppErrorBorder),
                                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = AppErrorDark),

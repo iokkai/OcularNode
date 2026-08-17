@@ -108,6 +108,7 @@ fun ViewerListScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showQrScannerDialog by remember { mutableStateOf(false) }
     var showDedicatedDeviceWizard by remember { mutableStateOf(false) }
+    var showTailscaleOnboardingDialog by remember { mutableStateOf(false) }
     var isSpeedDialExpanded by remember { mutableStateOf(false) }
 
     val fabRotationAngle by animateFloatAsState(
@@ -346,6 +347,7 @@ fun ViewerListScreen(
                     }
                 }
             } else {
+                val isTailscaleInstalled = remember(context) { io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,6 +356,13 @@ fun ViewerListScreen(
                         .clip(RoundedCornerShape(16.dp))
                         .background(AppErrorContainerLight)
                         .border(1.dp, AppErrorBorder, RoundedCornerShape(16.dp))
+                        .clickable {
+                            if (isTailscaleInstalled) {
+                                io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context)
+                            } else {
+                                showTailscaleOnboardingDialog = true
+                            }
+                        }
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -379,15 +388,26 @@ fun ViewerListScreen(
                         }
                     }
 
-                    val isTailscaleInstalled = remember(context) { io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) }
                     TextButton(
-                        onClick = { io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context) },
+                        onClick = {
+                            if (isTailscaleInstalled) {
+                                io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context)
+                            } else {
+                                showTailscaleOnboardingDialog = true
+                            }
+                        },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
                         Text(if (isTailscaleInstalled) stringResource(R.string.viewer_tailscale_open) else stringResource(R.string.viewer_tailscale_install), color = AppErrorDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+            }
+
+            if (showTailscaleOnboardingDialog) {
+                io.github.iokkai.ocularnode.ui.common.TailscaleOnboardingDialog(
+                    onDismiss = { showTailscaleOnboardingDialog = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))

@@ -166,69 +166,36 @@ object ZeroTouchProvisionManager {
         }
     }
     /**
-     * 檢查並將 OcularNode (自身 Package) 以及 Tailscale (com.tailscale.ipn) 加入電池最佳化豁免白名單。
-     * 防止舊手機進入 Doze 模式時，系統殺死相機串流背景服務與 VPN 網路通道。
+     * 檢查並將 OcularNode (自身 Package) 請求電池最佳化豁免。
+     * 在 Device Owner 專用設備模式下直接跳過以維持零接觸無縫體驗。
      */
     fun exemptFromBatteryOptimizations(context: Context) {
-        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-        if (powerManager == null) {
-            Log.e(TAG, "無法取得 PowerManager 服務")
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+        val isDO = dpm?.isDeviceOwnerApp(context.packageName) == true
+
+        // Device Owner 模式下為零接觸專用設備，絕對不要彈出任何系統設定畫面打斷流程
+        if (isDO) {
+            Log.i(TAG, "Device Owner 專用設備模式：跳過手動電池最佳化設定畫面，由前景服務與 WakeLock 保持常駐")
             return
         }
 
-        val packagesToCheck = listOf(context.packageName, TAILSCALE_PACKAGE)
-
-        for (pkg in packagesToCheck) {
-            try {
-                // 利用 PowerManager.isIgnoringBatteryOptimizations 判斷是否已在白名單內
-                val isIgnoring = powerManager.isIgnoringBatteryOptimizations(pkg)
-                Log.i(TAG, "檢查電池最佳化豁免狀態 [$pkg]: isIgnoring=$isIgnoring")
-
-                if (!isIgnoring) {
-                    Log.w(TAG, "應用程式 [$pkg] 未在電池最佳化白名單內，嘗試進行豁免請求...")
-                    if (pkg == context.packageName) {
-                        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-                        val isDO = dpm?.isDeviceOwnerApp(context.packageName) == true
-                        
-                        if (isDO) {
-                            Log.i(TAG, "應用程式 [$pkg] 為 Device Owner，跳過手動電池最佳化視窗以維持零接觸部署體驗。")
-                        } else {
-                            // 自身 App (非 DO)：利用 REQUEST_IGNORE_BATTERY_OPTIMIZATIONS 專用 Intent 請求加入白名單
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:$pkg")
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            try {
-                                context.startActivity(intent)
-                                Log.i(TAG, "已發送自身 [$pkg] 電池最佳化豁免請求 Intent")
-                            } catch (e: Exception) {
-                                Log.e(TAG, "發送自身電池豁免 Intent 失敗，改為開啟設定頁面", e)
-                                openBatteryOptimizationSettingsPage(context)
-                            }
-                        }
-                    } else {
-                        // 第三方 App (Tailscale)：引導至系統電池最佳化設定頁面
-                        Log.i(TAG, "為第三方應用 [$pkg] 開啟系統電池最佳化設定頁面")
-                        openBatteryOptimizationSettingsPage(context)
-                    }
-                } else {
-                    Log.i(TAG, "應用程式 [$pkg] 已在電池最佳化豁免白名單內")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "處理 [$pkg] 電池最佳化豁免時發生例外狀況: ${e.message}", e)
-            }
-        }
-    }
-
-    private fun openBatteryOptimizationSettingsPage(context: Context) {
+        val pkg = context.packageName
         try {
-            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val isIgnoring = powerManager.isIgnoringBatteryOptimizations(pkg)
+            Log.i(TAG, "檢查電池最佳化豁免狀態 [$pkg]: isIgnoring=$isIgnoring")
+
+            if (!isIgnoring) {
+                // 自身 App (非 DO)：利用 REQUEST_IGNORE_BATTERY_OPTIMIZATIONS 專用系統對話框請求加入白名單
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$pkg")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+                Log.i(TAG, "已發送自身 [$pkg] 電池最佳化豁免請求對話框")
             }
-            context.startActivity(intent)
-            Log.i(TAG, "已開啟系統電池最佳化設定頁面")
         } catch (e: Exception) {
-            Log.e(TAG, "開啟系統電池最佳化設定頁面失敗", e)
+            Log.e(TAG, "處理自身電池最佳化豁免時發生例外狀況: ${e.message}", e)
         }
     }
 
@@ -406,10 +373,12 @@ object ZeroTouchProvisionManager {
         }
 
         try {
-            // 1. 注入 Restriction (Auth Key)
+            // 1. 注入 Restriction (Auth Key) - 依照 Tailscale 官方 MDM 規範 (AuthKey)
             if (authKey.isNotBlank()) {
                 val restrictions = Bundle().apply {
+                    putString("AuthKey", authKey)
                     putString("authkey", authKey)
+                    putString("authKey", authKey)
                 }
                 dpm.setApplicationRestrictions(admin, TAILSCALE_PACKAGE, restrictions)
                 Log.i(TAG, "成功注入 Tailscale Restriction (AuthKey: ${authKey.take(10)}...)")

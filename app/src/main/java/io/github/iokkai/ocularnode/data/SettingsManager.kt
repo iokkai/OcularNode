@@ -66,6 +66,7 @@ class SettingsManager(context: Context) {
         private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
         private const val KEY_HTTP_AUTH_ENABLED = "http_auth_enabled"
         private const val KEY_EVENT_VIDEO_RECORDING_ENABLED = "pref_event_video_recording_enabled"
+        private const val KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING = "has_dismissed_tailscale_onboarding"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
@@ -341,4 +342,8 @@ class SettingsManager(context: Context) {
     var httpPinCode: String
         get() = secretPrefs.getString(KEY_HTTP_PIN_CODE, "1234") ?: "1234"
         set(value) = secretPrefs.edit().putString(KEY_HTTP_PIN_CODE, value).apply()
+
+    var hasDismissedTailscaleOnboarding: Boolean
+        get() = prefs.getBoolean(KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING, false)
+        set(value) = prefs.edit().putBoolean(KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING, value).apply()
 }

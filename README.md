@@ -23,7 +23,7 @@
   - 監控端 (Viewer) 與相機端 (Node) 採 P2P / 本地直連架構，離線斷網亦可在區網內 100% 正常運作。
 - 🌐 **雙連線模式 (區域網路直連 + 遠端安全穿透)**：
   - **🏠 家中 Wi-Fi 區網直連**：同區網內免設定直接連線（支援 `192.168.x.x` 等本地 IP），超低延遲、免連外網、完全保障隱私與離線可用。
-  - **🔒 Tailscale / VPN 跨網遠端安全串流**：出門在外可搭配 Tailscale VPN 遠端存取，自動識別 CGNAT (`100.64.0.0/10`) 網段，所有流量皆經由 WireGuard® 端到端強加密，無需暴露公網 IP 或設定路由器 Port Forwarding。
+  - **🔒 Tailscale / VPN 跨網遠端安全串流**：出門在外可搭配 Tailscale 遠端存取。極致安全：基於現代最頂級的 [WireGuard 加密協議](https://hackmd.io/@hpc-ntcu/HynKi-nRh)，裝置之間是「點對點（P2P）」直連，連 Tailscale 官方也無法偷看你的傳輸內容。 [[1](https://www.gway.com.tw/blog/article.php?id=67), [2](https://upsangel.com/security/vpn/tailscale-tutorial-on-ups-pi-v3/), [3](https://sofree.cc/tailscale-vpn/), [4](https://hackmd.io/@hpc-ntcu/HynKi-nRh), [5](https://www.alphalab.site/tailscale-ai-agent-fleet)]。自動識別 CGNAT (`100.64.0.0/10`) 網段，無需暴露公網 IP 或設定路由器 Port Forwarding。
 - 🪄 **Device Owner 專用設備部署精靈 (Zero-Touch Provisioning)**：
   - 支援專用 QR Code 掃描快速配網。
   - 支援注入 Tailscale Auth Key 自動配置並啟用 VPN（需已安裝 Tailscale）。
@@ -68,14 +68,22 @@ graph TD
 
 ---
 
-## 💡 Tailscale 180 天金鑰過期說明與停用方式 (Disable Key Expiry)
+## 💡 Tailscale 90 天金鑰 vs 180 天設備過期機制解析 (永久連線攻略)
 
-- **預設過期機制**：Tailscale 預設會為加入網路的裝置啟用 180 天金鑰過期機制 (Key Expiry)。
-- **一鍵停用過期（推薦 24/7 常駐相機設定）**：
-  1. 打開 [Tailscale 控制台裝置清單 (Machines)](https://login.tailscale.com/admin/machines)。
-  2. 找到您的舊手機裝置，點擊右側的 **`...` (選單)**。
-  3. 點選 **「Disable Key Expiry」 (停用金鑰過期)**，相機即可 365 天永久常駐連線不中斷！
-- **自動過期告警**：若未停用過期且相機滿 180 天斷線，OcularNode 監控服務會在區網連線正常時透過 Telegram 發送斷線與過期提醒。
+Tailscale 具備兩套不同的安全時效機制，兩者各司其職：
+
+| 項目 | 時效 | 作用說明 | 對相機運作的影響 |
+| :--- | :--- | :--- | :--- |
+| **API Access Token / Auth Key** | **最長 90 天** | 用於 App 部署掃碼、向 Tailscale 註冊新裝置或呼叫 API 管理控制台。 | **無影響**。90 天到期後僅代表「不能再用同一個金鑰註冊新手機」；**已加入連線的舊手機鏡頭不受任何影響**。 |
+| **裝置節點連線 (Node Key Expiry)** | **預設 180 天** | Tailscale 官方基於安全考量，預設會讓已加入的設備每 180 天斷線重新驗證。 | **需停用**。若未停用，舊手機在運作滿 180 天後會斷線。 |
+
+### 🚀 如何達成 365 天永久連線 (停用 180 天過期)？
+1. **使用 API Key 部署（最推薦）**：在 OcularNode 觀看端列表畫面中，系統會自動偵測相機過期狀態，並提供「⚡ 一鍵停用 180 天過期」按鈕，App 內一鍵完成永久授權！
+2. **手動於 Tailscale 網頁停用**：
+   1. 打開 [Tailscale 控制台裝置清單 (Machines)](https://login.tailscale.com/admin/machines)。
+   2. 找到您的相機裝置，點擊右側的 **`...` (選單)**。
+   3. 點選 **「Disable Key Expiry」 (停用金鑰過期)**，相機即可 365 天永久常駐連線不中斷！
+- **自動過期告警**：若未停用過期且相機滿 180 天斷線，OcularNode 監控服務會在 Wi-Fi 正常連線時透過 Telegram 即時發送過期與重新授權提醒。
 
 ---
 

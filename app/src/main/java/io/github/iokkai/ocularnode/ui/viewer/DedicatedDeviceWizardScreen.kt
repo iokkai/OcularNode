@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -15,6 +16,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,9 +37,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WarningAmber
@@ -78,6 +86,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -142,7 +151,6 @@ fun DedicatedDeviceWizardScreen(
                 Toast.makeText(context, context.getString(R.string.wizard_wifi_autofill_failed), Toast.LENGTH_SHORT).show()
             }
         } else {
-            // 不使用 Toast，跳出說明對話框解釋權限原因後再請求
             showWifiPermissionRationaleDialog = true
         }
     }
@@ -277,17 +285,13 @@ fun DedicatedDeviceWizardScreen(
                 ) { step ->
                     when (step) {
                         1 -> StepWarningScreen(
-                            onNext = { viewModel.goToStep(2) }
-                        )
-
-                        2 -> StepResetScreen(
                             onNext = {
                                 onAutoFillWifiRequested()
-                                viewModel.goToStep(3)
+                                viewModel.goToStep(2)
                             }
                         )
 
-                        3 -> StepNetworkAndApiKeyScreen(
+                        2 -> StepNetworkAndApiKeyScreen(
                             uiState = uiState,
                             onSsidChange = { viewModel.setWifiSsid(it) },
                             onPasswordChange = { viewModel.setWifiPassword(it) },
@@ -295,8 +299,14 @@ fun DedicatedDeviceWizardScreen(
                             onApiKeyChange = { viewModel.setApiKey(it) },
                             onVerifyApiKey = { viewModel.verifyApiKey(context) },
                             onNext = {
-                                viewModel.goToStep(4)
+                                viewModel.goToStep(3)
                                 viewModel.generateProvisioningQrCode(context)
+                            }
+                        )
+
+                        3 -> StepResetScreen(
+                            onNext = {
+                                viewModel.goToStep(4)
                             }
                         )
 
@@ -321,8 +331,8 @@ fun DedicatedDeviceWizardScreen(
 private fun WizardStepper(currentStep: Int) {
     val steps = listOf(
         stringResource(R.string.wizard_step_prep),
-        stringResource(R.string.wizard_step_reset),
         stringResource(R.string.wizard_step_config),
+        stringResource(R.string.wizard_step_reset),
         stringResource(R.string.wizard_step_provision)
     )
 
@@ -401,7 +411,7 @@ private fun WizardStepper(currentStep: Int) {
 }
 
 /**
- * 畫面一：價值傳遞與心理建設 (Step 1: Warning & Value)
+ * 畫面一：價值傳遞與主副手機安全確認 (Step 1: Warning & Safety Assurance)
  */
 @Composable
 fun StepWarningScreen(
@@ -415,7 +425,7 @@ fun StepWarningScreen(
             .fillMaxSize()
             .verticalScroll(scrollState)
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // 標題與說明
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -433,24 +443,76 @@ fun StepWarningScreen(
             )
         }
 
-        // 警告卡片 (Soft Red Tint)
+        // 1. 主用機安全卡 (Soft Green Tint)
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = WizardSuccessContainerColor.copy(alpha = 0.6f),
+                contentColor = AppSuccessDark
+            ),
+            border = BorderStroke(1.dp, WizardSuccessColor.copy(alpha = 0.5f)),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = WizardSuccessColor.copy(alpha = 0.2f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = WizardSuccessColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = stringResource(R.string.wizard_s1_safe_title),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppSuccessDark
+                    )
+                    Text(
+                        text = stringResource(R.string.wizard_s1_safe_desc),
+                        fontSize = 12.sp,
+                        color = AppSuccessDark.copy(alpha = 0.9f),
+                        lineHeight = 18.sp
+                    )
+                }
+            }
+        }
+
+        // 2. 舊手機清除重置卡 (Soft Red Tint)
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = WizardWarningContainerColor,
                 contentColor = WizardWarningTextColor
             ),
             border = BorderStroke(1.dp, AppErrorBorder),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(18.dp),
+                modifier = Modifier.padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.Top
             ) {
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .background(
                             color = WizardErrorColor.copy(alpha = 0.15f),
                             shape = CircleShape
@@ -471,7 +533,7 @@ fun StepWarningScreen(
                 ) {
                     Text(
                         text = stringResource(R.string.wizard_s1_warn_title),
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = WizardWarningTextColor
                     )
@@ -496,7 +558,7 @@ fun StepWarningScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Checkbox(
@@ -512,7 +574,8 @@ fun StepWarningScreen(
                     text = stringResource(R.string.wizard_s1_chk_erase),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
-                    color = WizardTextPrimaryColor
+                    color = WizardTextPrimaryColor,
+                    lineHeight = 18.sp
                 )
             }
         }
@@ -542,68 +605,7 @@ fun StepWarningScreen(
 }
 
 /**
- * 畫面二：手把手重置教學 (Step 2: Reset Instructions)
- */
-@Composable
-fun StepResetScreen(
-    onNext: () -> Unit
-) {
-    val scrollState = rememberScrollState()
-
-    val resetSteps = listOf(
-        stringResource(R.string.wizard_s2_step1),
-        stringResource(R.string.wizard_s2_step2),
-        stringResource(R.string.wizard_s2_step3),
-        stringResource(R.string.wizard_s2_step4)
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // 標題
-        Text(
-            text = stringResource(R.string.wizard_s2_header),
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = WizardTextPrimaryColor
-        )
-
-        // 步驟清單
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            resetSteps.forEachIndexed { index, stepText ->
-                StepNumberItem(
-                    number = index + 1,
-                    text = stepText
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1f, fill = false))
-
-        // 按鈕
-        Button(
-            onClick = onNext,
-            colors = ButtonDefaults.buttonColors(containerColor = WizardPrimaryColor, contentColor = Color.White),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.wizard_s2_btn_next),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-/**
- * 畫面三：網路設定與 Tailscale 授權 (Step 3: Network & API Key)
+ * 畫面二：網路設定與 Tailscale 授權 (Step 2: Network & Key Config)
  */
 @Composable
 fun StepNetworkAndApiKeyScreen(
@@ -629,13 +631,13 @@ fun StepNetworkAndApiKeyScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         Text(
-            text = stringResource(R.string.wizard_s3_header),
+            text = stringResource(R.string.wizard_s2_config_header),
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = WizardTextPrimaryColor
         )
 
-        // UI 區塊 1：網路資訊 (White Card)
+        // UI 區塊 1：Wi-Fi 設定卡片
         Card(
             colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
             border = BorderStroke(1.dp, WizardBorderColor),
@@ -672,35 +674,71 @@ fun StepNetworkAndApiKeyScreen(
                         onClick = onAutoFillWifi,
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(stringResource(R.string.wizard_s3_wifi_btn_autofill), fontSize = 12.sp, color = WizardPrimaryColor, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(R.string.wizard_s3_wifi_btn_autofill),
+                            fontSize = 12.sp,
+                            color = WizardPrimaryColor,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
+                // Wi-Fi SSID (清晰高對比深色文字)
                 OutlinedTextField(
                     value = uiState.wifiSsid,
                     onValueChange = onSsidChange,
                     label = { Text(stringResource(R.string.wizard_s3_wifi_ssid_label)) },
                     singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = WizardTextPrimaryColor
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = WizardTextPrimaryColor,
+                        unfocusedTextColor = WizardTextPrimaryColor,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedBorderColor = WizardPrimaryColor,
                         unfocusedBorderColor = WizardBorderColor,
-                        focusedLabelColor = WizardPrimaryColor
+                        focusedLabelColor = WizardPrimaryColor,
+                        unfocusedLabelColor = WizardTextSecondaryColor
                     )
                 )
 
+                if (uiState.wifiSsid.isNotBlank()) {
+                    Text(
+                        text = stringResource(R.string.wizard_s3_wifi_autofilled_badge),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = WizardSuccessColor
+                    )
+                }
+
+                // Wi-Fi 密碼
                 OutlinedTextField(
                     value = uiState.wifiPassword,
                     onValueChange = onPasswordChange,
                     label = { Text(stringResource(R.string.wizard_s3_wifi_pwd_label)) },
                     singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = WizardTextPrimaryColor
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = WizardTextPrimaryColor,
+                        unfocusedTextColor = WizardTextPrimaryColor,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedBorderColor = WizardPrimaryColor,
                         unfocusedBorderColor = WizardBorderColor,
-                        focusedLabelColor = WizardPrimaryColor
+                        focusedLabelColor = WizardPrimaryColor,
+                        unfocusedLabelColor = WizardTextSecondaryColor
                     )
                 )
 
@@ -713,7 +751,9 @@ fun StepNetworkAndApiKeyScreen(
             }
         }
 
-        // UI 區塊 2：Tailscale Key 設定 (White Card)
+        // UI 區塊 2：Tailscale 金鑰設定卡片
+        var isFaqExpanded by rememberSaveable { mutableStateOf(false) }
+
         Card(
             colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
             border = BorderStroke(1.dp, WizardBorderColor),
@@ -741,64 +781,39 @@ fun StepNetworkAndApiKeyScreen(
                     )
                 }
 
-                Text(
-                    text = stringResource(R.string.wizard_s3_ts_prompt),
-                    fontSize = 11.sp,
-                    color = WizardTextSecondaryColor
-                )
-
-                // 差異比較與推薦指南
+                // 2 步取得金鑰簡明引導
                 Surface(
-                    color = AppSurfaceSubtle,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, AppBorderSubtle),
+                    color = WizardPrimaryContainerColor.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, WizardPrimaryContainerColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = stringResource(R.string.wizard_s3_key_comparison_title),
-                            fontSize = 12.sp,
+                            text = stringResource(R.string.wizard_s3_ts_prompt),
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = WizardTextPrimaryColor
+                            color = WizardPrimaryColor
                         )
-
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = stringResource(R.string.wizard_s3_key_type_auth_title),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppSuccessDark
-                            )
-                            Text(
-                                text = stringResource(R.string.wizard_s3_key_type_auth_desc),
-                                fontSize = 10.sp,
-                                color = WizardTextSecondaryColor,
-                                lineHeight = 14.sp
-                            )
-                        }
-
-                        HorizontalDivider(color = AppBorderSubtle.copy(alpha = 0.6f), thickness = 0.5.dp)
-
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = stringResource(R.string.wizard_s3_key_type_api_title),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = WizardPrimaryColor
-                            )
-                            Text(
-                                text = stringResource(R.string.wizard_s3_key_type_api_desc),
-                                fontSize = 10.sp,
-                                color = WizardTextSecondaryColor,
-                                lineHeight = 14.sp
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.wizard_s3_ts_newuser_step1),
+                            fontSize = 12.sp,
+                            color = WizardTextPrimaryColor,
+                            lineHeight = 17.sp
+                        )
+                        Text(
+                            text = stringResource(R.string.wizard_s3_ts_newuser_step2),
+                            fontSize = 12.sp,
+                            color = WizardTextPrimaryColor,
+                            lineHeight = 17.sp
+                        )
                     }
                 }
 
+                // 前往網頁按鈕
                 OutlinedButton(
                     onClick = {
                         val intent = Intent(
@@ -819,9 +834,60 @@ fun StepNetworkAndApiKeyScreen(
                         tint = WizardPrimaryColor
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.wizard_s3_ts_btn_web), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.wizard_s3_ts_btn_web),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
+                // 摺疊常見疑問 (FAQ)
+                Surface(
+                    color = AppSurfaceSubtle,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, AppBorderSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isFaqExpanded = !isFaqExpanded }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.wizard_s3_ts_faq_toggle),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = WizardPrimaryColor
+                            )
+                            Icon(
+                                imageVector = if (isFaqExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = WizardPrimaryColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        AnimatedVisibility(visible = isFaqExpanded) {
+                            Column(
+                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.wizard_s3_ts_faq_content),
+                                    fontSize = 11.sp,
+                                    color = WizardTextSecondaryColor,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 2.5 金鑰輸入欄位
                 OutlinedTextField(
                     value = uiState.apiKey,
                     onValueChange = onApiKeyChange,
@@ -830,6 +896,11 @@ fun StepNetworkAndApiKeyScreen(
                     singleLine = true,
                     visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    textStyle = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = WizardTextPrimaryColor
+                    ),
                     trailingIcon = {
                         IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
                             Icon(
@@ -842,12 +913,17 @@ fun StepNetworkAndApiKeyScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = WizardTextPrimaryColor,
+                        unfocusedTextColor = WizardTextPrimaryColor,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedBorderColor = WizardPrimaryColor,
                         unfocusedBorderColor = WizardBorderColor,
                         focusedLabelColor = WizardPrimaryColor
                     )
                 )
 
+                // 驗證按鈕
                 Button(
                     onClick = onVerifyApiKey,
                     enabled = uiState.apiKey.isNotBlank() && !uiState.isVerifyingApiKey,
@@ -869,31 +945,35 @@ fun StepNetworkAndApiKeyScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.wizard_s3_ts_btn_verifying), fontSize = 13.sp)
                     } else {
-                        Text(stringResource(R.string.wizard_s3_ts_btn_verify), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = stringResource(R.string.wizard_s3_ts_btn_verify),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
-                // 狀態反饋
+                // 驗證狀態
                 if (uiState.isApiKeyVerified) {
                     Surface(
                         color = WizardSuccessContainerColor,
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
                                 contentDescription = stringResource(R.string.wizard_s3_ts_success_icon),
                                 tint = WizardSuccessColor,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = stringResource(R.string.wizard_s3_ts_success_text),
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = WizardSuccessColor,
                                 fontWeight = FontWeight.Bold
                             )
@@ -907,46 +987,12 @@ fun StepNetworkAndApiKeyScreen(
                         fontWeight = FontWeight.Medium
                     )
                 }
-
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.wizard_ts_privacy_hint),
-                    fontSize = 11.sp,
-                    color = AppTextMuted,
-                    lineHeight = 15.sp
-                )
-            }
-        }
-
-        // Tailscale 180 天過期提醒卡
-        Card(
-            colors = CardDefaults.cardColors(containerColor = AppSurfaceSubtle),
-            border = BorderStroke(1.dp, WizardBorderColor),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.wizard_s3_ts_expiry_notice_title),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = AppWarningDark
-                )
-                Text(
-                    text = stringResource(R.string.wizard_s3_ts_expiry_notice_desc),
-                    fontSize = 11.sp,
-                    color = WizardTextSecondaryColor,
-                    lineHeight = 16.sp
-                )
             }
         }
 
         Spacer(modifier = Modifier.weight(1f, fill = false))
 
-        // 按鈕：產生部署條碼
+        // 下一步：前往重置舊手機教學
         Button(
             onClick = onNext,
             enabled = canProceed,
@@ -962,7 +1008,120 @@ fun StepNetworkAndApiKeyScreen(
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
-                text = stringResource(R.string.wizard_s3_btn_gen_qr),
+                text = stringResource(R.string.wizard_s2_config_btn_next),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+/**
+ * 畫面三：手把手重置教學與重要防呆警告 (Step 3: Reset Instructions & Critical Alert)
+ */
+@Composable
+fun StepResetScreen(
+    onNext: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+
+    val resetSteps = listOf(
+        stringResource(R.string.wizard_s2_step1),
+        stringResource(R.string.wizard_s2_step2),
+        stringResource(R.string.wizard_s2_step3)
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // 標題
+        Text(
+            text = stringResource(R.string.wizard_s3_reset_header),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = WizardTextPrimaryColor
+        )
+
+        // 步驟清單
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            resetSteps.forEachIndexed { index, stepText ->
+                StepNumberItem(
+                    number = index + 1,
+                    text = stepText
+                )
+            }
+        }
+
+        // 🚨 超大醒目防呆紅卡：重置開機後「絕對不要點擊開始」！
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = WizardWarningContainerColor,
+                contentColor = WizardWarningTextColor
+            ),
+            border = BorderStroke(2.dp, WizardErrorColor),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(
+                            color = WizardErrorColor.copy(alpha = 0.18f),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WarningAmber,
+                        contentDescription = null,
+                        tint = WizardErrorColor,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = stringResource(R.string.wizard_s3_reset_critical_warn_title),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WizardErrorColor,
+                        lineHeight = 20.sp
+                    )
+                    Text(
+                        text = stringResource(R.string.wizard_s3_reset_critical_warn_desc),
+                        fontSize = 13.sp,
+                        color = WizardWarningTextColor,
+                        lineHeight = 19.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f, fill = false))
+
+        // 按鈕
+        Button(
+            onClick = onNext,
+            colors = ButtonDefaults.buttonColors(containerColor = WizardPrimaryColor, contentColor = Color.White),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.wizard_s3_reset_btn_next),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1018,16 +1177,16 @@ fun StepScanScreen(
             }
         }
 
-        // QR Code 顯示區 (220x220 dp Box)
+        // QR Code 顯示區 (240x240 dp Box)
         Box(
             modifier = Modifier
-                .size(220.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .size(240.dp)
+                .clip(RoundedCornerShape(22.dp))
                 .background(Color.White)
                 .border(
                     width = 1.5.dp,
                     color = WizardBorderColor,
-                    shape = RoundedCornerShape(20.dp)
+                    shape = RoundedCornerShape(22.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -1039,13 +1198,13 @@ fun StepScanScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(40.dp),
                             strokeWidth = 3.dp,
                             color = WizardPrimaryColor
                         )
                         Text(
                             text = stringResource(R.string.wizard_s4_req_ts_key),
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = WizardTextSecondaryColor,
                             textAlign = TextAlign.Center
                         )
@@ -1058,7 +1217,7 @@ fun StepScanScreen(
                         contentDescription = stringResource(R.string.wizard_s4_qr_desc),
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(12.dp)
+                            .padding(14.dp)
                     )
                 }
 
@@ -1111,7 +1270,7 @@ fun StepScanScreen(
             }
         }
 
-        // 連線狀態區 (Lavender Soft Surface)
+        // 狀態指示卡片 (靜態圖示，不再一直無限轉圈圈)
         Surface(
             color = WizardPrimaryContainerColor.copy(alpha = 0.5f),
             border = BorderStroke(1.dp, WizardPrimaryContainerColor),
@@ -1119,22 +1278,41 @@ fun StepScanScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = WizardPrimaryColor
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.wizard_waiting_scan),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = AppOnPrimaryContainer
-                )
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(WizardPrimaryColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode2,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = stringResource(R.string.wizard_s4_status_ready_title),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppOnPrimaryContainer
+                    )
+                    Text(
+                        text = stringResource(R.string.wizard_s4_status_ready_desc),
+                        fontSize = 12.sp,
+                        color = WizardTextSecondaryColor,
+                        lineHeight = 17.sp
+                    )
+                }
             }
         }
 

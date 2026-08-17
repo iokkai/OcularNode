@@ -238,6 +238,31 @@ fun MainAppScreen(
         )
     }
 
+    val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context) }
+    var showTailscaleOnboardingDialog by remember {
+        mutableStateOf(
+            !isDeviceOwner &&
+            roleMode != "UNSET" &&
+            !io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) &&
+            !settingsManager.hasDismissedTailscaleOnboarding
+        )
+    }
+
+    androidx.compose.runtime.LaunchedEffect(roleMode) {
+        if (!isDeviceOwner && roleMode != "UNSET" && !io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) && !settingsManager.hasDismissedTailscaleOnboarding) {
+            showTailscaleOnboardingDialog = true
+        }
+    }
+
+    if (showTailscaleOnboardingDialog) {
+        io.github.iokkai.ocularnode.ui.common.TailscaleOnboardingDialog(
+            onDismiss = {
+                settingsManager.hasDismissedTailscaleOnboarding = true
+                showTailscaleOnboardingDialog = false
+            }
+        )
+    }
+
     // 零接觸部署 / Tailscale APK 下載進度對話框
     if (tailscaleProgress.isDownloading) {
         Dialog(

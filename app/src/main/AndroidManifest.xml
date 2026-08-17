@@ -57,6 +57,30 @@
             </intent-filter>
         </activity>
 
+        <!-- Android 12+ QR Code Provisioning Mode Activity -->
+        <activity
+            android:name=".receiver.GetProvisioningModeActivity"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.app.action.GET_PROVISIONING_MODE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Android 10+ Enterprise Post-Provisioning Compliance Activity -->
+        <activity
+            android:name=".receiver.AdminPolicyComplianceActivity"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.app.action.ADMIN_POLICY_COMPLIANCE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".service.CameraStreamService"
             android:enabled="true"
