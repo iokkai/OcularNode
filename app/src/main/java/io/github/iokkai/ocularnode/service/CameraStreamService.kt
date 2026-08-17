@@ -30,9 +30,11 @@ import io.github.iokkai.ocularnode.data.AppDatabase
 import io.github.iokkai.ocularnode.data.SettingsManager
 import io.github.iokkai.ocularnode.server.MjpegHttpServer
 import io.github.iokkai.ocularnode.util.NetworkUtils
+import io.github.iokkai.ocularnode.util.TelegramNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

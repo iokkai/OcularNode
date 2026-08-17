@@ -41,6 +41,7 @@ val AppSuccessDark = Color(0xFF1B5E20)
 val AppSuccessBright = Color(0xFF4CAF50)
 val AppSuccessLight = Color(0xFF81C784)
 val AppSuccessContainer = Color(0xFFE8F5E9)
+val AppSuccessContainerLight = Color(0xFFF1F8E9)
 val AppSuccessBorder = Color(0xFF81C784)
 
 // --- 狀態：錯誤與危險 (Status: Error / Danger / Offline) ---
@@ -54,8 +55,11 @@ val AppErrorTextDark = Color(0xFF410002)
 
 // --- 狀態：警告 (Status: Warning) ---
 val AppWarning = Color(0xFFE65100)
+val AppWarningDark = Color(0xFFBF360C)
 val AppWarningBright = Color(0xFFF57C00)
 val AppWarningContainer = Color(0xFFFFF3E0)
+val AppWarningContainerLight = Color(0xFFFFF8E1)
+val AppWarningBorder = Color(0xFFFFB74D)
 
 // --- 狀態：資訊 (Status: Info / Accent) ---
 val AppInfo = Color(0xFF0061A4)
