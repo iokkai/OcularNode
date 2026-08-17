@@ -153,6 +153,22 @@ fun MainAppScreen(
             val activity = context as? MainActivity
             val settingsManager = SettingsManager.getInstance(context)
             
+            // 自動賦予鏡頭與麥克風權限 (僅限 Device Owner 權限)
+            try {
+                val adminComponent = ZeroTouchProvisionManager.getAdminComponent(context)
+                dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.CAMERA, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
+                dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
+                Log.i("MainActivity", "自動賦予相機與麥克風權限成功")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "自動賦予權限失敗", e)
+            }
+
+            // 自動啟動相機背景串流服務
+            if (!cameraServerViewModel.isServiceRunning.value) {
+                cameraServerViewModel.startStreamService()
+                Log.i("MainActivity", "自動啟動相機串流服務")
+            }
+
             // 確保 Tailscale 處於安裝與連線狀態
             val authKey = settingsManager.tailscaleAuthKey
             if (authKey.isNotBlank()) {
@@ -182,8 +198,14 @@ fun MainAppScreen(
             if (currentTab == AppTab.VIEWER) {
                 currentTab = AppTab.CAMERA
             }
-        } else if (roleMode == "CAMERA" && currentTab == AppTab.VIEWER) {
-            currentTab = AppTab.CAMERA
+        } else if (roleMode == "CAMERA") {
+            if (currentTab == AppTab.VIEWER) {
+                currentTab = AppTab.CAMERA
+            }
+            if (!cameraServerViewModel.isServiceRunning.value) {
+                cameraServerViewModel.startStreamService()
+                Log.i("MainActivity", "自動啟動相機串流服務 (一般 CAMERA 模式)")
+            }
         } else if (roleMode == "VIEWER") {
             if (currentTab == AppTab.CAMERA) {
                 currentTab = AppTab.VIEWER

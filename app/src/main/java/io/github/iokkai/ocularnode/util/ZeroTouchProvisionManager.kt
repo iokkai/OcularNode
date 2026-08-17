@@ -187,17 +187,24 @@ object ZeroTouchProvisionManager {
                 if (!isIgnoring) {
                     Log.w(TAG, "應用程式 [$pkg] 未在電池最佳化白名單內，嘗試進行豁免請求...")
                     if (pkg == context.packageName) {
-                        // 自身 App：利用 REQUEST_IGNORE_BATTERY_OPTIMIZATIONS 專用 Intent 請求加入白名單
-                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                            data = Uri.parse("package:$pkg")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            context.startActivity(intent)
-                            Log.i(TAG, "已發送自身 [$pkg] 電池最佳化豁免請求 Intent")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "發送自身電池豁免 Intent 失敗，改為開啟設定頁面", e)
-                            openBatteryOptimizationSettingsPage(context)
+                        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+                        val isDO = dpm?.isDeviceOwnerApp(context.packageName) == true
+                        
+                        if (isDO) {
+                            Log.i(TAG, "應用程式 [$pkg] 為 Device Owner，跳過手動電池最佳化視窗以維持零接觸部署體驗。")
+                        } else {
+                            // 自身 App (非 DO)：利用 REQUEST_IGNORE_BATTERY_OPTIMIZATIONS 專用 Intent 請求加入白名單
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:$pkg")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            try {
+                                context.startActivity(intent)
+                                Log.i(TAG, "已發送自身 [$pkg] 電池最佳化豁免請求 Intent")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "發送自身電池豁免 Intent 失敗，改為開啟設定頁面", e)
+                                openBatteryOptimizationSettingsPage(context)
+                            }
                         }
                     } else {
                         // 第三方 App (Tailscale)：引導至系統電池最佳化設定頁面

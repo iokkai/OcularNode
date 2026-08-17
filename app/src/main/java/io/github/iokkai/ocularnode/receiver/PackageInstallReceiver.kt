@@ -20,13 +20,24 @@ class PackageInstallReceiver : BroadcastReceiver() {
             val packageName = intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME) ?: ""
 
             if (status == PackageInstaller.STATUS_SUCCESS) {
-                Log.i("PackageInstallReceiver", "APK 靜默安裝成功！Package: $packageName")
+                Log.i("PackageInstallReceiver", "APK 安裝成功！Package: $packageName")
                 val settingsManager = SettingsManager.getInstance(context)
                 val authKey = settingsManager.tailscaleAuthKey
                 ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
+            } else if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                val confirmationIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+                if (confirmationIntent != null) {
+                    confirmationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(confirmationIntent)
+                        Log.i("PackageInstallReceiver", "請求使用者確認安裝: $packageName")
+                    } catch (e: Exception) {
+                        Log.e("PackageInstallReceiver", "無法啟動安裝確認視窗", e)
+                    }
+                }
             } else {
                 val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
-                Log.e("PackageInstallReceiver", "APK 靜默安裝失敗 (Status $status, Package: $packageName): $message")
+                Log.e("PackageInstallReceiver", "APK 安裝失敗 (Status $status, Package: $packageName): $message")
             }
         }
     }

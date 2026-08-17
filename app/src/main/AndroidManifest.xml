@@ -102,7 +102,7 @@
         <receiver
             android:name=".receiver.PackageInstallReceiver"
             android:enabled="true"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="io.github.iokkai.ocularnode.ACTION_INSTALL_COMPLETE" />
             </intent-filter>
