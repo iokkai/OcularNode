@@ -50,10 +50,10 @@ class MotionPipelineManager(
             val timestamp = System.currentTimeMillis()
             val mediaDir = File(context.getExternalFilesDir(null), "media").apply { mkdirs() }
 
-            val dataStore = SettingsDataStore(context)
+            val dataStore = SettingsDataStore.getInstance(context)
             val enabledCategories = mutableSetOf<NotificationCategory>()
             val enabledRecordingCategories = mutableSetOf<NotificationCategory>()
-            for (category in NotificationCategory.values()) {
+            for (category in NotificationCategory.entries) {
                 if (dataStore.getCategoryEnabled(category).first()) {
                     enabledCategories.add(category)
                 }
@@ -238,6 +238,12 @@ class MotionPipelineManager(
         try {
             val toneG = ToneGenerator(AudioManager.STREAM_ALARM, 100)
             toneG.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 800)
+            scope.launch(Dispatchers.Default) {
+                delay(1000L)
+                try {
+                    toneG.release()
+                } catch (_: Exception) {}
+            }
         } catch (e: Exception) {
             Log.e("MotionPipelineManager", "Error playing alarm sound", e)
         }

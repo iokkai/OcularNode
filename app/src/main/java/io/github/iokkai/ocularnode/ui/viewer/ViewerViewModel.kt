@@ -34,7 +34,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val db = AppDatabase.getDatabase(application)
     private val cameraDao = db.cameraDeviceDao()
-    val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager(application)
+    val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(application)
 
     val audioEngine = AudioEngine()
     val streamClient = CameraStreamClient(audioEngine)

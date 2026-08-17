@@ -44,6 +44,12 @@ import java.io.File
  */
 class CameraStreamService : Service(), LifecycleOwner {
 
+    companion object {
+        @Volatile
+        var isServiceRunning: Boolean = false
+            private set
+    }
+
     private val binder = LocalBinder()
     private var wakeLock: PowerManager.WakeLock? = null
 
@@ -91,11 +97,12 @@ class CameraStreamService : Service(), LifecycleOwner {
 
     override fun onCreate() {
         super.onCreate()
+        isServiceRunning = true
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
-        settingsManager = SettingsManager(this)
+        settingsManager = SettingsManager.getInstance(this)
         if (settingsManager.deviceRoleMode == "VIEWER") {
             Log.i("CameraStreamService", "Device is set to VIEWER mode, stopping CameraStreamService.")
             stopSelf()
@@ -303,8 +310,10 @@ class CameraStreamService : Service(), LifecycleOwner {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "OcularNode::CameraStreamWakeLock").apply {
-                acquire(10 * 60 * 60 * 1000L)
+                setReferenceCounted(false)
+                acquire()
             }
+            Log.i("CameraStreamService", "Acquired persistent partial WakeLock")
         } catch (e: Exception) {
             Log.e("CameraStreamService", "Error acquiring WakeLock", e)
         }
@@ -413,6 +422,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         prefsListener?.let {
             getSharedPreferences("ocularnode_settings", Context.MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(it)
         }
+        isServiceRunning = false
         serviceJob.cancel()
         super.onDestroy()
     }

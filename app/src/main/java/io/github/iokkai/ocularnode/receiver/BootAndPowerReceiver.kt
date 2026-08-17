@@ -62,15 +62,22 @@ class BootAndPowerReceiver : BroadcastReceiver() {
 
                         // 發送 Telegram 開機/更新自動重啟通知
                         if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                            val pendingResult = goAsync()
                             CoroutineScope(Dispatchers.IO).launch {
-                                TelegramNotifier.sendSystemAlert(
-                                    botToken = settingsManager.telegramBotToken,
-                                    chatId = settingsManager.telegramChatId,
-                                    deviceName = settingsManager.cameraDeviceName,
-                                    alertTitle = context.getString(R.string.tg_alert_reboot_title),
-                                    alertDetails = context.getString(R.string.tg_alert_reboot_desc, action ?: ""),
-                                    context = context
-                                )
+                                try {
+                                    TelegramNotifier.sendSystemAlert(
+                                        botToken = settingsManager.telegramBotToken,
+                                        chatId = settingsManager.telegramChatId,
+                                        deviceName = settingsManager.cameraDeviceName,
+                                        alertTitle = context.getString(R.string.tg_alert_reboot_title),
+                                        alertDetails = context.getString(R.string.tg_alert_reboot_desc, action ?: ""),
+                                        context = context
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("BootAndPowerReceiver", "Error sending reboot alert", e)
+                                } finally {
+                                    pendingResult.finish()
+                                }
                             }
                         }
                     } catch (e: Exception) {
@@ -82,43 +89,89 @@ class BootAndPowerReceiver : BroadcastReceiver() {
             }
 
             Intent.ACTION_POWER_DISCONNECTED -> {
+                // 若前景服務已在執行，由 BatteryPowerMonitor 統一負責（避免重複通知）
+                if (CameraStreamService.isServiceRunning) {
+                    Log.i("BootAndPowerReceiver", "CameraStreamService 正在執行中，電源斷開事件由 BatteryPowerMonitor 處理，略過 BroadcastReceiver。")
+                    return
+                }
+
                 if (settingsManager.powerCutAlertEnabled && settingsManager.deviceRoleMode != "VIEWER") {
+                    val now = System.currentTimeMillis()
+                    if (now - lastPowerCutTime < DEBOUNCE_WINDOW_MS) {
+                        Log.i("BootAndPowerReceiver", "電源斷開事件命中防抖視窗 (10s)，略過重複發送。")
+                        return
+                    }
+                    lastPowerCutTime = now
+
                     val batteryPct = getBatteryPercentage(context)
                     Log.w("BootAndPowerReceiver", "Power disconnected! Battery: $batteryPct%")
                     if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                        val pendingResult = goAsync()
                         CoroutineScope(Dispatchers.IO).launch {
-                            TelegramNotifier.sendSystemAlert(
-                                botToken = settingsManager.telegramBotToken,
-                                chatId = settingsManager.telegramChatId,
-                                deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = context.getString(R.string.tg_alert_power_cut_title),
-                                alertDetails = context.getString(R.string.tg_alert_power_cut_desc, batteryPct),
-                                context = context
-                            )
+                            try {
+                                TelegramNotifier.sendSystemAlert(
+                                    botToken = settingsManager.telegramBotToken,
+                                    chatId = settingsManager.telegramChatId,
+                                    deviceName = settingsManager.cameraDeviceName,
+                                    alertTitle = context.getString(R.string.tg_alert_power_cut_title),
+                                    alertDetails = context.getString(R.string.tg_alert_power_cut_desc, batteryPct),
+                                    context = context
+                                )
+                            } catch (e: Exception) {
+                                Log.e("BootAndPowerReceiver", "Error sending power cut alert", e)
+                            } finally {
+                                pendingResult.finish()
+                            }
                         }
                     }
                 }
             }
 
             Intent.ACTION_POWER_CONNECTED -> {
+                // 若前景服務已在執行，由 BatteryPowerMonitor 統一負責（避免重複通知）
+                if (CameraStreamService.isServiceRunning) {
+                    Log.i("BootAndPowerReceiver", "CameraStreamService 正在執行中，電源接通事件由 BatteryPowerMonitor 處理，略過 BroadcastReceiver。")
+                    return
+                }
+
                 if (settingsManager.powerCutAlertEnabled && settingsManager.deviceRoleMode != "VIEWER") {
+                    val now = System.currentTimeMillis()
+                    if (now - lastPowerRestoreTime < DEBOUNCE_WINDOW_MS) {
+                        Log.i("BootAndPowerReceiver", "電源接通事件命中防抖視窗 (10s)，略過重複發送。")
+                        return
+                    }
+                    lastPowerRestoreTime = now
+
                     val batteryPct = getBatteryPercentage(context)
                     Log.i("BootAndPowerReceiver", "Power restored! Battery: $batteryPct%")
                     if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                        val pendingResult = goAsync()
                         CoroutineScope(Dispatchers.IO).launch {
-                            TelegramNotifier.sendSystemAlert(
-                                botToken = settingsManager.telegramBotToken,
-                                chatId = settingsManager.telegramChatId,
-                                deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = context.getString(R.string.tg_alert_power_restore_title),
-                                alertDetails = context.getString(R.string.tg_alert_power_restore_desc, batteryPct),
-                                context = context
-                            )
+                            try {
+                                TelegramNotifier.sendSystemAlert(
+                                    botToken = settingsManager.telegramBotToken,
+                                    chatId = settingsManager.telegramChatId,
+                                    deviceName = settingsManager.cameraDeviceName,
+                                    alertTitle = context.getString(R.string.tg_alert_power_restore_title),
+                                    alertDetails = context.getString(R.string.tg_alert_power_restore_desc, batteryPct),
+                                    context = context
+                                )
+                            } catch (e: Exception) {
+                                Log.e("BootAndPowerReceiver", "Error sending power restore alert", e)
+                            } finally {
+                                pendingResult.finish()
+                            }
                         }
                     }
                 }
             }
         }
+    }
+
+    companion object {
+        private const val DEBOUNCE_WINDOW_MS = 10_000L
+        @Volatile private var lastPowerCutTime: Long = 0L
+        @Volatile private var lastPowerRestoreTime: Long = 0L
     }
 
     private fun getBatteryPercentage(context: Context): Int {

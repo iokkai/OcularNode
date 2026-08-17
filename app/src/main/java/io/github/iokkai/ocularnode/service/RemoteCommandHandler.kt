@@ -131,9 +131,24 @@ class RemoteCommandHandler(
                 "alarm" -> {
                     playAlarmSound()
                 }
+                "http_auth_enabled", "auth_enabled" -> {
+                    val enable = value.lowercase() == "true" || value == "on"
+                    settingsManager.httpAuthEnabled = enable
+                    Log.i("RemoteCommandHandler", "Remote updated httpAuthEnabled to $enable")
+                }
+                "http_pin", "pin", "set_pin" -> {
+                    val trimmed = value.trim()
+                    if (trimmed.isNotBlank() && !trimmed.contains("*")) {
+                        settingsManager.httpPinCode = trimmed
+                        Log.i("RemoteCommandHandler", "Remote updated HTTP PIN Code")
+                    }
+                }
                 "telegram_token" -> {
-                    settingsManager.telegramBotToken = value
-                    Log.i("RemoteCommandHandler", "Remote updated Telegram Bot Token")
+                    val trimmed = value.trim()
+                    if (trimmed.isNotBlank() && !trimmed.contains("*")) {
+                        settingsManager.telegramBotToken = trimmed
+                        Log.i("RemoteCommandHandler", "Remote updated Telegram Bot Token")
+                    }
                 }
                 "telegram_chatid" -> {
                     settingsManager.telegramChatId = value
@@ -146,10 +161,10 @@ class RemoteCommandHandler(
                 "telegram_config" -> {
                     try {
                         val json = JSONObject(value)
-                        val token = json.optString("token", "")
-                        val chatId = json.optString("chatId", "")
-                        val mediaType = json.optString("mediaType", "")
-                        if (token.isNotBlank()) settingsManager.telegramBotToken = token
+                        val token = json.optString("token", "").trim()
+                        val chatId = json.optString("chatId", "").trim()
+                        val mediaType = json.optString("mediaType", "").trim()
+                        if (token.isNotBlank() && !token.contains("*")) settingsManager.telegramBotToken = token
                         if (chatId.isNotBlank()) settingsManager.telegramChatId = chatId
                         if (mediaType.isNotBlank()) settingsManager.telegramSendMediaType = mediaType
                         Log.i("RemoteCommandHandler", "Remote updated Telegram config: token length=${token.length}, chatId=$chatId, mediaType=$mediaType")
@@ -197,10 +212,10 @@ class RemoteCommandHandler(
                         val json = JSONObject(value)
                         val catName = json.optString("category", "")
                         val enabled = json.optBoolean("enabled", true)
-                        val category = NotificationCategory.values().find { it.name == catName }
+                        val category = NotificationCategory.entries.find { it.name == catName }
                         if (category != null) {
                             scope.launch(Dispatchers.IO) {
-                                SettingsDataStore(context).setCategoryRecordingEnabled(category, enabled)
+                                SettingsDataStore.getInstance(context).setCategoryRecordingEnabled(category, enabled)
                             }
                         }
                     } catch (e: Exception) {}
@@ -210,10 +225,10 @@ class RemoteCommandHandler(
                         val json = JSONObject(value)
                         val catName = json.optString("category", "")
                         val enabled = json.optBoolean("enabled", true)
-                        val category = NotificationCategory.values().find { it.name == catName }
+                        val category = NotificationCategory.entries.find { it.name == catName }
                         if (category != null) {
                             scope.launch(Dispatchers.IO) {
-                                SettingsDataStore(context).setCategoryEnabled(category, enabled)
+                                SettingsDataStore.getInstance(context).setCategoryEnabled(category, enabled)
                             }
                             Log.i("RemoteCommandHandler", "Remote updated category ${category.name} to $enabled")
                         }
@@ -234,11 +249,11 @@ class RemoteCommandHandler(
                 else -> {
                     if (command.startsWith("cat_")) {
                         val catName = command.removePrefix("cat_")
-                        val category = NotificationCategory.values().find { it.name == catName }
+                        val category = NotificationCategory.entries.find { it.name == catName }
                         val enable = value.lowercase() == "true" || value == "on"
                         if (category != null) {
                             scope.launch(Dispatchers.IO) {
-                                SettingsDataStore(context).setCategoryEnabled(category, enable)
+                                SettingsDataStore.getInstance(context).setCategoryEnabled(category, enable)
                             }
                             Log.i("RemoteCommandHandler", "Remote updated category ${category.name} to $enable")
                         }
@@ -355,9 +370,9 @@ class RemoteCommandHandler(
                         if (mdObj.has("categories")) {
                             val catObj = mdObj.optJSONObject("categories")
                             if (catObj != null) {
-                                val dataStore = SettingsDataStore(context)
+                                val dataStore = SettingsDataStore.getInstance(context)
                                 scope.launch(Dispatchers.IO) {
-                                    for (cat in NotificationCategory.values()) {
+                                    for (cat in NotificationCategory.entries) {
                                         if (catObj.has(cat.name)) {
                                             val catEnable = catObj.optBoolean(cat.name, true)
                                             dataStore.setCategoryEnabled(cat, catEnable)
@@ -384,9 +399,9 @@ class RemoteCommandHandler(
                         if (recObj.has("categoryRecording")) {
                             val catRecObj = recObj.optJSONObject("categoryRecording")
                             if (catRecObj != null) {
-                                val dataStore = SettingsDataStore(context)
+                                val dataStore = SettingsDataStore.getInstance(context)
                                 scope.launch(Dispatchers.IO) {
-                                    for (cat in NotificationCategory.values()) {
+                                    for (cat in NotificationCategory.entries) {
                                         if (catRecObj.has(cat.name)) {
                                             val catRecEnable = catRecObj.optBoolean(cat.name, true)
                                             dataStore.setCategoryRecordingEnabled(cat, catRecEnable)
@@ -422,12 +437,28 @@ class RemoteCommandHandler(
                         if (notifObj.has("telegram")) {
                             val tgObj = notifObj.optJSONObject("telegram")
                             if (tgObj != null) {
-                                val token = tgObj.optString("botToken", "")
-                                val chatId = tgObj.optString("chatId", "")
-                                val mediaType = tgObj.optString("mediaType", "")
-                                if (token.isNotBlank()) settingsManager.telegramBotToken = token
+                                val token = tgObj.optString("botToken", "").trim()
+                                val chatId = tgObj.optString("chatId", "").trim()
+                                val mediaType = tgObj.optString("mediaType", "").trim()
+                                if (token.isNotBlank() && !token.contains("*")) settingsManager.telegramBotToken = token
                                 if (chatId.isNotBlank()) settingsManager.telegramChatId = chatId
                                 if (mediaType.isNotBlank()) settingsManager.telegramSendMediaType = mediaType
+                            }
+                        }
+                    }
+                }
+
+                // 6. security section
+                if (json.has("security")) {
+                    val secObj = json.optJSONObject("security")
+                    if (secObj != null) {
+                        if (secObj.has("httpAuthEnabled")) {
+                            settingsManager.httpAuthEnabled = secObj.optBoolean("httpAuthEnabled", false)
+                        }
+                        if (secObj.has("httpPinCode")) {
+                            val pin = secObj.optString("httpPinCode", "").trim()
+                            if (pin.isNotBlank() && !pin.contains("*")) {
+                                settingsManager.httpPinCode = pin
                             }
                         }
                     }

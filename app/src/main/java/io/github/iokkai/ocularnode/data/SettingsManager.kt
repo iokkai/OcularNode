@@ -22,6 +22,15 @@ class SettingsManager(context: Context) {
     companion object {
         private const val TAG = "SettingsManager"
 
+        @Volatile
+        private var INSTANCE: SettingsManager? = null
+
+        fun getInstance(context: Context): SettingsManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: SettingsManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+
         // --- 一般設定 Key ---
         private const val KEY_DEVICE_ROLE_MODE = "device_role_mode"
         private const val KEY_PORT = "server_port"
@@ -55,11 +64,13 @@ class SettingsManager(context: Context) {
         private const val KEY_SYSTEM_LOG_ENABLED = "system_log_enabled"
         private const val KEY_DYNAMIC_FPS_ENABLED = "dynamic_fps_enabled"
         private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
+        private const val KEY_HTTP_AUTH_ENABLED = "http_auth_enabled"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
         private const val KEY_TG_CHAT_ID = "tg_chat_id"
         private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
+        private const val KEY_HTTP_PIN_CODE = "http_pin_code"
 
         // 遷移標記
         private const val KEY_SECRETS_MIGRATED = "secrets_migrated_to_encrypted"
@@ -74,6 +85,24 @@ class SettingsManager(context: Context) {
 
     init {
         migrateSecretsIfNeeded()
+    }
+
+    /**
+     * 批次更新一般設定（明文），合併至單次 SharedPreferences.Editor.apply() 提交，避免多重磁碟 I/O。
+     */
+    fun batchEdit(block: (SharedPreferences.Editor) -> Unit) {
+        val editor = prefs.edit()
+        block(editor)
+        editor.apply()
+    }
+
+    /**
+     * 批次更新加密憑證，合併至單次 secretPrefs.Editor.apply() 提交。
+     */
+    fun batchEditSecrets(block: (SharedPreferences.Editor) -> Unit) {
+        val editor = secretPrefs.edit()
+        block(editor)
+        editor.apply()
     }
 
     /**
@@ -292,4 +321,12 @@ class SettingsManager(context: Context) {
     var isKioskModeActive: Boolean
         get() = prefs.getBoolean(KEY_KIOSK_MODE_ACTIVE, false)
         set(value) = prefs.edit().putBoolean(KEY_KIOSK_MODE_ACTIVE, value).apply()
+
+    var httpAuthEnabled: Boolean
+        get() = prefs.getBoolean(KEY_HTTP_AUTH_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_HTTP_AUTH_ENABLED, value).apply()
+
+    var httpPinCode: String
+        get() = secretPrefs.getString(KEY_HTTP_PIN_CODE, "1234") ?: "1234"
+        set(value) = secretPrefs.edit().putString(KEY_HTTP_PIN_CODE, value).apply()
 }

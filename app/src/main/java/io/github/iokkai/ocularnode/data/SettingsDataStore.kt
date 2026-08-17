@@ -17,6 +17,17 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class SettingsDataStore(context: Context) {
     private val dataStore = context.dataStore
 
+    companion object {
+        @Volatile
+        private var INSTANCE: SettingsDataStore? = null
+
+        fun getInstance(context: Context): SettingsDataStore {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: SettingsDataStore(context.applicationContext).also { INSTANCE = it }
+            }
+        }
+    }
+
     fun getCategoryEnabled(category: NotificationCategory): Flow<Boolean> {
         val key = booleanPreferencesKey(category.name)
         return dataStore.data

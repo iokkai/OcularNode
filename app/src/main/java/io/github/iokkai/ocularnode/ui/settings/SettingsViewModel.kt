@@ -21,10 +21,10 @@ import java.util.concurrent.TimeUnit
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     init {
-        io.github.iokkai.ocularnode.util.AppLogger.isEnabled = SettingsManager(application).systemLogEnabled
+        io.github.iokkai.ocularnode.util.AppLogger.isEnabled = SettingsManager.getInstance(application).systemLogEnabled
     }
 
-    val settingsManager = SettingsManager(application)
+    val settingsManager = SettingsManager.getInstance(application)
 
     private val _roleMode = MutableStateFlow(settingsManager.deviceRoleMode)
     val roleMode: StateFlow<String> = _roleMode.asStateFlow()
@@ -99,6 +99,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private val _mlKitFilterEnabled = MutableStateFlow(settingsManager.mlKitFilterEnabled)
     val mlKitFilterEnabled: StateFlow<Boolean> = _mlKitFilterEnabled.asStateFlow()
+
+    private val _httpAuthEnabled = MutableStateFlow(settingsManager.httpAuthEnabled)
+    val httpAuthEnabled: StateFlow<Boolean> = _httpAuthEnabled.asStateFlow()
+
+    private val _httpPinCode = MutableStateFlow(settingsManager.httpPinCode)
+    val httpPinCode: StateFlow<String> = _httpPinCode.asStateFlow()
+
+    fun updateHttpAuthEnabled(enabled: Boolean) {
+        _httpAuthEnabled.value = enabled
+        settingsManager.httpAuthEnabled = enabled
+    }
+
+    fun updateHttpPinCode(pin: String) {
+        val trimmed = pin.trim()
+        _httpPinCode.value = trimmed
+        if (trimmed.isNotBlank()) {
+            settingsManager.httpPinCode = trimmed
+        }
+    }
 
     private val _cleanupStatus = MutableStateFlow<String?>(null)
     val cleanupStatus: StateFlow<String?> = _cleanupStatus.asStateFlow()

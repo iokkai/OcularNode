@@ -172,7 +172,7 @@ fun RemoteSettingsScreen(
     val categoryStates = remember(cameraStatusJson) {
         val catJson = cameraStatusJson?.optJSONObject("categoryFilters")
         mutableStateMapOf<NotificationCategory, Boolean>().apply {
-            NotificationCategory.values().forEach { cat ->
+            NotificationCategory.entries.forEach { cat ->
                 put(cat, catJson?.optBoolean(cat.name, true) ?: true)
             }
         }
@@ -180,7 +180,7 @@ fun RemoteSettingsScreen(
     val categoryRecordStates = remember(cameraStatusJson) {
         val catRecordJson = cameraStatusJson?.optJSONObject("categoryRecordingFilters")
         mutableStateMapOf<NotificationCategory, Boolean>().apply {
-            NotificationCategory.values().forEach { cat ->
+            NotificationCategory.entries.forEach { cat ->
                 put(cat, catRecordJson?.optBoolean(cat.name, true) ?: true)
             }
         }
@@ -916,7 +916,7 @@ fun RemoteSettingsScreen(
                                                 Text(stringResource(R.string.remote_ai_trigger_rec), fontSize = 13.sp, color = AppTextMuted, fontWeight = FontWeight.Bold)
                                             }
                                         }
-                                        NotificationCategory.values().forEach { category ->
+                                        NotificationCategory.entries.forEach { category ->
                                             val isEnabled = categoryStates[category] ?: true
                                             val isRecordEnabled = categoryRecordStates[category] ?: true
                                             val iconStr = when (category) {

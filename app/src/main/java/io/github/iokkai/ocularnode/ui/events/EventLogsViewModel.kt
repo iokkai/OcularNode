@@ -24,7 +24,7 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
     private val db = AppDatabase.getDatabase(application)
     private val eventDao = db.motionEventDao()
     private val cameraDao = db.cameraDeviceDao()
-    val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager(application)
+    val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(application)
 
     val motionEvents: StateFlow<List<MotionEvent>> = eventDao.getAllEvents()
         .stateIn(

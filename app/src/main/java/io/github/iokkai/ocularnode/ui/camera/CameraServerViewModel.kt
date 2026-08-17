@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 
 class CameraServerViewModel(application: Application) : AndroidViewModel(application) {
 
-    val settingsManager = SettingsManager(application)
+    val settingsManager = SettingsManager.getInstance(application)
 
     private var cameraService: CameraStreamService? = null
     private var isBound = false

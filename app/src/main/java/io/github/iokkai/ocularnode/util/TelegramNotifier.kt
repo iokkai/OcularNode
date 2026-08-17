@@ -92,15 +92,13 @@ object TelegramNotifier {
                 } else {
                     // Send text message
                     val url = "https://api.telegram.org/bot$botToken/sendMessage"
-                    val jsonBody = """
-                        {
-                            "chat_id": "$chatId",
-                            "text": "$caption",
-                            "parse_mode": "Markdown"
-                        }
-                    """.trimIndent()
+                    val jsonObj = org.json.JSONObject().apply {
+                        put("chat_id", chatId)
+                        put("text", caption)
+                        put("parse_mode", "Markdown")
+                    }
 
-                    val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
+                    val requestBody = jsonObj.toString().toRequestBody("application/json".toMediaType())
                     val request = Request.Builder().url(url).post(requestBody).build()
                     val response = client.newCall(request).execute()
                     val success = response.isSuccessful

@@ -545,7 +545,14 @@ object ZeroTouchProvisionManager {
 
                     val apkFile = downloadAppApk(context, downloadUrl)
                     if (apkFile != null && apkFile.exists()) {
-                        Log.i(TAG, "APK 下載完成，開始執行特權靜默安裝...")
+                        Log.i(TAG, "APK 下載完成，開始驗證簽名證書指紋...")
+
+                        if (!verifyApkSignature(context, apkFile)) {
+                            Log.e(TAG, "❌ 安全防護攔截：下載之更新 APK 簽名指紋與當前安裝之 App 不一致，拒絕執行安裝！")
+                            apkFile.delete()
+                            return@withContext
+                        }
+                        Log.i(TAG, "✅ APK 簽名指紋驗證通過，開始執行特權靜默安裝...")
 
                         // 3. 特權靜默安裝：利用 PackageInstaller 建立 MODE_FULL_INSTALL Session
                         installAppApkSilently(context, apkFile)
@@ -633,5 +640,76 @@ object ZeroTouchProvisionManager {
         } catch (e: Exception) {
             Log.e(TAG, "靜默安裝自身 APK 異常", e)
         }
+    }
+
+    /**
+     * 驗證下載的 APK 簽名證書指紋是否與當前運行的 App 完全一致
+     */
+    private fun verifyApkSignature(context: Context, apkFile: File): Boolean {
+        return try {
+            val pm = context.packageManager
+
+            // 1. 取得目前運行 App 的簽名證書
+            val currentSignatures: Array<android.content.pm.Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val currentPkgInfo = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                currentPkgInfo.signingInfo?.apkContentsSigners ?: emptyArray()
+            } else {
+                @Suppress("DEPRECATION")
+                val currentPkgInfo = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+                @Suppress("DEPRECATION")
+                currentPkgInfo.signatures ?: emptyArray()
+            }
+
+            if (currentSignatures.isEmpty()) {
+                Log.e(TAG, "無法取得目前 App 的簽名證書")
+                return false
+            }
+
+            // 2. 取得下載 APK 的簽名證書
+            val apkPkgInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pm.getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNATURES)
+            }
+
+            if (apkPkgInfo == null) {
+                Log.e(TAG, "無法解析下載之 APK 檔案: ${apkFile.absolutePath}")
+                return false
+            }
+
+            val apkSignatures: Array<android.content.pm.Signature> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                apkPkgInfo.signingInfo?.apkContentsSigners ?: emptyArray()
+            } else {
+                @Suppress("DEPRECATION")
+                apkPkgInfo.signatures ?: emptyArray()
+            }
+
+            if (apkSignatures.isEmpty()) {
+                Log.e(TAG, "下載之 APK 無任何簽名證書")
+                return false
+            }
+
+            // 3. 計算並比對 SHA-256 簽名指紋
+            val currentDigests = currentSignatures.map { getSha256Hex(it.toByteArray()) }.toSet()
+            val apkDigests = apkSignatures.map { getSha256Hex(it.toByteArray()) }.toSet()
+
+            val isMatched = currentDigests.intersect(apkDigests).isNotEmpty()
+            if (!isMatched) {
+                Log.e(TAG, "APK 簽名指紋不匹配！目前: $currentDigests, 下載 APK: $apkDigests")
+            } else {
+                Log.i(TAG, "APK 簽名指紋比對成功: $currentDigests")
+            }
+            isMatched
+        } catch (e: Exception) {
+            Log.e(TAG, "驗證 APK 簽名過程發生異常", e)
+            false
+        }
+    }
+
+    private fun getSha256Hex(bytes: ByteArray): String {
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        val digest = md.digest(bytes)
+        return digest.joinToString("") { "%02x".format(it) }
     }
 }

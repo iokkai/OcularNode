@@ -162,7 +162,7 @@ fun NotificationSettingsScreen(
                         }
                     }
 
-                    NotificationCategory.values().forEach { category ->
+                    NotificationCategory.entries.forEach { category ->
                         val isEnabled by dataStore.getCategoryEnabled(category).collectAsState(initial = true)
                         val isRecordingEnabled by dataStore.getCategoryRecordingEnabled(category).collectAsState(initial = true)
                         val iconStr = when (category) {

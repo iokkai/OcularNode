@@ -148,16 +148,24 @@ class EventVideoRecorder(
      */
     fun release() {
         recordingJob?.cancel()
-        recorderScope.cancel()
+        recordingJob = null
+        state.set(RecorderState.IDLE)
         
-        // 清空並安全釋放緩衝區中的所有 Bitmap
-        recorderScope.launch {
-            bufferMutex.withLock {
-                while (preRollBuffer.isNotEmpty()) {
-                    preRollBuffer.removeFirst()
+        // 先同步清空預錄緩衝區
+        runBlocking(Dispatchers.Default) {
+            try {
+                bufferMutex.withLock {
+                    preRollBuffer.clear()
                 }
-            }
+            } catch (_: Exception) {}
         }
+
+        // 清空即時通道中的殘留幀
+        while (true) {
+            realTimeFrames.tryReceive().getOrNull() ?: break
+        }
+        
+        recorderScope.cancel()
     }
     
     /**
@@ -212,6 +220,10 @@ class EventVideoRecorder(
         var encodedPostFrames = 0
         var isEos = false
         var frameIndex = 0L
+
+        val framePixelCount = encWidth * encHeight
+        val reusablePixels = IntArray(framePixelCount)
+        val reusableYuv = ByteArray(framePixelCount * 3 / 2)
 
         Log.i(tag, "開始編碼歷史畫面，共取出 ${historicalFrames.size} 幀，動態解析度: ${encWidth}x${encHeight} (原圖: ${rawFrameW}x${rawFrameH})，ColorFormat: $chosenColorFormat")
 
@@ -276,9 +288,9 @@ class EventVideoRecorder(
                 bmp = targetBmp
             }
             val yuvBytes = if (chosenColorFormat == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar) {
-                getI420FromBitmap(bmp, encWidth, encHeight)
+                getI420FromBitmap(bmp, encWidth, encHeight, reusablePixels, reusableYuv)
             } else {
-                getNV12FromBitmap(bmp, encWidth, encHeight)
+                getNV12FromBitmap(bmp, encWidth, encHeight, reusablePixels, reusableYuv)
             }
             bmp.recycle()
 
@@ -400,12 +412,16 @@ class EventVideoRecorder(
     /**
      * 將 Bitmap 轉換為 YUV420 Semi-Planar (NV12) 格式，供 MediaCodec 編碼。
      */
-    private fun getNV12FromBitmap(bitmap: Bitmap, width: Int, height: Int): ByteArray {
+    private fun getNV12FromBitmap(
+        bitmap: Bitmap,
+        width: Int,
+        height: Int,
+        pixels: IntArray = IntArray(width * height),
+        yuv: ByteArray = ByteArray(width * height * 3 / 2)
+    ): ByteArray {
         val size = width * height
-        val pixels = IntArray(size)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
-        val yuv = ByteArray(size * 3 / 2)
         var yIndex = 0
         var uvIndex = size
 
@@ -437,12 +453,16 @@ class EventVideoRecorder(
     /**
      * 將 Bitmap 轉換為 YUV420 Planar (I420) 格式。
      */
-    private fun getI420FromBitmap(bitmap: Bitmap, width: Int, height: Int): ByteArray {
+    private fun getI420FromBitmap(
+        bitmap: Bitmap,
+        width: Int,
+        height: Int,
+        pixels: IntArray = IntArray(width * height),
+        yuv: ByteArray = ByteArray(width * height * 3 / 2)
+    ): ByteArray {
         val size = width * height
-        val pixels = IntArray(size)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
 
-        val yuv = ByteArray(size * 3 / 2)
         var yIndex = 0
         var uIndex = size
         var vIndex = size + (size / 4)

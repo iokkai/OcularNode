@@ -147,6 +147,8 @@ fun SettingsScreen(
     val mlKitFilterEnabled by viewModel.mlKitFilterEnabled.collectAsState()
     val systemLogEnabled by viewModel.systemLogEnabled.collectAsState()
     val dynamicFpsAdjustmentEnabled by viewModel.dynamicFpsAdjustmentEnabled.collectAsState()
+    val httpAuthEnabled by viewModel.httpAuthEnabled.collectAsState()
+    val httpPinCode by viewModel.httpPinCode.collectAsState()
     val storageLimitGB by viewModel.storageLimitGB.collectAsState()
     val maxEventCount by viewModel.maxEventCount.collectAsState()
     val cleanupStatus by viewModel.cleanupStatus.collectAsState()
@@ -277,6 +279,51 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = AppBorderLight)
+
+                    // HTTP PIN Protection Switch
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("網頁與 API 存取密碼保護", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                if (httpAuthEnabled) "已啟用：控制相機與設定需輸入 PIN 碼" else "已關閉：區域網路內無需驗證即可操作",
+                                color = AppTextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Switch(
+                            checked = httpAuthEnabled,
+                            onCheckedChange = { viewModel.updateHttpAuthEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AppPrimary
+                            )
+                        )
+                    }
+
+                    AnimatedVisibility(visible = httpAuthEnabled) {
+                        Column(modifier = Modifier.padding(top = 10.dp)) {
+                            OutlinedTextField(
+                                value = httpPinCode,
+                                onValueChange = { viewModel.updateHttpPinCode(it) },
+                                label = { Text("自訂存取 PIN 碼 (4-6 位數字/英數)") },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = AppTextPrimary,
+                                    unfocusedTextColor = AppTextPrimary,
+                                    focusedBorderColor = AppPrimary,
+                                    unfocusedBorderColor = AppBorder
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 }
             }
 

@@ -53,7 +53,7 @@ class TelegramSetupViewModel(application: Application) : AndroidViewModel(applic
         private const val NOTIFICATION_ID = 9001
     }
 
-    private val settingsManager = SettingsManager(application)
+    private val settingsManager = SettingsManager.getInstance(application)
 
     private val _uiState = MutableStateFlow<TelegramSetupUiState>(TelegramSetupUiState.Step1_InputToken)
     val uiState: StateFlow<TelegramSetupUiState> = _uiState.asStateFlow()

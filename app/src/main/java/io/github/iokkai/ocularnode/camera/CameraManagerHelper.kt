@@ -707,12 +707,16 @@ class CameraManagerHelper(private val context: Context) {
                                     val totalRotation = settingsManager.streamRotation % 360
                                     if (totalRotation != 0) matrix.postRotate(totalRotation.toFloat())
                                     val rotated = if (totalRotation != 0 || scaledBitmap != activeBitmap) {
-                                        Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.width, scaledBitmap.height, matrix, true)
+                                        val rot = Bitmap.createBitmap(scaledBitmap, 0, 0, scaledBitmap.width, scaledBitmap.height, matrix, true)
+                                        if (scaledBitmap != activeBitmap) {
+                                            scaledBitmap.recycle()
+                                        }
+                                        rot
                                     } else {
                                         scaledBitmap
                                     }
                                     
-                                    val thumbStream = ByteArrayOutputStream()
+                                    val thumbStream = ByteArrayOutputStream(64 * 1024)
                                     // 提升 JPEG 壓縮品質至 85% (原 50% 會產生嚴重馬賽克與模糊)
                                     rotated.compress(Bitmap.CompressFormat.JPEG, 85, thumbStream)
                                     val thumbnailBytes = thumbStream.toByteArray()
