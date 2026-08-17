@@ -6,6 +6,12 @@ import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
+sealed class LoginResult {
+    data class Success(val responseJson: String) : LoginResult()
+    data object InvalidPin : LoginResult()
+    data class LockedOut(val retryAfterSeconds: Long) : LoginResult()
+}
+
 /**
  * 負責 HTTP 請求的認證授權、PIN 碼比對與 Session Token 生命週期管理（支援 TTL 與過期清理）。
  */
@@ -18,8 +24,16 @@ class HttpAuthHandler {
         private const val MAX_CACHED_TOKENS = 500
     }
 
+    private data class FailedAttemptRecord(
+        var failureCount: Int = 0,
+        var lockoutUntilMs: Long = 0L
+    )
+
     /** 儲存 Session Token -> 到期時間戳 (ms) */
     private val tokenExpirationMap = ConcurrentHashMap<String, Long>()
+
+    /** 儲存 Client IP -> 登入失敗記錄與鎖定時間 */
+    private val failedAttemptsMap = ConcurrentHashMap<String, FailedAttemptRecord>()
 
     /**
      * 檢查 Token 是否有效且尚未過期
@@ -69,10 +83,21 @@ class HttpAuthHandler {
     }
 
     /**
-     * 處理 POST /auth/login：驗證 PIN 碼並發放具備 TTL 的 Session Token
-     * 若成功回傳 Token JSON 字串，失敗回傳 null
+     * 處理 POST /auth/login：驗證 PIN 碼並發放具備 TTL 的 Session Token（支援 IP 階梯式防爆破鎖定）
      */
-    fun handleLogin(body: String, rawPath: String, settingsManager: SettingsManager): String? {
+    fun handleLogin(
+        body: String,
+        rawPath: String,
+        settingsManager: SettingsManager,
+        clientIp: String = "unknown"
+    ): LoginResult {
+        val now = System.currentTimeMillis()
+        val record = failedAttemptsMap.getOrPut(clientIp) { FailedAttemptRecord() }
+        if (now < record.lockoutUntilMs) {
+            val retrySec = ((record.lockoutUntilMs - now) / 1000).coerceAtLeast(1)
+            return LoginResult.LockedOut(retrySec)
+        }
+
         var inputPin = ""
         try {
             if (body.isNotBlank()) {
@@ -89,20 +114,31 @@ class HttpAuthHandler {
         val isPinCorrect = !settingsManager.httpAuthEnabled || safeCompareStrings(inputPin, expectedPin)
 
         if (isPinCorrect) {
+            failedAttemptsMap.remove(clientIp)
             cleanupExpiredTokens()
 
             val token = UUID.randomUUID().toString().replace("-", "")
-            val now = System.currentTimeMillis()
             tokenExpirationMap[token] = now + TOKEN_TTL_MS
 
-            return JSONObject().apply {
+            val json = JSONObject().apply {
                 put("status", "ok")
                 put("token", token)
                 put("expiresInSeconds", TOKEN_TTL_MS / 1000)
                 put("message", "Authenticated successfully")
             }.toString()
+
+            return LoginResult.Success(json)
+        } else {
+            record.failureCount++
+            if (record.failureCount >= 10) {
+                record.lockoutUntilMs = now + (300 * 1000L) // 5 分鐘鎖定
+                return LoginResult.LockedOut(300)
+            } else if (record.failureCount >= 5) {
+                record.lockoutUntilMs = now + (30 * 1000L) // 30 秒鎖定
+                return LoginResult.LockedOut(30)
+            }
+            return LoginResult.InvalidPin
         }
-        return null
     }
 
     /**

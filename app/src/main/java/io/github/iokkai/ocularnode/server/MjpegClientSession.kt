@@ -34,7 +34,7 @@ class MjpegClientSession(
                 socket.tcpNoDelay = true
                 socket.sendBufferSize = 65536
                 for (frame in frameChannel) {
-                    if (!isActive) break
+                    if (!isActive || socket.isClosed) break
                     val header = "--jpgboundary\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.size}\r\n\r\n"
                     outputStream.write(header.toByteArray(Charsets.UTF_8))
                     outputStream.write(frame)
@@ -45,6 +45,7 @@ class MjpegClientSession(
                 // Connection closed or reset by client
             } finally {
                 frameChannel.close()
+                try { outputStream.flush() } catch (_: Exception) {}
                 try { socket.close() } catch (_: Exception) {}
                 onDisconnected()
             }

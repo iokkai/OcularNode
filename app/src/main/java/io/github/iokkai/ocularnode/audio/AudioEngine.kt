@@ -74,12 +74,20 @@ class AudioEngine {
 
             recordJob = scope.launch(Dispatchers.IO) {
                 // 640 bytes = 320 16-bit PCM samples = 20ms frame at 16kHz for ultra-low latency
-                val buffer = ByteArray(640)
+                val poolSize = 16
+                val bufferPool = Array(poolSize) { ByteArray(640) }
+                var poolIndex = 0
+
                 while (isActive && isRecording) {
-                    val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                    val buf = bufferPool[poolIndex % poolSize]
+                    poolIndex++
+                    val read = audioRecord?.read(buf, 0, buf.size) ?: 0
                     if (read > 0) {
-                        val chunk = buffer.copyOf(read)
-                        _audioBufferFlow.emit(chunk)
+                        if (read == buf.size) {
+                            _audioBufferFlow.emit(buf)
+                        } else {
+                            _audioBufferFlow.emit(buf.copyOf(read))
+                        }
                     }
                 }
             }

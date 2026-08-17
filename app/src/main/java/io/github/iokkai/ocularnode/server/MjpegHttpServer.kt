@@ -312,11 +312,16 @@ class MjpegHttpServer(
             when {
                 // 1. PIN 登入與授權狀態
                 cleanPath == "/auth/login" -> {
-                    val tokenJson = authHandler.handleLogin(body, rawPath, settingsManager)
-                    if (tokenJson != null) {
-                        apiHandler.sendJsonResponse(output, 200, tokenJson)
-                    } else {
-                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"message\":\"Invalid PIN code\"}")
+                    when (val result = authHandler.handleLogin(body, rawPath, settingsManager, clientIp)) {
+                        is LoginResult.Success -> {
+                            apiHandler.sendJsonResponse(output, 200, result.responseJson)
+                        }
+                        is LoginResult.LockedOut -> {
+                            apiHandler.sendJsonResponse(output, 429, "{\"status\":\"error\",\"message\":\"Too many failed login attempts. Please try again in ${result.retryAfterSeconds}s.\",\"retryAfter\":${result.retryAfterSeconds}}")
+                        }
+                        is LoginResult.InvalidPin -> {
+                            apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"message\":\"Invalid PIN code\"}")
+                        }
                     }
                     socket.close()
                     return

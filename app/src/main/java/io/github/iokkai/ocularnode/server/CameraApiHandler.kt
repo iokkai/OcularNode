@@ -56,6 +56,26 @@ class CameraApiHandler(
     private var lastCpuTotalTime: Long = 0
 
     /**
+     * 檢查檔案路徑是否位於授權的媒體與私有檔案目錄內，嚴格防範路徑遍歷 (Path Traversal)
+     */
+    fun isSafeMediaPath(file: File): Boolean {
+        return try {
+            val canonicalPath = file.canonicalPath
+            val mediaDir = context.getExternalFilesDir(null)?.canonicalPath
+            val moviesDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.canonicalPath
+            val filesDir = context.filesDir?.canonicalPath
+            val cacheDir = context.cacheDir?.canonicalPath
+
+            (mediaDir != null && canonicalPath.startsWith(mediaDir)) ||
+            (moviesDir != null && canonicalPath.startsWith(moviesDir)) ||
+            (filesDir != null && canonicalPath.startsWith(filesDir)) ||
+            (cacheDir != null && canonicalPath.startsWith(cacheDir))
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
      * 啟動背景協程，非同步持續監聽並快取分類過濾狀態至記憶體
      */
     fun startCategoryObservation(scope: CoroutineScope) {
@@ -439,7 +459,7 @@ class CameraApiHandler(
                         val vPath = event.videoPath
                         if (!vPath.isNullOrEmpty()) {
                             val file = File(vPath)
-                            if (file.exists() && file.canRead()) {
+                            if (file.exists() && file.canRead() && isSafeMediaPath(file)) {
                                 inputStream = java.io.FileInputStream(file)
                                 contentLength = file.length()
                             } else if (vPath.startsWith("content://")) {
@@ -516,7 +536,7 @@ class CameraApiHandler(
                         val sPath = event.snapshotPath
                         if (!sPath.isNullOrEmpty()) {
                             val file = File(sPath)
-                            if (file.exists() && file.canRead()) {
+                            if (file.exists() && file.canRead() && isSafeMediaPath(file)) {
                                 snapStream = java.io.FileInputStream(file)
                                 snapLen = file.length()
                             } else if (sPath.startsWith("content://")) {
@@ -629,6 +649,7 @@ class CameraApiHandler(
             400 -> "Bad Request"
             401 -> "Unauthorized"
             404 -> "Not Found"
+            429 -> "Too Many Requests"
             500 -> "Internal Server Error"
             503 -> "Service Unavailable"
             else -> "OK"
@@ -638,6 +659,9 @@ class CameraApiHandler(
                 "Access-Control-Allow-Origin: *\r\n" +
                 "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n" +
                 "Access-Control-Allow-Headers: *\r\n" +
+                "X-Content-Type-Options: nosniff\r\n" +
+                "X-Frame-Options: SAMEORIGIN\r\n" +
+                "Cache-Control: no-store\r\n" +
                 "Content-Type: application/json; charset=utf-8\r\n" +
                 "Content-Length: ${bytes.size}\r\n" +
                 "Connection: close\r\n\r\n"

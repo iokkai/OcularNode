@@ -53,14 +53,14 @@ class HttpAuthHandlerTest {
         settingsManager.httpPinCode = "8888"
 
         // Incorrect PIN
-        val failedResult = authHandler.handleLogin("{\"pin\":\"0000\"}", "/auth/login", settingsManager)
-        assertNull(failedResult)
+        val failedResult = authHandler.handleLogin("{\"pin\":\"0000\"}", "/auth/login", settingsManager, "192.168.1.100")
+        assertTrue(failedResult is LoginResult.InvalidPin)
 
         // Correct PIN
-        val successResult = authHandler.handleLogin("{\"pin\":\"8888\"}", "/auth/login", settingsManager)
-        assertNotNull(successResult)
+        val successResult = authHandler.handleLogin("{\"pin\":\"8888\"}", "/auth/login", settingsManager, "192.168.1.100")
+        assertTrue(successResult is LoginResult.Success)
 
-        val json = JSONObject(successResult!!)
+        val json = JSONObject((successResult as LoginResult.Success).responseJson)
         val token = json.getString("token")
         assertTrue(token.isNotBlank())
 
@@ -79,6 +79,28 @@ class HttpAuthHandlerTest {
         // 4. Test URL Query parameter
         assertTrue(authHandler.isRequestAuthorized(settingsManager, emptyMap(), "/mjpeg?token=$token"))
         assertTrue(authHandler.isRequestAuthorized(settingsManager, emptyMap(), "/mjpeg?t=123456&token=$token&fps=30"))
+    }
+
+    @Test
+    fun handleLogin_withRepeatedFailures_triggersBruteForceLockout() {
+        settingsManager.httpAuthEnabled = true
+        settingsManager.httpPinCode = "9999"
+        val clientIp = "192.168.1.250"
+
+        // Fail 4 times -> still InvalidPin
+        for (i in 1..4) {
+            val res = authHandler.handleLogin("{\"pin\":\"wrong\"}", "/auth/login", settingsManager, clientIp)
+            assertTrue(res is LoginResult.InvalidPin)
+        }
+
+        // 5th failure -> triggers LockedOut (30s)
+        val fifthRes = authHandler.handleLogin("{\"pin\":\"wrong\"}", "/auth/login", settingsManager, clientIp)
+        assertTrue(fifthRes is LoginResult.LockedOut)
+        assertTrue((fifthRes as LoginResult.LockedOut).retryAfterSeconds in 25..30)
+
+        // Even with correct PIN while locked out, it must still reject with LockedOut
+        val attemptDuringLockout = authHandler.handleLogin("{\"pin\":\"9999\"}", "/auth/login", settingsManager, clientIp)
+        assertTrue(attemptDuringLockout is LoginResult.LockedOut)
     }
 
     @Test

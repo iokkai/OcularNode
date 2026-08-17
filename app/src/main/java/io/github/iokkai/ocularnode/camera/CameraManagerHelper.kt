@@ -82,7 +82,11 @@ class CameraManagerHelper(private val context: Context) {
         set(value) {
             dynamicTargetFps = value.coerceIn(5, 30)
         }
-    private var processTimesBuffer = mutableListOf<Long>()
+    private val processTimesRingBuffer = LongArray(16)
+    private var processTimesCount = 0
+    private var processTimesIndex = 0
+    private var processTimesSum = 0L
+
     var isMotionDetectionEnabled: Boolean = false
     var motionSensitivity: Float = 5.0f // 1..10
     var motionCooldownSeconds: Int = 30 // seconds
@@ -155,9 +159,19 @@ class CameraManagerHelper(private val context: Context) {
         lifecycleOwner: LifecycleOwner? = currentLifecycleOwner,
         previewSurface: Preview.SurfaceProvider? = currentPreviewSurface
     ) {
+        val mainExecutor = ContextCompat.getMainExecutor(context)
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            mainExecutor.execute { bindCameraUseCases(lifecycleOwner, previewSurface) }
+            return
+        }
+
         val owner = lifecycleOwner ?: currentLifecycleOwner ?: return
         val provider = cameraProvider ?: return
-        provider.unbindAll()
+        try {
+            provider.unbindAll()
+        } catch (e: Exception) {
+            Log.w("CameraManagerHelper", "Warning during unbindAll", e)
+        }
 
         val cameraSelector = CameraSelector.Builder()
             .requireLensFacing(lensFacing)
@@ -515,11 +529,18 @@ class CameraManagerHelper(private val context: Context) {
 
             if (dynamicFpsAdjustmentEnabled) {
                 val processTime = SystemClock.elapsedRealtime() - now
-                processTimesBuffer.add(processTime)
-                if (processTimesBuffer.size >= 10) {
-                    val avgProcessTime = processTimesBuffer.average().toLong()
-                    processTimesBuffer.clear()
-                    
+                if (processTimesCount < 16) {
+                    processTimesRingBuffer[processTimesIndex] = processTime
+                    processTimesSum += processTime
+                    processTimesCount++
+                    processTimesIndex = (processTimesIndex + 1) % 16
+                } else {
+                    processTimesSum -= processTimesRingBuffer[processTimesIndex]
+                    processTimesRingBuffer[processTimesIndex] = processTime
+                    processTimesSum += processTime
+                    processTimesIndex = (processTimesIndex + 1) % 16
+
+                    val avgProcessTime = processTimesSum / 16
                     if (avgProcessTime > 80) { // Device struggling
                         dynamicTargetFps = (dynamicTargetFps - 2).coerceAtLeast(10)
                         jpegQuality = (jpegQuality - 10).coerceAtLeast(10)
