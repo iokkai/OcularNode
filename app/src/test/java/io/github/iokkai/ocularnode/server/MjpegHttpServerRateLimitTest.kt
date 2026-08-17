@@ -64,8 +64,8 @@ class MjpegHttpServerRateLimitTest {
         repeat(MAX_REQUESTS) { i -> checkRateLimit(ip, now + i) }
         assertFalse(checkRateLimit(ip, now + MAX_REQUESTS))
 
-        // Advance time past the window (10s + 1ms)
-        val futureTime = now + WINDOW_MS + 1
+        // Advance time past the entire window of all previous requests
+        val futureTime = now + MAX_REQUESTS + WINDOW_MS + 1
         assertTrue(checkRateLimit(ip, futureTime))
     }
 
@@ -85,16 +85,21 @@ class MjpegHttpServerRateLimitTest {
         val ip = "192.168.0.100"
         val baseTime = 1_000_000L
 
+        // 20 requests from baseTime to baseTime + 1900ms
         repeat(20) { i -> checkRateLimit(ip, baseTime + i * 100) }
         assertEquals(20, ipRequestLog[ip]?.size)
 
+        // 10 requests from baseTime + 5000ms to baseTime + 5900ms (total 30)
         repeat(10) { i -> checkRateLimit(ip, baseTime + 5_000 + i * 100) }
         assertEquals(30, ipRequestLog[ip]?.size)
 
-        // Advance past window: first 20 should evict, 10 remain + 1 new
-        checkRateLimit(ip, baseTime + WINDOW_MS + 1)
+        // Advance to baseTime + 12000ms:
+        // - First 20 requests (<= baseTime + 1900ms) are > 10000ms old -> all 20 evicted
+        // - Next 10 requests (>= baseTime + 5000ms) are <= 7000ms old -> 10 kept
+        // - Plus 1 new request added at baseTime + 12000ms -> total size = 11
+        assertTrue(checkRateLimit(ip, baseTime + 12_000))
         val remaining = ipRequestLog[ip]?.size ?: 0
-        assertTrue("Stale entries should have been evicted; remaining=$remaining", remaining < 30)
+        assertEquals(11, remaining)
     }
 
     @Test
