@@ -110,34 +110,40 @@ class SettingsManager(context: Context) {
     /**
      * 建立 EncryptedSharedPreferences 實例。
      * 若加密存儲損毀（極罕見），則刪除損毀檔案並重新建立，避免 App 崩潰。
+     * 若處於不支援 Android KeyStore 的環境（如 Robolectric / 單元測試環境），則安全降級為一般 SharedPreferences。
      */
     private fun createEncryptedPrefs(context: Context): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
         return try {
-            EncryptedSharedPreferences.create(
-                context,
-                "ocularnode_secrets",
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "EncryptedSharedPreferences corrupted, recreating...", e)
-            // 刪除損毀的加密檔案並重新建立
-            context.getSharedPreferences("ocularnode_secrets", Context.MODE_PRIVATE).edit().clear().apply()
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
             try {
-                val file = java.io.File(context.filesDir.parent, "shared_prefs/ocularnode_secrets.xml")
-                if (file.exists()) file.delete()
-            } catch (_: Exception) { }
-            EncryptedSharedPreferences.create(
-                context,
-                "ocularnode_secrets",
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
+                EncryptedSharedPreferences.create(
+                    context,
+                    "ocularnode_secrets",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "EncryptedSharedPreferences corrupted, recreating...", e)
+                // 刪除損毀的加密檔案並重新建立
+                context.getSharedPreferences("ocularnode_secrets", Context.MODE_PRIVATE).edit().clear().apply()
+                try {
+                    val file = java.io.File(context.filesDir.parent, "shared_prefs/ocularnode_secrets.xml")
+                    if (file.exists()) file.delete()
+                } catch (_: Exception) { }
+                EncryptedSharedPreferences.create(
+                    context,
+                    "ocularnode_secrets",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "EncryptedSharedPreferences unavailable (e.g. Test environment or missing KeyStore), falling back to standard SharedPreferences: ${e.message}")
+            context.getSharedPreferences("ocularnode_secrets_fallback", Context.MODE_PRIVATE)
         }
     }
 

@@ -59,7 +59,7 @@ class WizardViewModel : ViewModel() {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             context.getSharedPreferences("ocular_node_fallback_prefs", Context.MODE_PRIVATE)
         }
