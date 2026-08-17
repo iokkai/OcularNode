@@ -31,6 +31,11 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -202,6 +207,8 @@ private fun Step1InputTokenContent(
     onTokenChange: (String) -> Unit,
     onNext: () -> Unit
 ) {
+    var isTokenVisible by rememberSaveable { mutableStateOf(false) }
+
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
@@ -267,6 +274,16 @@ private fun Step1InputTokenContent(
                 label = { Text(stringResource(R.string.tg_setup_token_label)) },
                 placeholder = { Text(stringResource(R.string.tg_setup_token_placeholder)) },
                 leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = AppPrimary) },
+                trailingIcon = {
+                    IconButton(onClick = { isTokenVisible = !isTokenVisible }) {
+                        Icon(
+                            imageVector = if (isTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (isTokenVisible) "Hide Token" else "Show Token",
+                            tint = AppTextSecondary
+                        )
+                    }
+                },
+                visualTransformation = if (isTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AppPrimary,
@@ -298,6 +315,17 @@ private fun Step1InputTokenContent(
                     fontSize = 15.sp
                 )
             }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = stringResource(R.string.tg_setup_privacy_hint),
+                fontSize = 11.sp,
+                color = AppTextMuted,
+                lineHeight = 16.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -757,6 +785,8 @@ private fun ErrorContent(
     onTokenChange: (String) -> Unit,
     onRetry: () -> Unit
 ) {
+    var isTokenVisible by rememberSaveable { mutableStateOf(false) }
+
     Card(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
@@ -785,11 +815,25 @@ private fun ErrorContent(
                 value = tokenInput,
                 onValueChange = onTokenChange,
                 label = { Text(stringResource(R.string.tg_setup_token_label)) },
+                leadingIcon = { Icon(Icons.Default.Key, contentDescription = null, tint = AppPrimary) },
+                trailingIcon = {
+                    IconButton(onClick = { isTokenVisible = !isTokenVisible }) {
+                        Icon(
+                            imageVector = if (isTokenVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (isTokenVisible) "Hide Token" else "Show Token",
+                            tint = AppTextSecondary
+                        )
+                    }
+                },
+                visualTransformation = if (isTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = AppPrimary,
-                    unfocusedBorderColor = AppBorder
+                    unfocusedBorderColor = AppBorder,
+                    focusedTextColor = AppTextPrimary,
+                    unfocusedTextColor = AppTextPrimary
                 ),
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 

@@ -613,6 +613,7 @@
     <string name="about_github_repo">GitHub Repository</string>
     <string name="about_github_issues">Report Issues &amp; Feedback</string>
     <string name="about_github_releases">Releases &amp; Changelog</string>
+    <string name="about_privacy_policy">Privacy Policy &amp; Terms</string>
     <string name="about_section_highlights">Key Capabilities</string>
     <string name="about_hl_kiosk_title">24/7 Dedicated Device</string>
     <string name="about_hl_kiosk_desc">Android Device Owner kiosk mode ensuring continuous monitoring without sleeping.</string>
@@ -622,6 +623,16 @@
     <string name="about_hl_ai_desc">Google ML Kit offline object and pet detection to filter false alarms.</string>
     <string name="about_section_oss">Open Source Libraries</string>
     <string name="about_oss_desc">OcularNode is built with the following open source software:</string>
+    <string name="about_section_disclaimer">Disclaimers &amp; Trademarks</string>
+    <string name="about_trademark_title">Third-Party Trademarks</string>
+    <string name="about_trademark_content">Tailscale is a registered trademark of Tailscale Inc. Telegram is a trademark of Telegram FZ-LLC. Android, Google Play, and Google ML Kit are trademarks of Google LLC. OcularNode is an independent open-source project and is not affiliated with, sponsored by, or endorsed by Tailscale Inc., Telegram FZ-LLC, or Google LLC.</string>
+    <string name="about_liability_title">Warranty &amp; Surveillance Disclaimer</string>
+    <string name="about_liability_content">This software is provided \"as is\", without warranty of any kind. OcularNode is an open-source upcycling utility and is not a certified professional security system. Users are solely responsible for ensuring compliance with all applicable local privacy and audio/video surveillance laws.</string>
+    <string name="onboarding_terms_consent_prefix">By selecting a mode to continue, you agree to our</string>
+    <string name="onboarding_terms_link">Privacy Policy &amp; Terms of Use ↗</string>
+    <string name="onboarding_terms_footnote">100% Local Processing • No Cloud Tracking • Non-Certified Security Tool</string>
+    <string name="wizard_ts_privacy_hint">🔒 Your API key is encrypted locally using Android KeyStore. All requests connect directly to Tailscale official API without intermediate proxies.</string>
+    <string name="tg_setup_privacy_hint">🔒 Your Bot Token is stored locally and used exclusively to call Telegram official API directly. No credentials are ever sent to third-party servers.</string>
     <string name="about_footer_copyright">Copyright © 2026 iokkai. Released under GNU GPL v3.0.</string>
     <string name="about_btn_view">ℹ️ About OcularNode</string>
     <string name="about_btn_check_update">🔄 Check for Updates</string>

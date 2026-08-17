@@ -112,6 +112,7 @@ graph TD
 
 ---
 
-## 📜 License
-
-This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).
+## 📜 License & Privacy
+ 
+* Software License: [GNU General Public License v3.0 (GPL-3.0)](LICENSE)
+* Privacy Policy & Terms of Use: [PRIVACY.md](PRIVACY.md)

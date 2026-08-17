@@ -477,6 +477,16 @@ fun AboutScreen(onBack: () -> Unit) {
                         url = "https://github.com/iokkai/OcularNode/releases",
                         context = context
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
+
+                    // Privacy Policy Link
+                    AboutLinkRow(
+                        icon = Icons.Default.Security,
+                        title = stringResource(R.string.about_privacy_policy),
+                        url = "https://github.com/iokkai/OcularNode/blob/main/PRIVACY.md",
+                        context = context
+                    )
                 }
             }
 
@@ -573,6 +583,58 @@ fun AboutScreen(onBack: () -> Unit) {
                             }
                         }
                     }
+                }
+            }
+
+            // Disclaimers & Trademarks Card
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, cardBorderColor),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = brandPrimaryColor)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.about_section_disclaimer),
+                            color = textPrimaryColor,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        stringResource(R.string.about_trademark_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = textPrimaryColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.about_trademark_content),
+                        fontSize = 12.sp,
+                        color = textSecondaryColor,
+                        lineHeight = 18.sp
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
+
+                    Text(
+                        stringResource(R.string.about_liability_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = textPrimaryColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.about_liability_content),
+                        fontSize = 12.sp,
+                        color = textSecondaryColor,
+                        lineHeight = 18.sp
+                    )
                 }
             }
 

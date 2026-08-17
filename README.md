@@ -113,6 +113,7 @@ graph TD
 
 ---
 
-## 📜 授權協議 (License)
+## 📜 授權協議與隱私政策 (License & Privacy)
 
-本專案採用 [GPL-3.0 License](LICENSE) 開源授權。
+* 軟體授權條款：[GNU General Public License v3.0](LICENSE)
+* 隱私權政策與使用條款：[PRIVACY.md](PRIVACY.md)

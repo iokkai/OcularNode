@@ -613,6 +613,7 @@
     <string name="about_github_repo">GitHub 專案倉庫</string>
     <string name="about_github_issues">問題回報與建議</string>
     <string name="about_github_releases">版本發布與更新記錄</string>
+    <string name="about_privacy_policy">隱私權政策與使用條款</string>
     <string name="about_section_highlights">核心特色</string>
     <string name="about_hl_kiosk_title">24/7 專用設備模式</string>
     <string name="about_hl_kiosk_desc">Android Device Owner 權限，確保常駐運作不休眠、開機自動復原。</string>
@@ -622,6 +623,16 @@
     <string name="about_hl_ai_desc">Google ML Kit 本地端即時過濾人、車、寵物，智慧防誤報。</string>
     <string name="about_section_oss">開源函式庫致謝</string>
     <string name="about_oss_desc">OcularNode 感謝並使用以下開源專案與函式庫：</string>
+    <string name="about_section_disclaimer">免責與商標聲明</string>
+    <string name="about_trademark_title">第三方商標聲明</string>
+    <string name="about_trademark_content">Tailscale 為 Tailscale Inc. 之註冊商標。Telegram 為 Telegram FZ-LLC 之商標。Android、Google Play 及 Google ML Kit 為 Google LLC 之商標。OcularNode 為獨立開源專案，與 Tailscale Inc.、Telegram FZ-LLC 或 Google LLC 無官方隸屬、贊助或背書關係。</string>
+    <string name="about_liability_title">服務保固與監控法規免責</string>
+    <string name="about_liability_content">本軟體依「現狀 (AS-IS)」提供，不包含任何形式之保證。OcularNode 為舊機轉生之開源輔助工具，非專業認證之保全防盜系統。使用者須自行遵守當地個人隱私與防妨害秘密錄影錄音法規，作者不對任何監控中斷或損害負責。</string>
+    <string name="onboarding_terms_consent_prefix">選擇模式並繼續即表示您已閱讀並同意 OcularNode 的</string>
+    <string name="onboarding_terms_link">隱私權政策與使用條款 ↗</string>
+    <string name="onboarding_terms_footnote">100% 本地端運算・無雲端伺服器收集・非認證商業保全系統</string>
+    <string name="wizard_ts_privacy_hint">🔒 金鑰僅儲存於本機硬體加密區，所有連線直接呼叫 Tailscale 官方端點，無中間伺服器轉發。</string>
+    <string name="tg_setup_privacy_hint">🔒 Token 僅儲存於本機，所有警報請求直接發往 Telegram 官方伺服器，絕不上傳至任何第三方。</string>
     <string name="about_footer_copyright">Copyright © 2026 iokkai. 本專案採用 GNU GPL v3.0 開源協議。</string>
     <string name="about_btn_view">ℹ️ 關於 OcularNode</string>
     <string name="about_btn_check_update">🔄 檢查更新</string>

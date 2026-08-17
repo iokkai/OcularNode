@@ -1,13 +1,10 @@
-@file:Suppress("DEPRECATION")
 package io.github.iokkai.ocularnode.ui.viewer
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import io.github.iokkai.ocularnode.data.SettingsManager
 import io.github.iokkai.ocularnode.util.QRCodeUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,29 +44,10 @@ class WizardViewModel : ViewModel() {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private fun getEncryptedPrefs(context: Context): SharedPreferences {
-        return try {
-            val masterKey = MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-            EncryptedSharedPreferences.create(
-                context,
-                "ocular_node_secure_prefs",
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: Throwable) {
-            e.printStackTrace()
-            context.getSharedPreferences("ocular_node_fallback_prefs", Context.MODE_PRIVATE)
-        }
-    }
-
     fun loadSavedApiKey(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
-            val prefs = getEncryptedPrefs(context)
-            val savedKey = prefs.getString("tailscale_api_key", null)
-            if (!savedKey.isNullOrBlank()) {
+            val savedKey = SettingsManager.getInstance(context).tailscaleApiKey
+            if (savedKey.isNotBlank()) {
                 _uiState.update {
                     it.copy(
                         apiKey = savedKey,
@@ -122,9 +100,7 @@ class WizardViewModel : ViewModel() {
         // 若使用者直接輸入 Tailscale Auth Key (tskey-auth-...)，格式正確即可直接使用
         if (apiKey.startsWith("tskey-auth")) {
             viewModelScope.launch(Dispatchers.IO) {
-                getEncryptedPrefs(context).edit()
-                    .putString("tailscale_api_key", apiKey)
-                    .apply()
+                SettingsManager.getInstance(context).tailscaleApiKey = apiKey
                 _uiState.update {
                     it.copy(
                         isVerifyingApiKey = false,
@@ -164,9 +140,7 @@ class WizardViewModel : ViewModel() {
 
                 if (responseSuccess) {
                     withContext(Dispatchers.IO) {
-                        getEncryptedPrefs(context).edit()
-                            .putString("tailscale_api_key", apiKey)
-                            .apply()
+                        SettingsManager.getInstance(context).tailscaleApiKey = apiKey
                     }
                     _uiState.update {
                         it.copy(

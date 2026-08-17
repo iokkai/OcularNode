@@ -907,6 +907,14 @@ fun StepNetworkAndApiKeyScreen(
                         fontWeight = FontWeight.Medium
                     )
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.wizard_ts_privacy_hint),
+                    fontSize = 11.sp,
+                    color = AppTextMuted,
+                    lineHeight = 15.sp
+                )
             }
         }
 
