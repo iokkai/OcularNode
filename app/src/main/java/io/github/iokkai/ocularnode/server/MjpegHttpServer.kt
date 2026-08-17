@@ -83,6 +83,7 @@ class MjpegHttpServer(
 
     var onActiveClientsChanged: ((Int) -> Unit)? = null
     var onControlCommand: ((String, String) -> Unit)? = null
+    var onBatchConfigUpdated: ((String) -> Unit)? = null
 
     val apiHandler = CameraApiHandler(
         context = context,
@@ -366,7 +367,7 @@ class MjpegHttpServer(
                             socket.close()
                             return
                         }
-                        onControlCommand?.invoke("batch_config_update", body)
+                        onBatchConfigUpdated?.invoke(body)
                         apiHandler.sendJsonResponse(output, 200, "{\"status\":\"ok\"}")
                         socket.close()
                         return

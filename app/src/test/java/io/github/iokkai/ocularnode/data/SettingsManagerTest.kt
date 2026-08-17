@@ -1,13 +1,7 @@
 package io.github.iokkai.ocularnode.data
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
-import org.junit.Before
 import org.junit.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
-import android.content.Context
-import android.content.SharedPreferences
 
 /**
  * A-2 SettingsManager Singleton 模式測試 (不含 EncryptedSharedPreferences)。

@@ -208,16 +208,16 @@ class CameraStreamService : Service(), LifecycleOwner {
     private fun setupHttpServer() {
         httpServer = MjpegHttpServer(this, settingsManager.serverPort, audioEngine).apply {
             deviceName = settingsManager.cameraDeviceName
-            lensFacingGetter = { if (cameraHelper.lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front" }
-            torchStateGetter = { cameraHelper.isTorchOn }
-            resolutionGetter = { cameraHelper.currentResolutionString }
-            qualityGetter = { cameraHelper.jpegQuality }
-            nightVisionModeGetter = { cameraHelper.nightVisionMode }
-            isNightVisionActiveGetter = { cameraHelper.isNightVisionActive }
-            isMotionEnabledGetter = { cameraHelper.isMotionDetectionEnabled }
-            operatingModeGetter = { settingsManager.operatingMode }
-            isThermalThrottledGetter = { isThermalThrottled.value }
-            batteryTempGetter = { batteryTemp.value }
+            lensFacing = if (cameraHelper.lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"
+            isTorchOn = cameraHelper.isTorchOn
+            resolution = cameraHelper.currentResolutionString
+            quality = cameraHelper.jpegQuality
+            nightVisionMode = cameraHelper.nightVisionMode
+            isNightVisionActive = cameraHelper.isNightVisionActive
+            isMotionEnabled = cameraHelper.isMotionDetectionEnabled
+            operatingMode = settingsManager.operatingMode
+            isThermalThrottled = this@CameraStreamService.isThermalThrottled.value
+            batteryTemp = this@CameraStreamService.batteryTemp.value
 
             onActiveClientsChanged = { count ->
                 onClientsChanged(count)
@@ -259,7 +259,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         }
 
         cameraHelper.onFrameEncoded = { jpegBytes ->
-            httpServer.updateFrame(jpegBytes)
+            httpServer.pushFrame(jpegBytes)
         }
 
         cameraHelper.onLumaMeasured = { luma ->
@@ -289,7 +289,7 @@ class CameraStreamService : Service(), LifecycleOwner {
             // Monitor mode: Disable motion detection alarm feature
             settingsManager.motionDetectionEnabled = false
             cameraHelper.isMotionDetectionEnabled = false
-            if (::httpServer.isInitialized && httpServer.connectedClientsCount.get() == 0) {
+            if (::httpServer.isInitialized && httpServer.streamHandler.connectedClientsCount.get() == 0) {
                 cameraHelper.setTorch(false)
             }
         } else {

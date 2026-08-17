@@ -1,4 +1,4 @@
-package io.github.iokkai\ocularnode.server
+package io.github.iokkai.ocularnode.server
 
 import android.app.ActivityManager
 import android.content.Context
