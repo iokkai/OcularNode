@@ -514,20 +514,24 @@ object ZeroTouchProvisionManager {
                 val tagName = jsonObject.optString("tag_name", "")
                 Log.i(TAG, "取得 GitHub 最新 Release Tag Name: $tagName")
 
-                // 解析遠端版本號 (移除 'v' 與非數字字元後轉為數字)
-                val remoteVersionCode = tagName.replace("v", "").replace(".", "").filter { it.isDigit() }.toLongOrNull() ?: 0L
-
-                // 取得本機當前 versionCode (透過 PackageInfoCompat)
+                // 取得本機當前 versionName 與 versionCode (透過 PackageInfoCompat)
                 val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
                 } else {
                     context.packageManager.getPackageInfo(context.packageName, 0)
                 }
                 val currentVersionCode = PackageInfoCompat.getLongVersionCode(packageInfo)
+                val currentVersionName = packageInfo.versionName ?: io.github.iokkai.ocularnode.BuildConfig.VERSION_NAME
 
-                Log.i(TAG, "當前本機 versionCode: $currentVersionCode, GitHub 最新 versionCode: $remoteVersionCode")
+                val isNewer = UpdateManager.isRemoteNewer(
+                    remoteTagName = tagName,
+                    currentVersionName = currentVersionName,
+                    currentVersionCode = currentVersionCode
+                )
 
-                if (remoteVersionCode > currentVersionCode) {
+                Log.i(TAG, "當前本機: $currentVersionName (code: $currentVersionCode), GitHub 最新: $tagName, isNewer=$isNewer")
+
+                if (isNewer) {
                     Log.i(TAG, "發現新版本 ($tagName)！準備背景下載 APK 並執行特權靜默更新...")
 
                     // 2. 背景下載：挑選符合當前裝置架構之 APK browser_download_url

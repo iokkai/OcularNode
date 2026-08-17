@@ -3,16 +3,16 @@ package io.github.iokkai.ocularnode.server
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.OutputStream
 import java.net.Socket
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * 代表一個已連線的 MJPEG 串流客戶端 Session。
- * 使用 Conflation 機制（AtomicReference）確保低端設備下不會因幀率超出輸出能力而 OOM。
+ * 使用協程事件驅動通道 Conflation 機制（Channel.CONFLATED），
+ * 消除 10ms 忙碌輪詢延遲，無新幀時 0% CPU 消耗，新幀到達時微秒級即時發送。
  */
 class MjpegClientSession(
     val socket: Socket,
@@ -20,34 +20,31 @@ class MjpegClientSession(
     val scope: CoroutineScope,
     val onDisconnected: () -> Unit
 ) {
-    private val latestFrame = AtomicReference<ByteArray?>(null)
+    private val frameChannel = Channel<ByteArray>(Channel.CONFLATED)
     private var job: Job? = null
 
-    /** 推播新影像幀（衝突時丟棄舊幀，保留最新） */
+    /** 推播新影像幀（若客戶端未及讀取則自動 Conflate 合併，保留最新一幀） */
     fun pushFrame(bytes: ByteArray) {
-        latestFrame.set(bytes)
+        frameChannel.trySend(bytes)
     }
 
     fun start() {
         job = scope.launch(Dispatchers.IO) {
             try {
                 socket.tcpNoDelay = true
-                socket.sendBufferSize = 32768
-                while (isActive) {
-                    val frame = latestFrame.getAndSet(null)
-                    if (frame != null) {
-                        val header = "--jpgboundary\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.size}\r\n\r\n"
-                        outputStream.write(header.toByteArray())
-                        outputStream.write(frame)
-                        outputStream.write("\r\n".toByteArray())
-                        outputStream.flush()
-                    } else {
-                        delay(10)
-                    }
+                socket.sendBufferSize = 65536
+                for (frame in frameChannel) {
+                    if (!isActive) break
+                    val header = "--jpgboundary\r\nContent-Type: image/jpeg\r\nContent-Length: ${frame.size}\r\n\r\n"
+                    outputStream.write(header.toByteArray(Charsets.UTF_8))
+                    outputStream.write(frame)
+                    outputStream.write("\r\n".toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
                 }
             } catch (_: Exception) {
                 // Connection closed or reset by client
             } finally {
+                frameChannel.close()
                 try { socket.close() } catch (_: Exception) {}
                 onDisconnected()
             }
@@ -55,6 +52,7 @@ class MjpegClientSession(
     }
 
     fun close() {
+        frameChannel.close()
         job?.cancel()
         try { socket.close() } catch (_: Exception) {}
     }

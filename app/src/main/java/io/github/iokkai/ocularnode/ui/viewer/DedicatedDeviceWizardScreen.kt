@@ -746,6 +746,58 @@ fun StepNetworkAndApiKeyScreen(
                     color = WizardTextSecondaryColor
                 )
 
+                // 差異比較與推薦指南
+                Surface(
+                    color = AppSurfaceSubtle,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, AppBorderSubtle),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.wizard_s3_key_comparison_title),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = WizardTextPrimaryColor
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = stringResource(R.string.wizard_s3_key_type_auth_title),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AppSuccessDark
+                            )
+                            Text(
+                                text = stringResource(R.string.wizard_s3_key_type_auth_desc),
+                                fontSize = 10.sp,
+                                color = WizardTextSecondaryColor,
+                                lineHeight = 14.sp
+                            )
+                        }
+
+                        HorizontalDivider(color = AppBorderSubtle.copy(alpha = 0.6f), thickness = 0.5.dp)
+
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = stringResource(R.string.wizard_s3_key_type_api_title),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WizardPrimaryColor
+                            )
+                            Text(
+                                text = stringResource(R.string.wizard_s3_key_type_api_desc),
+                                fontSize = 10.sp,
+                                color = WizardTextSecondaryColor,
+                                lineHeight = 14.sp
+                            )
+                        }
+                    }
+                }
+
                 OutlinedButton(
                     onClick = {
                         val intent = Intent(
@@ -854,6 +906,32 @@ fun StepNetworkAndApiKeyScreen(
                         fontWeight = FontWeight.Medium
                     )
                 }
+            }
+        }
+
+        // Tailscale 180 天過期提醒卡
+        Card(
+            colors = CardDefaults.cardColors(containerColor = AppSurfaceSubtle),
+            border = BorderStroke(1.dp, WizardBorderColor),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.wizard_s3_ts_expiry_notice_title),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = AppWarningDark
+                )
+                Text(
+                    text = stringResource(R.string.wizard_s3_ts_expiry_notice_desc),
+                    fontSize = 11.sp,
+                    color = WizardTextSecondaryColor,
+                    lineHeight = 16.sp
+                )
             }
         }
 
@@ -1048,6 +1126,31 @@ fun StepScanScreen(
                     color = AppOnPrimaryContainer
                 )
             }
+        }
+
+        // Tailscale Machines 後台停用過期跳轉按鈕
+        OutlinedButton(
+            onClick = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://login.tailscale.com/admin/machines"))
+                context.startActivity(intent)
+            },
+            border = BorderStroke(1.dp, WizardPrimaryColor),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = WizardPrimaryColor
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.btn_open_tailscale_machines),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = WizardPrimaryColor
+            )
         }
 
         // 完成並返回按鈕

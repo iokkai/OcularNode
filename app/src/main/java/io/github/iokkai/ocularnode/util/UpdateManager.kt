@@ -275,6 +275,34 @@ object UpdateManager {
     }
 
     /**
+     * 比較兩個語意化版本號 (SemVer)，回傳：
+     * - 正數：v1 > v2
+     * - 0：v1 == v2
+     * - 負數：v1 < v2
+     */
+    fun compareSemVer(v1: String, v2: String): Int {
+        val clean1 = v1.removePrefix("v").trim().split("-", "+")[0]
+        val clean2 = v2.removePrefix("v").trim().split("-", "+")[0]
+
+        if (clean1.isBlank() && clean2.isBlank()) return 0
+        if (clean1.isBlank()) return -1
+        if (clean2.isBlank()) return 1
+
+        val parts1 = clean1.split(".").map { it.toIntOrNull() ?: 0 }
+        val parts2 = clean2.split(".").map { it.toIntOrNull() ?: 0 }
+
+        val maxLen = maxOf(parts1.size, parts2.size)
+        for (i in 0 until maxLen) {
+            val p1 = parts1.getOrElse(i) { 0 }
+            val p2 = parts2.getOrElse(i) { 0 }
+            if (p1 != p2) {
+                return p1.compareTo(p2)
+            }
+        }
+        return 0
+    }
+
+    /**
      * 比較遠端版本與本地版本，判斷是否為更新的版本
      */
     fun isRemoteNewer(
@@ -283,12 +311,18 @@ object UpdateManager {
         currentVersionName: String,
         currentVersionCode: Long
     ): Boolean {
-        return if (remoteVersionCode > 0 && currentVersionCode > 0) {
-            remoteVersionCode > currentVersionCode
-        } else {
-            val cleanTag = remoteTagName.removePrefix("v").trim()
-            val cleanCurrent = currentVersionName.removePrefix("v").trim()
-            cleanTag.isNotBlank() && cleanTag != cleanCurrent
+        // 1. 優先使用標準語意化版本 (SemVer) 進行逐位數值比對 (例如 "1.10.0" > "1.2.0", "1.2.0" > "1.1.10")
+        val semVerCmp = compareSemVer(remoteTagName, currentVersionName)
+        if (semVerCmp > 0) return true
+        if (semVerCmp < 0) return false
+
+        // 2. 當 SemVer 相同時，若有明確大於 0 的 versionCode 則以此作為第二判定依據
+        if (remoteVersionCode > 0 && currentVersionCode > 0 && remoteVersionCode != currentVersionCode) {
+            return remoteVersionCode > currentVersionCode
         }
+
+        val cleanTag = remoteTagName.removePrefix("v").trim()
+        val cleanCurrent = currentVersionName.removePrefix("v").trim()
+        return cleanTag.isNotBlank() && cleanTag != cleanCurrent
     }
 }

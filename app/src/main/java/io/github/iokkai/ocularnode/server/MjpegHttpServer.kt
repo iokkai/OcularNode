@@ -249,7 +249,7 @@ class MjpegHttpServer(
                 socket.close()
                 return
             }
-            val input = socket.getInputStream()
+            val input = java.io.BufferedInputStream(socket.getInputStream(), 8192)
             val output = socket.getOutputStream()
 
             val requestLine = readLineStr(input) ?: run {
@@ -328,14 +328,24 @@ class MjpegHttpServer(
                     return
                 }
 
-                // 2. MJPEG 即時影像串流
+                // 2. MJPEG 即時影像串流 (需授權)
                 path.startsWith("/mjpeg") || path.startsWith("/stream") || path.startsWith("/live") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     streamHandler.handleStream(socket, output, scope, onActiveClientsChanged)
                     return
                 }
 
-                // 3. 快照
+                // 3. 快照 (需授權)
                 path.startsWith("/snapshot") || path.startsWith("/frame") || path.startsWith("/image") || path.startsWith("/jpeg") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleSnapshot(output)
                     socket.close()
                     return
@@ -353,20 +363,25 @@ class MjpegHttpServer(
                     return
                 }
 
-                // 5. 系統狀態與設定
+                // 5. 系統狀態與設定 (需授權)
                 path == "/status" || path.startsWith("/status?") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.sendJsonResponse(output, 200, getStatusJson())
                     socket.close()
                     return
                 }
 
                 path == "/config" || path.startsWith("/config?") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     if (method == "POST") {
-                        if (!isRequestAuthorized(headers, rawPath)) {
-                            apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
-                            socket.close()
-                            return
-                        }
                         onBatchConfigUpdated?.invoke(body)
                         apiHandler.sendJsonResponse(output, 200, "{\"status\":\"ok\"}")
                         socket.close()
@@ -377,25 +392,40 @@ class MjpegHttpServer(
                     return
                 }
 
-                // 6. 系統日誌
+                // 6. 系統日誌 (需授權)
                 path.startsWith("/logs") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleLogs(output)
                     socket.close()
                     return
                 }
 
-                // 7. 雙向音訊
+                // 7. 雙向音訊 (需授權)
                 path.startsWith("/audio") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleAudio(output, socket, scope)
                     return
                 }
 
                 path.startsWith("/speak") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleSpeak(input, output, socket)
                     return
                 }
 
-                // 8. 警報事件管理 (刪除/清空需授權)
+                // 8. 警報事件管理 (需授權)
                 path.startsWith("/events/delete") -> {
                     if (!isRequestAuthorized(headers, rawPath)) {
                         apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
@@ -417,22 +447,37 @@ class MjpegHttpServer(
                 }
 
                 path == "/events" || path.startsWith("/events?") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleEvents(output, socket, scope)
                     return
                 }
 
-                // 9. 錄影與縮圖下載
+                // 9. 錄影與縮圖下載 (需授權)
                 path.startsWith("/video") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleVideo(rawPath, output, socket, scope)
                     return
                 }
 
                 path.startsWith("/download") -> {
+                    if (!isRequestAuthorized(headers, rawPath)) {
+                        apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
+                        socket.close()
+                        return
+                    }
                     apiHandler.handleDownload(rawPath, output, socket, scope)
                     return
                 }
 
-                // 10. Web Dashboard
+                // 10. Web Dashboard (公開介面，內部 API 自行鑑權)
                 path == "/" || path == "/index.html" || path == "/dashboard" -> {
                     sendHtmlResponse(output, 200, getWebDashboardHtml())
                     socket.close()

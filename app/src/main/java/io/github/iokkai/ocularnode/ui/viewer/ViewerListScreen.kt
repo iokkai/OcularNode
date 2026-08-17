@@ -101,6 +101,8 @@ fun ViewerListScreen(
     val isVpnActive by viewModel.isVpnActive.collectAsState()
     val tailscaleIp by viewModel.tailscaleIp.collectAsState()
     val isTailscaleActive = isTailscaleConnected
+    val devicesExpiryMap by viewModel.devicesExpiryMap.collectAsState()
+    val isDisablingKeyExpiry by viewModel.isDisablingKeyExpiry.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showQrScannerDialog by remember { mutableStateOf(false) }
@@ -438,6 +440,17 @@ fun ViewerListScreen(
                         CameraDeviceCard(
                             camera = camera,
                             isLivePreviewAll = isLivePreviewAllEnabled,
+                            expiryInfo = devicesExpiryMap[camera.ipAddress],
+                            isDisablingExpiry = isDisablingKeyExpiry,
+                            onDisableKeyExpiry = { deviceId ->
+                                viewModel.disableKeyExpiry(deviceId) { success, err ->
+                                    if (success) {
+                                        Toast.makeText(context, context.getString(R.string.msg_key_expiry_disabled_success), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, err ?: "Failed to disable key expiry", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
                             onConnect = {
                                 viewModel.selectAndConnect(camera)
                                 onSelectCamera(camera)
@@ -529,6 +542,9 @@ fun ViewerListScreen(
 fun CameraDeviceCard(
     camera: CameraDevice,
     isLivePreviewAll: Boolean,
+    expiryInfo: io.github.iokkai.ocularnode.util.TailscaleDeviceExpiryInfo? = null,
+    isDisablingExpiry: Boolean = false,
+    onDisableKeyExpiry: (String) -> Unit = {},
     onConnect: () -> Unit,
     onRemoteSettings: () -> Unit,
     onEdit: () -> Unit,
@@ -801,6 +817,59 @@ fun CameraDeviceCard(
                             Text("CPU: --", fontSize = 11.sp, color = AppTextMuted)
                             Text("RAM: --", fontSize = 11.sp, color = AppTextMuted)
                             Text("Ping: --", fontSize = 11.sp, color = AppTextMuted)
+                        }
+                    }
+
+                    if (expiryInfo != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (expiryInfo.keyExpiryDisabled) {
+                                Surface(
+                                    color = AppSuccessContainerLight,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, AppSuccess.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.msg_key_expiry_permanent),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppSuccessDark,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            } else {
+                                val remainingDays = expiryInfo.getRemainingDays() ?: 0
+                                Surface(
+                                    color = AppWarningContainerLight,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, AppWarning.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.msg_key_expiry_days_left, remainingDays),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppWarningDark,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+
+                                TextButton(
+                                    onClick = { onDisableKeyExpiry(expiryInfo.deviceId) },
+                                    enabled = !isDisablingExpiry,
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(22.dp)
+                                ) {
+                                    Text(
+                                        text = if (isDisablingExpiry) stringResource(R.string.btn_disabling_key_expiry) else stringResource(R.string.btn_disable_key_expiry),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppPrimary
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -170,6 +170,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         scheduleManager.start()
         acquireWakeLock()
         batteryMonitor.register()
+        setupNetworkMonitoring()
         startForegroundServiceNotification()
     }
 
@@ -272,6 +273,40 @@ class CameraStreamService : Service(), LifecycleOwner {
 
         cameraHelper.onMotionDetected = { percentage, thumbnailBytes, frameBitmap ->
             motionPipelineManager.processMotion(percentage, thumbnailBytes, frameBitmap)
+        }
+    }
+
+    private var hasObservedTailscaleConnectedOnce = false
+    private var tailscaleDisconnectAlertSent = false
+
+    /**
+     * 監聽網路狀態，當 Tailscale VPN 中斷（可能為 180 天金鑰過期）時發送 Telegram 警報
+     */
+    private fun setupNetworkMonitoring() {
+        serviceScope.launch {
+            NetworkUtils.observeNetworkStatus(this@CameraStreamService).collect { ipInfo ->
+                if (ipInfo.isTailscaleConnected) {
+                    hasObservedTailscaleConnectedOnce = true
+                    tailscaleDisconnectAlertSent = false
+                } else if (hasObservedTailscaleConnectedOnce && !tailscaleDisconnectAlertSent) {
+                    // 本地 Wi-Fi 仍連線，但 Tailscale VPN 遺失 (可能為 180 天金鑰過期)
+                    if (ipInfo.localIp != null) {
+                        tailscaleDisconnectAlertSent = true
+                        Log.w("CameraStreamService", "⚠️ Tailscale VPN disconnected while Wi-Fi is active. Key might have expired.")
+
+                        if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                            TelegramNotifier.sendSystemAlert(
+                                botToken = settingsManager.telegramBotToken,
+                                chatId = settingsManager.telegramChatId,
+                                deviceName = settingsManager.cameraDeviceName,
+                                alertTitle = getString(R.string.tg_alert_tailscale_disconnected_title),
+                                alertDetails = getString(R.string.tg_alert_tailscale_disconnected_desc),
+                                context = this@CameraStreamService
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

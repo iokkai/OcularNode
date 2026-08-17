@@ -53,6 +53,21 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
     private var currentScope: CoroutineScope? = null
     private var currentBotToken: String = ""
     private var currentChatId: String = ""
+    private var sessionToken: String? = null
+
+    /** 設定與相機節點通訊時使用的 Session Token 或 PIN 驗證標記 */
+    fun setSessionToken(token: String?) {
+        sessionToken = token
+    }
+
+    private fun Request.Builder.applyAuth(): Request.Builder {
+        val token = sessionToken
+        if (!token.isNullOrBlank()) {
+            addHeader("Authorization", "Bearer $token")
+            addHeader("X-Auth-Token", token)
+        }
+        return this
+    }
 
     // State
     private val _currentFrame = MutableStateFlow<Bitmap?>(null)
@@ -152,6 +167,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                 try {
                     val request = Request.Builder()
                         .url(cameraDevice.getMjpegUrl())
+                        .applyAuth()
                         .build()
 
                     val call = mjpegClient.newCall(request)
@@ -187,49 +203,86 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         }
     }
 
+    /**
+     * 高效零配置緩衝區，避免在 30 FPS 高頻解析時重複配置 ByteArray
+     */
+    private class ReusableByteBuffer(initialCapacity: Int = 256 * 1024) {
+        var buffer = ByteArray(initialCapacity)
+            private set
+        var size = 0
+            private set
+
+        fun write(bytes: ByteArray, offset: Int, length: Int) {
+            ensureCapacity(size + length)
+            System.arraycopy(bytes, offset, buffer, size, length)
+            size += length
+        }
+
+        fun compact(startIndex: Int) {
+            if (startIndex <= 0) return
+            val remaining = size - startIndex
+            if (remaining > 0) {
+                System.arraycopy(buffer, startIndex, buffer, 0, remaining)
+            }
+            size = remaining.coerceAtLeast(0)
+        }
+
+        fun reset() {
+            size = 0
+        }
+
+        private fun ensureCapacity(minCapacity: Int) {
+            if (minCapacity > buffer.size) {
+                var newCap = buffer.size * 2
+                if (newCap < minCapacity) newCap = minCapacity
+                val newBuf = ByteArray(newCap)
+                System.arraycopy(buffer, 0, newBuf, 0, size)
+                buffer = newBuf
+            }
+        }
+    }
+
     private fun readMjpegStream(inputStream: InputStream) {
         var frameCount = 0
         var lastFpsTime = System.currentTimeMillis()
 
         try {
             val buffer = ByteArray(16384)
-            val streamBuffer = ByteArrayOutputStream()
+            val streamBuffer = ReusableByteBuffer(256 * 1024)
 
             val soi = byteArrayOf(0xFF.toByte(), 0xD8.toByte())
             val eoi = byteArrayOf(0xFF.toByte(), 0xD9.toByte())
+
+            val options = BitmapFactory.Options().apply {
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
 
             var read: Int
             while (inputStream.read(buffer).also { read = it } != -1) {
                 streamBuffer.write(buffer, 0, read)
 
                 while (true) {
-                    val bytes = streamBuffer.toByteArray()
-                    val startIndex = findSequence(bytes, soi, 0)
+                    val currentSize = streamBuffer.size
+                    val data = streamBuffer.buffer
+                    val startIndex = findSequence(data, soi, 0, currentSize)
                     if (startIndex == -1) {
-                        if (bytes.size > 100000) {
+                        if (currentSize > 100000) {
                             streamBuffer.reset()
                         }
                         break
                     }
 
-                    val endIndex = findSequence(bytes, eoi, startIndex + 2)
+                    val endIndex = findSequence(data, eoi, startIndex + 2, currentSize)
                     if (endIndex == -1) {
                         if (startIndex > 0) {
-                            val remaining = bytes.size - startIndex
-                            streamBuffer.reset()
-                            streamBuffer.write(bytes, startIndex, remaining)
+                            streamBuffer.compact(startIndex)
                         }
                         break
                     }
 
                     val jpegLength = (endIndex + 2) - startIndex
-                    val jpegBytes = ByteArray(jpegLength)
-                    System.arraycopy(bytes, startIndex, jpegBytes, 0, jpegLength)
-
-                    val options = BitmapFactory.Options().apply {
-                        inPreferredConfig = Bitmap.Config.ARGB_8888
-                    }
-                    val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, options)
+                    // 直接從緩衝區切片解碼，零額外 Java ByteArray 配置
+                    val bitmap = BitmapFactory.decodeByteArray(data, startIndex, jpegLength, options)
                     if (bitmap != null) {
                         val now = System.currentTimeMillis()
                         _currentFrame.value = bitmap
@@ -243,11 +296,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                     }
 
                     val consumed = endIndex + 2
-                    val remainingLen = bytes.size - consumed
-                    streamBuffer.reset()
-                    if (remainingLen > 0) {
-                        streamBuffer.write(bytes, consumed, remainingLen)
-                    }
+                    streamBuffer.compact(consumed)
                 }
             }
         } catch (e: Exception) {
@@ -255,9 +304,9 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         }
     }
 
-    private fun findSequence(data: ByteArray, sequence: ByteArray, startOffset: Int = 0): Int {
-        if (data.size - startOffset < sequence.size) return -1
-        for (i in startOffset..data.size - sequence.size) {
+    private fun findSequence(data: ByteArray, sequence: ByteArray, startOffset: Int = 0, limit: Int = data.size): Int {
+        if (limit - startOffset < sequence.size) return -1
+        for (i in startOffset..limit - sequence.size) {
             var match = true
             for (j in sequence.indices) {
                 if (data[i + j] != sequence[j]) {
@@ -303,7 +352,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
 
     suspend fun fetchCameraStatus(cameraDevice: CameraDevice): JSONObject? = withContext(Dispatchers.IO) {
         try {
-            val request = Request.Builder().url(cameraDevice.getStatusUrl()).get().build()
+            val request = Request.Builder().url(cameraDevice.getStatusUrl()).get().applyAuth().build()
             val response = client.newCall(request).execute()
             if (response.isSuccessful && response.body != null) {
                 val bodyStr = response.body!!.string()
@@ -322,7 +371,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
     suspend fun fetchRemoteLogs(cameraDevice: CameraDevice): List<String> = withContext(Dispatchers.IO) {
         try {
             val logUrl = "http://${cameraDevice.ipAddress}:${cameraDevice.port}/logs"
-            val request = Request.Builder().url(logUrl).get().build()
+            val request = Request.Builder().url(logUrl).get().applyAuth().build()
             val response = client.newCall(request).execute()
             if (response.isSuccessful && response.body != null) {
                 val bodyStr = response.body!!.string()
@@ -354,6 +403,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                         .url(cameraDevice.getStatusUrl())
                         .header("Connection", "close")
                         .get()
+                        .applyAuth()
                         .build()
                     val call = heartbeatClient.newCall(request)
                     heartbeatCall = call
@@ -395,6 +445,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
             val request = Request.Builder()
                 .url(cameraDevice.getControlUrl())
                 .post(requestBody)
+                .applyAuth()
                 .build()
 
             val response = client.newCall(request).execute()
@@ -413,6 +464,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
             val request = Request.Builder()
                 .url("http://${cameraDevice.ipAddress}:${cameraDevice.port}/config")
                 .post(requestBody)
+                .applyAuth()
                 .build()
 
             val response = client.newCall(request).execute()
@@ -429,6 +481,8 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         try {
             val request = Request.Builder()
                 .url("http://${cameraDevice.ipAddress}:${cameraDevice.port}/config")
+                .get()
+                .applyAuth()
                 .build()
 
             val response = client.newCall(request).execute()
@@ -456,7 +510,8 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                 socket.tcpNoDelay = true
                 socket.receiveBufferSize = 16384
                 val out = socket.getOutputStream()
-                out.write("GET /audio HTTP/1.1\r\nHost: ${cameraDevice.ipAddress}:${cameraDevice.port}\r\nConnection: close\r\n\r\n".toByteArray())
+                val authHeader = sessionToken?.let { "Authorization: Bearer $it\r\nX-Auth-Token: $it\r\n" } ?: ""
+                out.write("GET /audio HTTP/1.1\r\nHost: ${cameraDevice.ipAddress}:${cameraDevice.port}\r\n${authHeader}Connection: close\r\n\r\n".toByteArray())
                 out.flush()
 
                 val inputStream = socket.getInputStream()
@@ -512,9 +567,11 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                 socket.sendBufferSize = 16384
                 val out = socket.getOutputStream()
 
+                val authHeader = sessionToken?.let { "Authorization: Bearer $it\r\nX-Auth-Token: $it\r\n" } ?: ""
                 val header = "POST /speak HTTP/1.1\r\n" +
                         "Host: ${cameraDevice.ipAddress}:${cameraDevice.port}\r\n" +
                         "Content-Type: audio/pcm\r\n" +
+                        authHeader +
                         "Connection: close\r\n\r\n"
                 out.write(header.toByteArray())
                 out.flush()

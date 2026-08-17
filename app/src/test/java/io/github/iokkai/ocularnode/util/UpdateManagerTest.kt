@@ -18,6 +18,56 @@ class UpdateManagerTest {
     }
 
     @Test
+    fun compareSemVer_correctlyComparesVersions() {
+        // Higher minor/patch
+        assertTrue(UpdateManager.compareSemVer("v1.3.0", "1.2.0") > 0)
+        assertTrue(UpdateManager.compareSemVer("1.10.0", "1.2.0") > 0)
+        assertTrue(UpdateManager.compareSemVer("v1.2.1", "v1.2.0") > 0)
+        assertTrue(UpdateManager.compareSemVer("2.0.0", "1.99.99") > 0)
+        assertTrue(UpdateManager.compareSemVer("0.2", "0.1") > 0)
+
+        // Equal
+        assertEquals(0, UpdateManager.compareSemVer("v1.2.0", "1.2.0"))
+        assertEquals(0, UpdateManager.compareSemVer("1.0", "v1.0.0"))
+        assertEquals(0, UpdateManager.compareSemVer("2.1.0-beta", "2.1.0"))
+
+        // Lower
+        assertTrue(UpdateManager.compareSemVer("1.1.10", "1.2.0") < 0)
+        assertTrue(UpdateManager.compareSemVer("v1.2.0", "v1.2.1") < 0)
+        assertTrue(UpdateManager.compareSemVer("0.1", "0.2") < 0)
+    }
+
+    @Test
+    fun isRemoteNewer_withSemanticVersionComparison_handlesMultiDigitCorrectly() {
+        // v1.1.10 is OLDER than current 1.2.0 (previously failed when stripping dots)
+        assertFalse(
+            UpdateManager.isRemoteNewer(
+                remoteTagName = "v1.1.10",
+                currentVersionName = "1.2.0",
+                currentVersionCode = 120L
+            )
+        )
+
+        // v1.10.0 is NEWER than current 1.2.0
+        assertTrue(
+            UpdateManager.isRemoteNewer(
+                remoteTagName = "v1.10.0",
+                currentVersionName = "1.2.0",
+                currentVersionCode = 120L
+            )
+        )
+
+        // v0.2 is NEWER than current 0.1
+        assertTrue(
+            UpdateManager.isRemoteNewer(
+                remoteTagName = "v0.2",
+                currentVersionName = "0.1",
+                currentVersionCode = 1L
+            )
+        )
+    }
+
+    @Test
     fun isRemoteNewer_withHigherRemoteVersionCode_returnsTrue() {
         val result = UpdateManager.isRemoteNewer(
             remoteTagName = "v1.3.0",
@@ -47,27 +97,6 @@ class UpdateManagerTest {
             currentVersionCode = 120L
         )
         assertFalse(olderResult)
-    }
-
-    @Test
-    fun isRemoteNewer_withZeroVersionCode_fallsBackToStringComparison() {
-        // Different tag name when codes are 0
-        val resultDiff = UpdateManager.isRemoteNewer(
-            remoteTagName = "beta-2",
-            remoteVersionCode = 0L,
-            currentVersionName = "beta-1",
-            currentVersionCode = 0L
-        )
-        assertTrue(resultDiff)
-
-        // Same tag name when codes are 0
-        val resultSame = UpdateManager.isRemoteNewer(
-            remoteTagName = "v1.0.0",
-            remoteVersionCode = 0L,
-            currentVersionName = "v1.0.0",
-            currentVersionCode = 0L
-        )
-        assertFalse(resultSame)
     }
 
     @Test

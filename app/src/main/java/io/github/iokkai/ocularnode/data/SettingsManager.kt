@@ -65,11 +65,13 @@ class SettingsManager(context: Context) {
         private const val KEY_DYNAMIC_FPS_ENABLED = "dynamic_fps_enabled"
         private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
         private const val KEY_HTTP_AUTH_ENABLED = "http_auth_enabled"
+        private const val KEY_EVENT_VIDEO_RECORDING_ENABLED = "pref_event_video_recording_enabled"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
         private const val KEY_TG_CHAT_ID = "tg_chat_id"
         private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
+        private const val KEY_TAILSCALE_API_KEY = "tailscale_api_key"
         private const val KEY_HTTP_PIN_CODE = "http_pin_code"
 
         // 遷移標記
@@ -184,6 +186,10 @@ class SettingsManager(context: Context) {
     var tailscaleAuthKey: String
         get() = secretPrefs.getString(KEY_TAILSCALE_AUTH_KEY, "") ?: ""
         set(value) = secretPrefs.edit().putString(KEY_TAILSCALE_AUTH_KEY, value).apply()
+
+    var tailscaleApiKey: String
+        get() = secretPrefs.getString(KEY_TAILSCALE_API_KEY, "") ?: ""
+        set(value) = secretPrefs.edit().putString(KEY_TAILSCALE_API_KEY, value).apply()
 
     // ===== 一般設定（明文存儲）=====
 
@@ -303,8 +309,8 @@ class SettingsManager(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_POWER_CUT_ALERT, value).apply()
 
     var eventVideoRecordingEnabled: Boolean
-        get() = prefs.getBoolean("pref_event_video_recording_enabled", true)
-        set(value) = prefs.edit().putBoolean("pref_event_video_recording_enabled", value).apply()
+        get() = prefs.getBoolean(KEY_EVENT_VIDEO_RECORDING_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_EVENT_VIDEO_RECORDING_ENABLED, value).apply()
 
     var systemLogEnabled: Boolean
         get() = prefs.getBoolean(KEY_SYSTEM_LOG_ENABLED, true)

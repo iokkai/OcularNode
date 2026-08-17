@@ -464,11 +464,22 @@ class WebDashboardProvider(private val context: Context) {
 
         const catNames = ['HUMAN_AND_ACTIVITY', 'PET_AND_ANIMAL', 'VEHICLE_AND_TRANSPORT', 'HOUSEHOLD_ITEM', 'ENVIRONMENT_AND_NATURE', 'OTHER'];
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function getAuthHeaders(customHeaders = {}) {
             const token = localStorage.getItem('ocular_session_token');
             const headers = { ...customHeaders };
             if (token) {
                 headers['Authorization'] = 'Bearer ' + token;
+                headers['X-Auth-Token'] = token;
             }
             return headers;
         }
@@ -506,8 +517,10 @@ class WebDashboardProvider(private val context: Context) {
                 const data = await res.json();
                 if (data.status === 'ok' && data.token) {
                     localStorage.setItem('ocular_session_token', data.token);
+                    document.cookie = 'session_token=' + encodeURIComponent(data.token) + '; path=/; max-age=86400';
                     document.getElementById('auth-modal').style.display = 'none';
                     if (input) input.value = '';
+                    reloadStream();
                     fetchStatus();
                     fetchEvents();
                 } else {
@@ -658,7 +671,9 @@ class WebDashboardProvider(private val context: Context) {
         function reloadStream() {
             const img = document.getElementById('stream');
             if (img) {
-                img.src = '/mjpeg?t=' + Date.now();
+                const token = localStorage.getItem('ocular_session_token');
+                const tokenQuery = token ? '&token=' + encodeURIComponent(token) : '';
+                img.src = '/mjpeg?t=' + Date.now() + tokenQuery;
                 document.getElementById('stream-status-tag').innerText = '$sConnected';
                 document.getElementById('stream-status-tag').style.background = 'var(--accent-green)';
             }
@@ -673,7 +688,9 @@ class WebDashboardProvider(private val context: Context) {
             }
             const img = document.getElementById('stream');
             if (img) {
-                img.src = '/snapshot?t=' + Date.now();
+                const token = localStorage.getItem('ocular_session_token');
+                const tokenQuery = token ? '&token=' + encodeURIComponent(token) : '';
+                img.src = '/snapshot?t=' + Date.now() + tokenQuery;
             }
         }
 
@@ -846,7 +863,8 @@ class WebDashboardProvider(private val context: Context) {
         async function fetchStatus() {
             try {
                 const startTime = Date.now();
-                const res = await fetch('/status');
+                const res = await authFetch('/status');
+                if (res.status === 401) return;
                 const ping = Date.now() - startTime;
                 const data = await res.json();
 
@@ -924,7 +942,8 @@ class WebDashboardProvider(private val context: Context) {
 
         async function fetchEvents() {
             try {
-                const res = await fetch('/events');
+                const res = await authFetch('/events');
+                if (res.status === 401) return;
                 const events = await res.json();
                 const container = document.getElementById('events-container');
                 if (!container) return;
@@ -934,21 +953,29 @@ class WebDashboardProvider(private val context: Context) {
                     return;
                 }
 
+                const token = localStorage.getItem('ocular_session_token');
+                const tokenSuffix = token ? '&token=' + encodeURIComponent(token) : '';
+
                 var htmlStr = '';
                 for (var i = 0; i < events.length; i++) {
                     var ev = events[i];
                     var imgTag = ev.thumbnailBase64 ? '<img src="data:image/jpeg;base64,' + ev.thumbnailBase64 + '" style="width:84px; height:64px; object-fit:cover; border-radius:8px; border:1px solid #334155;">' : '<div style="width:84px; height:64px; background:#1E293B; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94A3B8;">📷</div>';
                     
-                    var videoBtn = ev.hasVideo ? '<a href="' + ev.videoUrl + '" target="_blank" class="btn" style="background:#2563EB; font-size:0.8rem; padding:4px 8px;">$sEventsVideo</a>' : '';
+                    var videoUrl = (ev.videoUrl || '') + tokenSuffix;
+                    var downloadUrl = (ev.downloadUrl || '') + tokenSuffix;
+                    var videoBtn = ev.hasVideo ? '<a href="' + escapeHtml(videoUrl) + '" target="_blank" class="btn" style="background:#2563EB; font-size:0.8rem; padding:4px 8px;">$sEventsVideo</a>' : '';
+
+                    var aiTag = ev.aiSummary ? '<div style="font-size:0.75rem; color:#A78BFA; margin-top:2px;">' + escapeHtml(ev.aiSummary) + '</div>' : '';
 
                     htmlStr += '<div style="background:#0F172A; border:1px solid #334155; border-radius:12px; padding:10px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
                         imgTag +
                         '<div style="flex:1; min-width:160px;">' +
-                        '<div style="font-weight:bold; font-size:0.95rem; color:#F1F5F9;">$sEventsMotionPrefix (' + ev.motionPercentage + '%)</div>' +
-                        '<div style="font-size:0.8rem; color:var(--subtext); margin-top:2px;">📅 ' + ev.formattedTime + '</div>' +
+                        '<div style="font-weight:bold; font-size:0.95rem; color:#F1F5F9;">$sEventsMotionPrefix (' + escapeHtml(ev.motionPercentage) + '%)</div>' +
+                        '<div style="font-size:0.8rem; color:var(--subtext); margin-top:2px;">📅 ' + escapeHtml(ev.formattedTime) + '</div>' +
+                        aiTag +
                         '</div>' +
                         '<div style="display:flex; gap:6px; align-items:center;">' +
-                        '<a href="' + ev.downloadUrl + '" download class="btn btn-primary" style="font-size:0.8rem; padding:4px 8px;">$sEventsPhoto</a>' +
+                        '<a href="' + escapeHtml(downloadUrl) + '" download class="btn btn-primary" style="font-size:0.8rem; padding:4px 8px;">$sEventsPhoto</a>' +
                         videoBtn +
                         '<button onclick="deleteEvent(' + ev.id + ')" class="btn btn-danger" style="padding:4px 8px;">🗑️</button>' +
                         '</div>' +
@@ -1037,7 +1064,13 @@ class WebDashboardProvider(private val context: Context) {
                 }
                 nextPlayTime = audioCtx.currentTime;
 
-                const response = await fetch('/audio');
+                const token = localStorage.getItem('ocular_session_token');
+                const tokenParam = token ? '?token=' + encodeURIComponent(token) : '';
+                const response = await authFetch('/audio' + tokenParam);
+                if (response.status === 401) {
+                    stopAudioListen();
+                    return;
+                }
                 if (!response.body) {
                     alert('$sJsAudioUnsupported');
                     return;

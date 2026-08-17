@@ -228,7 +228,7 @@ class MotionPipelineManager(
                     context = context
                 )
                 if (sent) {
-                    database.motionEventDao().insertEvent(event.copy(id = eventId, telegramSentSuccess = true))
+                    database.motionEventDao().updateTelegramSentSuccess(eventId)
                 }
             }
         }

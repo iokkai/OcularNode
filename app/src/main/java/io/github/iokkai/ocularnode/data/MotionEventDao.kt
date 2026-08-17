@@ -38,6 +38,9 @@ interface MotionEventDao {
     @Query("UPDATE motion_events SET snapshotPath = :snapshotPath WHERE id = :id")
     suspend fun updateSnapshotPath(id: Long, snapshotPath: String?)
 
+    @Query("UPDATE motion_events SET telegramSentSuccess = 1 WHERE id = :id")
+    suspend fun updateTelegramSentSuccess(id: Long)
+
     @Query("SELECT * FROM motion_events ORDER BY timestamp DESC")
     suspend fun getEventsListOnce(): List<MotionEvent>
 

@@ -377,6 +377,18 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppSuccessDark)
                                             }
                                         }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.tailscale_key_expiry_hint),
+                                            color = AppSuccessDark.copy(alpha = 0.85f),
+                                            fontSize = 10.sp,
+                                            lineHeight = 14.sp,
+                                            modifier = Modifier.clickable {
+                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://login.tailscale.com/admin/machines"))
+                                                context.startActivity(intent)
+                                            }
+                                        )
                                     }
                                 } else {
                                     Column(

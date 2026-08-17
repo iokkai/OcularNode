@@ -8,13 +8,21 @@
 
 > 📱 **Transform spare Android smartphones into dedicated, high-performance smart surveillance cameras.**
 
+> [!IMPORTANT]
+> 🔒 **100% Zero Central Server・Maximum Privacy Guarantee**  
+> **OcularNode operates without any external central or cloud servers!**  
+> All live video streams, event recordings, and two-way audio communications are **strictly transmitted directly within your local home network (LAN) or protected through your self-managed, end-to-end encrypted VPN (such as Tailscale WireGuard®)**. Your camera feed is never routed through third-party cloud relays.
+
 ---
 
 ## 🌟 Core Features
 
+- 🛡️ **Zero Central Server & 100% Decentralized Architecture**:
+  - No dependency on vendor cloud platforms, subscription fees, or cloud leakage risks.
+  - Direct P2P / local connection between Viewer and Camera Node with full offline availability.
 - 🌐 **Dual Connection Modes (Local LAN Direct & Remote Traversal)**:
   - **🏠 Home Wi-Fi Direct (LAN)**: Connect directly over local Wi-Fi (`192.168.x.x`) with zero external dependency, ultra-low latency, and complete offline privacy.
-  - **🔒 Remote Mesh Streaming (Tailscale Support)**: Seamless remote access from anywhere using Tailscale VPN mesh network, with automatic CGNAT (`100.64.0.0/10`) recognition without exposing public IPs or configuring port forwarding (Tailscale app installation required on the device).
+  - **🔒 Remote Mesh Streaming (Tailscale / VPN Support)**: Seamless remote access from anywhere using Tailscale VPN mesh network, with automatic CGNAT (`100.64.0.0/10`) recognition and end-to-end WireGuard® encryption without exposing public IPs or configuring port forwarding.
 - 🪄 **Device Owner Zero-Touch Provisioning Wizard**:
   - Fast network setup via dedicated QR code scanning.
   - Supports automatic Tailscale Auth Key configuration and VPN connection (with Tailscale installed).
@@ -30,6 +38,7 @@
   - Instant motion alerts with photo snapshot and video clip delivery.
   - Power cut (unplugged) / power restored alerts and low-battery warnings.
   - High-temperature thermal throttling protection (45°C) alert and recovery notification.
+  - Tailscale VPN disconnection and 180-day key expiry warning alerts.
 - 🔄 **Silent OTA Updates**: Direct integration with GitHub Releases to check and update seamlessly in the background.
 
 ---
@@ -58,6 +67,17 @@ graph TD
 
 ---
 
+## 💡 Tailscale 180-Day Key Expiry & How to Disable It
+
+- **Default Expiry Policy**: Tailscale expires device connections every 180 days by default (Key Expiry).
+- **One-Click Disable Expiry (Recommended for 24/7 Security Cameras)**:
+  1. Open [Tailscale Admin Console (Machines)](https://login.tailscale.com/admin/machines).
+  2. Locate your camera device and click the **`...` (menu)** on the right.
+  3. Select **"Disable Key Expiry"**. Your camera will now stay permanently connected 24/7/365 without disconnecting!
+- **Automatic Disconnect Alert**: If key expiry triggers a disconnect, OcularNode will detect it and send a warning via Telegram as long as the device is connected to local Wi-Fi.
+
+---
+
 ## 🛠️ Build & Development
 
 ### Requirements
@@ -83,9 +103,12 @@ graph TD
 
 ## 🔐 Security & Privacy
 
-1. **Credential Protection**: Telegram Bot Token and Tailscale Auth Key are securely stored using Android Jetpack `EncryptedSharedPreferences` backed by the Android KeyStore hardware master key.
-2. **Prevent Data Leakage**: Global `allowBackup` is strictly set to `false`, preventing unauthorized ADB backup extraction.
-3. **Zero Trackers**: No third-party commercial advertisements, analytics, or tracking SDKs. Complete user privacy guaranteed.
+1. **Zero Central Server**: Fully decentralized architecture. No central cloud servers, relay stations, or intermediate proxies.
+2. **LAN-Only & Encrypted VPN**: Video and audio streams are broadcast strictly within your local home network (LAN) by default. Remote connections are established over private, end-to-end encrypted VPN meshes (Tailscale WireGuard®).
+3. **HTTP PIN Authentication**: Protects streaming endpoints, recordings, and microphone access against unauthorized local network access.
+4. **Hardware-Backed Credential Security**: Telegram Bot Token and Tailscale Auth Key are encrypted using Android Jetpack `EncryptedSharedPreferences` backed by the Android KeyStore hardware master key.
+5. **Prevent Data Extraction**: Global `allowBackup` is disabled to prevent unauthorized ADB physical backup extractions.
+6. **Zero Trackers & Ads**: Zero commercial tracking SDKs, analytics, or third-party advertisements. Complete user privacy guaranteed.
 
 ---
 
