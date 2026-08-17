@@ -14,7 +14,11 @@ object AppLogger {
     private val _logs = MutableStateFlow<List<String>>(emptyList())
     val logs: StateFlow<List<String>> = _logs.asStateFlow()
 
-    private val dateFormat = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.getDefault())
+    private val threadLocalDateFormat = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat {
+            return SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        }
+    }
 
     fun d(tag: String, message: String) {
         Log.d(tag, message)
@@ -29,7 +33,7 @@ object AppLogger {
     fun e(tag: String, message: String, t: Throwable? = null) {
         Log.e(tag, message, t)
         val stackTrace = t?.stackTraceToString() ?: ""
-        addLog("E", tag, "$message\n$stackTrace".trim())
+        addLog("E", tag, if (stackTrace.isNotEmpty()) "$message\n$stackTrace" else message)
     }
 
     fun w(tag: String, message: String) {
@@ -39,13 +43,16 @@ object AppLogger {
 
     private fun addLog(level: String, tag: String, message: String) {
         if (!isEnabled) return
-        val time = dateFormat.format(Date())
+        val format = threadLocalDateFormat.get() ?: SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        val time = format.format(Date())
         val logLine = "[$time] $level/$tag: $message"
         _logs.update { current ->
-            val updated = current.toMutableList()
-            updated.add(0, logLine)
-            if (updated.size > 1000) {
-                updated.removeLast()
+            val updated = ArrayList<String>(minOf(current.size + 1, 1000))
+            updated.add(logLine)
+            if (current.size < 1000) {
+                updated.addAll(current)
+            } else {
+                updated.addAll(current.subList(0, 999))
             }
             updated
         }

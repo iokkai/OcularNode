@@ -28,7 +28,7 @@ class BootAndPowerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
         Log.i("BootAndPowerReceiver", "收到廣播事件 Action: $action")
-        val settingsManager = SettingsManager(context)
+        val settingsManager = SettingsManager.getInstance(context)
 
         // 檢查當前 App 是否具備 Device Owner 特權
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager

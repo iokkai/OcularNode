@@ -70,10 +70,12 @@ import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.ui.theme.*
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import io.github.iokkai.ocularnode.util.MediaSaveUtils
 import io.github.iokkai.ocularnode.data.CameraDevice
 import io.github.iokkai.ocularnode.data.MotionEvent
 import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -474,27 +476,40 @@ fun EventCard(
                 }
             }
 
+            val coroutineScope = rememberCoroutineScope()
+
             // Download Snapshot / Video Button
             if (thumbnailBitmap != null || hasVideo) {
                 IconButton(onClick = {
-                    try {
-                        if (hasVideo) {
-                            val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                            val videoFile = File(event.videoPath!!)
-                            val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
-                            videoFile.copyTo(targetFile, overwrite = true)
-                            Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
-                        } else if (thumbnailBitmap != null) {
-                            val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                            val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
-                            val fos = FileOutputStream(file)
-                            thumbnailBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-                            fos.flush()
-                            fos.close()
-                            Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
+                    coroutineScope.launch {
+                        try {
+                            if (hasVideo) {
+                                val videoFile = File(event.videoPath!!)
+                                val result = MediaSaveUtils.saveVideoToGallery(
+                                    context = context,
+                                    sourceVideoFile = videoFile,
+                                    baseFileName = "OcularNode_Video_${event.id}_${event.timestamp}"
+                                )
+                                if (result.isSuccess) {
+                                    Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                }
+                            } else if (thumbnailBitmap != null) {
+                                val result = MediaSaveUtils.saveImageToGallery(
+                                    context = context,
+                                    bitmap = thumbnailBitmap,
+                                    baseFileName = "OcularNode_Event_${event.id}_${event.timestamp}"
+                                )
+                                if (result.isSuccess) {
+                                    Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                     }
                 }) {
                     Icon(
@@ -573,24 +588,35 @@ fun SnapshotPreviewDialog(
                     )
 
                     IconButton(onClick = {
-                        try {
-                            if (showVideoMode && hasVideo) {
-                                val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                                val videoFile = File(event.videoPath!!)
-                                val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
-                                videoFile.copyTo(targetFile, overwrite = true)
-                                Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
-                            } else if (bitmap != null) {
-                                val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                                val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
-                                val fos = FileOutputStream(file)
-                                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-                                fos.flush()
-                                fos.close()
-                                Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            try {
+                                if (showVideoMode && hasVideo) {
+                                    val videoFile = File(event.videoPath!!)
+                                    val result = MediaSaveUtils.saveVideoToGallery(
+                                        context = context,
+                                        sourceVideoFile = videoFile,
+                                        baseFileName = "OcularNode_Video_${event.id}_${event.timestamp}"
+                                    )
+                                    if (result.isSuccess) {
+                                        Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                    }
+                                } else if (bitmap != null) {
+                                    val result = MediaSaveUtils.saveImageToGallery(
+                                        context = context,
+                                        bitmap = bitmap,
+                                        baseFileName = "OcularNode_Event_${event.id}_${event.timestamp}"
+                                    )
+                                    if (result.isSuccess) {
+                                        Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                             }
-                        } catch (e: Exception) {
-                            Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
                         }
                     }) {
                         Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
@@ -711,13 +737,22 @@ fun SnapshotPreviewDialog(
                         if (hasVideo) {
                             Button(
                                 onClick = {
-                                    try {
-                                        val moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES)
-                                        val targetFile = File(moviesDir, "PetMonitor_Video_${event.id}_${event.timestamp}.mp4")
-                                        File(event.videoPath!!).copyTo(targetFile, overwrite = true)
-                                        Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                                    coroutineScope.launch {
+                                        try {
+                                            val videoFile = File(event.videoPath!!)
+                                            val result = MediaSaveUtils.saveVideoToGallery(
+                                                context = context,
+                                                sourceVideoFile = videoFile,
+                                                baseFileName = "OcularNode_Video_${event.id}_${event.timestamp}"
+                                            )
+                                            if (result.isSuccess) {
+                                                Toast.makeText(context, context.getString(R.string.events_toast_video_saved), Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Purple80, contentColor = AppOnPrimaryContainer),
@@ -731,16 +766,21 @@ fun SnapshotPreviewDialog(
                         } else if (bitmap != null) {
                             Button(
                                 onClick = {
-                                    try {
-                                        val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                                        val file = File(picturesDir, "PetMonitor_Event_${event.id}_${event.timestamp}.jpg")
-                                        val fos = FileOutputStream(file)
-                                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-                                        fos.flush()
-                                        fos.close()
-                                        Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                                    coroutineScope.launch {
+                                        try {
+                                            val result = MediaSaveUtils.saveImageToGallery(
+                                                context = context,
+                                                bitmap = bitmap,
+                                                baseFileName = "OcularNode_Event_${event.id}_${event.timestamp}"
+                                            )
+                                            if (result.isSuccess) {
+                                                Toast.makeText(context, context.getString(R.string.events_toast_photo_saved), Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Purple80, contentColor = AppOnPrimaryContainer),

@@ -34,7 +34,7 @@ class AdminReceiver : DeviceAdminReceiver() {
 
             Log.i("AdminReceiver", "Provisioning extras intercepted: Role=$role, AuthKeyLength=${authKey.length}, WifiSSID=$wifiSsid")
 
-            val settingsManager = SettingsManager(context)
+            val settingsManager = SettingsManager.getInstance(context)
             settingsManager.deviceRoleMode = role
             settingsManager.isKioskModeActive = true
             if (authKey.isNotBlank()) {

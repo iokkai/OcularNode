@@ -157,10 +157,11 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
                 if (response.isSuccessful && response.body != null) {
                     val bodyStr = response.body!!.string()
                     val jsonArray = JSONArray(bodyStr)
-                    var newCount = 0
+                    val newEvents = mutableListOf<MotionEvent>()
 
                     for (i in 0 until jsonArray.length()) {
                         val item = jsonArray.getJSONObject(i)
+                        val remoteId = item.optLong("id", 0L).let { if (it > 0) it else null }
                         val timestamp = item.optLong("timestamp", System.currentTimeMillis())
                         val motionPercentage = item.optDouble("motionPercentage", 0.0).toFloat()
                         val thumbnailBase64 = item.optString("thumbnailBase64", "")
@@ -171,17 +172,22 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
                         val event = MotionEvent(
                             timestamp = timestamp,
                             cameraName = camName,
+                            cameraIp = camera.ipAddress,
                             motionPercentage = motionPercentage,
                             thumbnailBase64 = if (thumbnailBase64.isNotBlank()) thumbnailBase64 else null,
                             isRead = true,
                             telegramSentSuccess = false,
                             aiSummary = aiSummary,
-                            aiFiltered = aiFiltered
+                            aiFiltered = aiFiltered,
+                            remoteId = remoteId
                         )
-                        eventDao.insertEvent(event)
-                        newCount++
+                        newEvents.add(event)
                     }
-                    _syncMessage.value = "✅ Synced $newCount records from [${camera.name}]"
+
+                    if (newEvents.isNotEmpty()) {
+                        eventDao.insertEvents(newEvents)
+                    }
+                    _syncMessage.value = "✅ Synced ${newEvents.size} records from [${camera.name}]"
                 } else {
                     _syncMessage.value = "⚠️ Cannot connect to ${camera.name} (HTTP ${response.code})"
                 }

@@ -40,7 +40,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class CameraManagerHelper(private val context: Context) {
-    private val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager(context)
+    private val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context)
 
     private val executor = Executors.newSingleThreadExecutor()
     private var cameraProvider: ProcessCameraProvider? = null

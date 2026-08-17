@@ -48,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import io.github.iokkai.ocularnode.util.MediaSaveUtils
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -508,8 +509,24 @@ fun LiveMonitorScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             IconButton(
                                 onClick = {
-                                    if (frame != null) {
-                                        Toast.makeText(context, context.getString(R.string.monitor_toast_snapshot), Toast.LENGTH_SHORT).show()
+                                    val currentFrame = frame
+                                    if (currentFrame != null) {
+                                        coroutineScope.launch {
+                                            try {
+                                                val result = MediaSaveUtils.saveImageToGallery(
+                                                    context = context,
+                                                    bitmap = currentFrame,
+                                                    baseFileName = "OcularNode_Live_${System.currentTimeMillis()}"
+                                                )
+                                                if (result.isSuccess) {
+                                                    Toast.makeText(context, context.getString(R.string.monitor_toast_snapshot), Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    Toast.makeText(context, context.getString(R.string.events_toast_save_failed, result.exceptionOrNull()?.message ?: ""), Toast.LENGTH_SHORT).show()
+                                                }
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, context.getString(R.string.events_toast_save_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
                                     }
                                 },
                                 modifier = Modifier.background(AppWhiteSemiTransparent, CircleShape)

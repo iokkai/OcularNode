@@ -120,7 +120,7 @@ fun ViewerListScreen(
     var remoteSettingsCamera by remember { mutableStateOf<CameraDevice?>(null) }
     var remoteStatusJson by remember { mutableStateOf<JSONObject?>(null) }
 
-    val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager(context) }
+    val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context) }
     val isLivePreviewAllEnabled = settingsManager.livePreviewInListEnabled
 
     LaunchedEffect(Unit) {

@@ -1,9 +1,17 @@
 package io.github.iokkai.ocularnode.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "motion_events")
+@Entity(
+    tableName = "motion_events",
+    indices = [
+        Index(value = ["timestamp"]),
+        Index(value = ["isRead"]),
+        Index(value = ["cameraIp"])
+    ]
+)
 data class MotionEvent(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

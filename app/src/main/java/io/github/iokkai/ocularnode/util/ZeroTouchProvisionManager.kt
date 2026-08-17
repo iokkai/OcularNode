@@ -436,7 +436,7 @@ object ZeroTouchProvisionManager {
 
             if (dpm.isLockTaskPermitted(context.packageName)) {
                 activity.startLockTask()
-                val settings = SettingsManager(context)
+                val settings = SettingsManager.getInstance(context)
                 settings.isKioskModeActive = true
                 Log.i(TAG, "Successfully activated Kiosk Lock Task mode")
                 Toast.makeText(activity, activity.getString(R.string.toast_kiosk_enabled), Toast.LENGTH_SHORT).show()
@@ -457,7 +457,7 @@ object ZeroTouchProvisionManager {
     fun disableKioskMode(activity: Activity): Boolean {
         try {
             activity.stopLockTask()
-            val settings = SettingsManager(activity.applicationContext)
+            val settings = SettingsManager.getInstance(activity.applicationContext)
             settings.isKioskModeActive = false
             Toast.makeText(activity, activity.getString(R.string.toast_kiosk_disabled), Toast.LENGTH_LONG).show()
             Log.i(TAG, "Kiosk Lock Task mode deactivated")

@@ -14,6 +14,9 @@ interface MotionEventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(event: MotionEvent): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvents(events: List<MotionEvent>): List<Long>
+
     @Query("DELETE FROM motion_events WHERE id = :id")
     suspend fun deleteEventById(id: Long)
 

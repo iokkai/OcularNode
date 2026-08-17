@@ -1217,7 +1217,7 @@ fun SettingsScreen(
 
         // 僅在專用設備 (Device Owner) 上顯示逃生門卡片
         if (isDeviceOwner) {
-            val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager(context) }
+            val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context) }
             var isKioskActive by remember { mutableStateOf(settingsManager.isKioskModeActive) }
             var escapeHatchClicks by remember { mutableStateOf(0) }
 

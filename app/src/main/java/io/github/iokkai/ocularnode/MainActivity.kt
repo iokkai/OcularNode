@@ -151,7 +151,7 @@ fun MainAppScreen(
                 currentTab = AppTab.CAMERA
             }
             val activity = context as? MainActivity
-            val settingsManager = SettingsManager(context)
+            val settingsManager = SettingsManager.getInstance(context)
             
             // 確保 Tailscale 處於安裝與連線狀態
             val authKey = settingsManager.tailscaleAuthKey

@@ -10,6 +10,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -161,12 +164,22 @@ object NodeDiscoveryManager {
         }
     }
 
-    private suspend fun checkKnownAndSubnetCameras(context: Context, dao: CameraDeviceDao) {
+    private suspend fun checkKnownAndSubnetCameras(context: Context, dao: CameraDeviceDao) = coroutineScope {
         val cameras = dao.getCamerasListOnce()
-        var onlineCount = 0
+        if (cameras.isEmpty()) {
+            _discoveredNodesCount.value = 0
+            return@coroutineScope
+        }
 
-        for (cam in cameras) {
-            val isOnline = probeCameraStatus(cam.ipAddress, cam.port)
+        val results = cameras.map { cam ->
+            async(Dispatchers.IO) {
+                val isOnline = probeCameraStatus(cam.ipAddress, cam.port)
+                cam to isOnline
+            }
+        }.awaitAll()
+
+        var onlineCount = 0
+        for ((cam, isOnline) in results) {
             if (isOnline) {
                 onlineCount++
                 dao.updateCameraStatus(

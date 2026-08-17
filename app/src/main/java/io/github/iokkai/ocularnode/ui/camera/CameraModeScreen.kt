@@ -318,7 +318,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                 val activeLocal = localIp ?: "127.0.0.1"
                                 val camName = viewModel.settingsManager.cameraDeviceName.ifBlank { context.getString(R.string.role_camera_title) }
                                 val encodedCamName = try { java.net.URLEncoder.encode(camName, "UTF-8") } catch (e: Exception) { camName }
-                                val streamUrl = if (!activeTailscale.isNull_or_blank_custom()) {
+                                val streamUrl = if (!activeTailscale.isNullOrBlank()) {
                                     "http://$activeTailscale:${viewModel.settingsManager.serverPort}?name=$encodedCamName"
                                 } else {
                                     "http://$activeLocal:${viewModel.settingsManager.serverPort}?name=$encodedCamName"
@@ -728,10 +728,6 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
             )
         }
     }
-}
-
-private fun String?.isNull_or_blank_custom(): Boolean {
-    return this == null || this.trim().isEmpty()
 }
 
 private fun copyToClipboard(context: Context, text: String) {

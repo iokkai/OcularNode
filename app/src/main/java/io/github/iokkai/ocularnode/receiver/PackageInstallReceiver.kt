@@ -21,7 +21,7 @@ class PackageInstallReceiver : BroadcastReceiver() {
 
             if (status == PackageInstaller.STATUS_SUCCESS) {
                 Log.i("PackageInstallReceiver", "APK 靜默安裝成功！Package: $packageName")
-                val settingsManager = SettingsManager(context)
+                val settingsManager = SettingsManager.getInstance(context)
                 val authKey = settingsManager.tailscaleAuthKey
                 ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
             } else {

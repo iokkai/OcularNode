@@ -57,7 +57,7 @@ fun NotificationSettingsScreen(
 ) {
     val context = LocalContext.current
     val dataStore = remember { SettingsDataStore(context) }
-    val settingsManager = remember { SettingsManager(context) }
+    val settingsManager = remember { SettingsManager.getInstance(context) }
     var mlKitFilterEnabled by remember { mutableStateOf(settingsManager.mlKitFilterEnabled) }
     val scope = rememberCoroutineScope()
     
