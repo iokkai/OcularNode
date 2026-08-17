@@ -635,6 +635,54 @@ fun AboutScreen(onBack: () -> Unit) {
                         color = textSecondaryColor,
                         lineHeight = 18.sp
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
+
+                    Text(
+                        stringResource(R.string.about_battery_safety_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = textPrimaryColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.about_battery_safety_content),
+                        fontSize = 12.sp,
+                        color = textSecondaryColor,
+                        lineHeight = 18.sp
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
+
+                    Text(
+                        stringResource(R.string.about_kiosk_safety_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = textPrimaryColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.about_kiosk_safety_content),
+                        fontSize = 12.sp,
+                        color = textSecondaryColor,
+                        lineHeight = 18.sp
+                    )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
+
+                    Text(
+                        stringResource(R.string.about_non_medical_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = textPrimaryColor
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.about_non_medical_content),
+                        fontSize = 12.sp,
+                        color = textSecondaryColor,
+                        lineHeight = 18.sp
+                    )
                 }
             }
 

@@ -628,6 +628,12 @@
     <string name="about_trademark_content">Tailscale 為 Tailscale Inc. 之註冊商標。Telegram 為 Telegram FZ-LLC 之商標。Android、Google Play 及 Google ML Kit 為 Google LLC 之商標。OcularNode 為獨立開源專案，與 Tailscale Inc.、Telegram FZ-LLC 或 Google LLC 無官方隸屬、贊助或背書關係。</string>
     <string name="about_liability_title">服務保固與監控法規免責</string>
     <string name="about_liability_content">本軟體依「現狀 (AS-IS)」提供，不包含任何形式之保證。OcularNode 為舊機轉生之開源輔助工具，非專業認證之保全防盜系統。使用者須自行遵守當地個人隱私與防妨害秘密錄影錄音法規，作者不對任何監控中斷或損害負責。</string>
+    <string name="about_battery_safety_title">電池健康與硬體安全免責</string>
+    <string name="about_battery_safety_content">本軟體設計為 24/7 全天候運作。長時間插電可能加速電池老化、發熱或膨脹。使用者應確保設備處於通風良好環境，遠離可燃物。建議搭配智慧定時插座或開啟裝置內建之電池保護上限。部分硬體社群所探討之進階改裝（如卸除鋰電池改為直供電）具有電氣與安全風險，非官方認可且不推薦未經專業訓練者嘗試；任何硬體改裝純屬使用者自主行為，衍生之安全與損壞風險須完全自負，開發者不提供指引亦不承擔任何責任。</string>
+    <string name="about_kiosk_safety_title">專用舊機與系統管理模式免責</string>
+    <string name="about_kiosk_safety_content">「24/7 專用設備模式 (Device Owner / Kiosk)」專為閒置淘汰之專用舊手機設計。啟用系統管理權限可能導致裝置功能受限、停用常規設定或需重置裝置。請勿在日常主力個人手機上設定此模式，使用者須自行評估並承擔相關系統管理操作風險。</string>
+    <string name="about_non_medical_title">非醫療與非嬰幼兒看護設備宣告</string>
+    <string name="about_non_medical_content">本軟體非醫療器材，亦非經認證之嬰幼兒生命安全、防猝死或長者跌倒看護監視系統。網路延遲、背景排程或硬體斷電皆可能導致串流或警報中斷，嚴禁作為生命照護或人身安全之唯一監護手段。</string>
     <string name="onboarding_terms_consent_prefix">選擇模式並繼續即表示您已閱讀並同意 OcularNode 的</string>
     <string name="onboarding_terms_link">隱私權政策與使用條款 ↗</string>
     <string name="onboarding_terms_footnote">100% 本地端運算・無雲端伺服器收集・非認證商業保全系統</string>
