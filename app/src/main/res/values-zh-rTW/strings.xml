@@ -614,6 +614,13 @@
     <string name="about_update_found_title">🎉 發現新版本</string>
     <string name="about_update_found_desc">OcularNode 在 GitHub 上已推出新版本：</string>
     <string name="about_update_notes_title">更新內容與日誌：</string>
-    <string name="about_btn_download_now">前往 GitHub 下載更新 ↗</string>
+    <string name="about_btn_download_now">⬇️ 立即下載並更新</string>
+    <string name="about_btn_browser_fallback">手動前往 GitHub 網頁下載 ↗</string>
+    <string name="about_update_downloading">正在下載更新檔 (%1$d%%)</string>
+    <string name="about_update_download_progress">%1$s / %2$s</string>
+    <string name="about_update_verifying">🔒 正在驗證安裝檔安全性簽名…</string>
+    <string name="about_update_installing_silent">⚡ 正在背景自動靜默安裝並重啟…</string>
+    <string name="about_update_prompting_install">📦 正在啟動系統更新安裝器…</string>
+    <string name="about_update_complete">✅ 下載與驗證完成！</string>
     <string name="about_update_failed">檢查更新失敗：%1$s</string>
 </resources>

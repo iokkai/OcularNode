@@ -50,6 +50,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -59,14 +60,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import io.github.iokkai.ocularnode.util.UpdateCheckResult
+import io.github.iokkai.ocularnode.util.UpdateInstallStage
 import io.github.iokkai.ocularnode.util.UpdateManager
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.setValue
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -802,14 +806,35 @@ private fun LicenseDialog(onDismiss: () -> Unit) {
     )
 }
 
+private fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB")
+    val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
+    return String.format(Locale.getDefault(), "%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+}
+
 @Composable
 private fun UpdateAvailableDialog(
     result: UpdateCheckResult,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var installStage by remember { mutableStateOf(UpdateInstallStage.IDLE) }
+    var downloadProgress by remember { mutableFloatStateOf(0f) }
+    var downloadedBytes by remember { mutableLongStateOf(0L) }
+    var totalBytes by remember { mutableLongStateOf(0L) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val isBusy = installStage == UpdateInstallStage.DOWNLOADING ||
+            installStage == UpdateInstallStage.VERIFYING ||
+            installStage == UpdateInstallStage.INSTALLING_SILENT ||
+            installStage == UpdateInstallStage.PROMPTING_SYSTEM_INSTALL
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isBusy) onDismiss()
+        },
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -864,7 +889,7 @@ private fun UpdateAvailableDialog(
                     }
                 }
 
-                if (result.releaseNotes.isNotBlank()) {
+                if (result.releaseNotes.isNotBlank() && installStage == UpdateInstallStage.IDLE) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         stringResource(R.string.about_update_notes_title),
@@ -891,33 +916,266 @@ private fun UpdateAvailableDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Download Button
-                Button(
-                    onClick = {
-                        val targetUrl = result.downloadUrl.ifBlank { result.htmlUrl }
-                        openBrowserUrl(context, targetUrl)
-                        onDismiss()
-                    },
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = AppPrimary,
-                        contentColor = AppSurface
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.about_btn_download_now),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                // ── Progress and Actions Area ──
+                when (installStage) {
+                    UpdateInstallStage.IDLE -> {
+                        Button(
+                            onClick = {
+                                val targetUrl = result.downloadUrl.ifBlank { result.htmlUrl }
+                                coroutineScope.launch {
+                                    errorMessage = null
+                                    UpdateManager.downloadAndInstallApk(
+                                        context = context,
+                                        downloadUrl = targetUrl,
+                                        onProgress = { progress, downloaded, total ->
+                                            downloadProgress = progress
+                                            downloadedBytes = downloaded
+                                            totalBytes = total
+                                        },
+                                        onStageChange = { stage, msg ->
+                                            installStage = stage
+                                            if (stage == UpdateInstallStage.FAILED) {
+                                                errorMessage = msg
+                                            }
+                                        }
+                                    )
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = AppPrimary,
+                                contentColor = AppSurface
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                stringResource(R.string.about_btn_download_now),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        // Fallback browser download link
+                        TextButton(
+                            onClick = {
+                                val targetUrl = result.downloadUrl.ifBlank { result.htmlUrl }
+                                openBrowserUrl(context, targetUrl)
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppTextSecondary)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                stringResource(R.string.about_btn_browser_fallback),
+                                fontSize = 11.sp,
+                                color = AppTextSecondary
+                            )
+                        }
+                    }
+
+                    UpdateInstallStage.DOWNLOADING -> {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                            border = BorderStroke(1.dp, AppBorder),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                val pct = (downloadProgress * 100).toInt().coerceIn(0, 100)
+                                Text(
+                                    text = stringResource(R.string.about_update_downloading, pct),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = AppTextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                if (downloadProgress >= 0) {
+                                    LinearProgressIndicator(
+                                        progress = { downloadProgress },
+                                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                                        color = AppPrimary,
+                                        trackColor = AppBorder
+                                    )
+                                } else {
+                                    LinearProgressIndicator(
+                                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                                        color = AppPrimary,
+                                        trackColor = AppBorder
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = stringResource(
+                                        R.string.about_update_download_progress,
+                                        formatFileSize(downloadedBytes),
+                                        if (totalBytes > 0) formatFileSize(totalBytes) else "--"
+                                    ),
+                                    fontSize = 11.sp,
+                                    color = AppTextSecondary,
+                                    modifier = Modifier.align(Alignment.End)
+                                )
+                            }
+                        }
+                    }
+
+                    UpdateInstallStage.VERIFYING -> {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = AppSurfaceVariant),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.5.dp, color = AppPrimary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = stringResource(R.string.about_update_verifying),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppTextPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    UpdateInstallStage.INSTALLING_SILENT -> {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = AppPrimaryContainer),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.5.dp, color = AppPrimary)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = stringResource(R.string.about_update_installing_silent),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppOnPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+
+                    UpdateInstallStage.PROMPTING_SYSTEM_INSTALL,
+                    UpdateInstallStage.COMPLETED -> {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = AppPrimaryContainer),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = stringResource(R.string.about_update_complete),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppOnPrimaryContainer
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = stringResource(R.string.about_update_prompting_install),
+                                    fontSize = 11.sp,
+                                    color = AppTextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    UpdateInstallStage.FAILED -> {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0x22FF5252)),
+                            border = BorderStroke(1.dp, Color(0x66FF5252)),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "❌ 下載或更新失敗",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFF5252)
+                                )
+                                if (!errorMessage.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = errorMessage!!,
+                                        fontSize = 11.sp,
+                                        color = AppTextPrimary,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Retry button
+                        Button(
+                            onClick = {
+                                val targetUrl = result.downloadUrl.ifBlank { result.htmlUrl }
+                                coroutineScope.launch {
+                                    errorMessage = null
+                                    UpdateManager.downloadAndInstallApk(
+                                        context = context,
+                                        downloadUrl = targetUrl,
+                                        onProgress = { progress, downloaded, total ->
+                                            downloadProgress = progress
+                                            downloadedBytes = downloaded
+                                            totalBytes = total
+                                        },
+                                        onStageChange = { stage, msg ->
+                                            installStage = stage
+                                            if (stage == UpdateInstallStage.FAILED) {
+                                                errorMessage = msg
+                                            }
+                                        }
+                                    )
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = AppSurface),
+                            modifier = Modifier.fillMaxWidth().height(42.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("重試下載更新", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        TextButton(
+                            onClick = {
+                                val targetUrl = result.downloadUrl.ifBlank { result.htmlUrl }
+                                openBrowserUrl(context, targetUrl)
+                                onDismiss()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp), tint = AppTextSecondary)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                stringResource(R.string.about_btn_browser_fallback),
+                                fontSize = 11.sp,
+                                color = AppTextSecondary
+                            )
+                        }
+                    }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.btn_close), fontWeight = FontWeight.Bold, color = AppPrimary)
+            if (!isBusy) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.btn_close), fontWeight = FontWeight.Bold, color = AppPrimary)
+                }
             }
         },
         shape = RoundedCornerShape(20.dp),

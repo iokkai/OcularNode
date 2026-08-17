@@ -12,6 +12,22 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+import android.app.admin.DevicePolicyManager
+import android.content.Intent
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
+
+enum class UpdateInstallStage {
+    IDLE,
+    DOWNLOADING,
+    VERIFYING,
+    INSTALLING_SILENT,
+    PROMPTING_SYSTEM_INSTALL,
+    COMPLETED,
+    FAILED
+}
+
 data class UpdateCheckResult(
     val hasUpdate: Boolean,
     val latestVersionName: String = "",
@@ -136,6 +152,119 @@ object UpdateManager {
         githubRepo: String = io.github.iokkai.ocularnode.BuildConfig.GITHUB_REPO
     ) {
         ZeroTouchProvisionManager.checkAndSilentUpdate(context, githubOwner, githubRepo)
+    }
+
+    /**
+     * 在 App 內直接串流下載最新 APK、驗證簽名並依據權限自動進行靜默安裝或拉起系統安裝畫面。
+     *
+     * @param context 應用程式 Context
+     * @param downloadUrl APK 直接下載 URL
+     * @param onProgress 下載進度回呼 (進度 0.0f..1.0f, 已下載 byte 數, 總 byte 數)
+     * @param onStageChange 階段變化回呼 (DOWNLOADING, VERIFYING, INSTALLING..., FAILED)
+     */
+    suspend fun downloadAndInstallApk(
+        context: Context,
+        downloadUrl: String,
+        onProgress: (progress: Float, downloadedBytes: Long, totalBytes: Long) -> Unit = { _, _, _ -> },
+        onStageChange: (stage: UpdateInstallStage, message: String?) -> Unit = { _, _ -> }
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            if (downloadUrl.isBlank()) {
+                val err = "下載連結無效 (Download URL is invalid)"
+                onStageChange(UpdateInstallStage.FAILED, err)
+                return@withContext Result.failure(IllegalArgumentException(err))
+            }
+
+            Log.i(TAG, "開始在 App 內直接下載更新 APK: $downloadUrl")
+            onStageChange(UpdateInstallStage.DOWNLOADING, null)
+
+            val client = OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(120, TimeUnit.SECONDS)
+                .build()
+
+            val request = Request.Builder()
+                .url(downloadUrl)
+                .header("User-Agent", "OcularNode-App")
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val err = "下載失敗，HTTP Code: ${response.code} (${response.message})"
+                onStageChange(UpdateInstallStage.FAILED, err)
+                return@withContext Result.failure(Exception(err))
+            }
+
+            val body = response.body ?: run {
+                val err = "伺服器未回傳 APK 內容"
+                onStageChange(UpdateInstallStage.FAILED, err)
+                return@withContext Result.failure(Exception(err))
+            }
+
+            val totalBytes = body.contentLength()
+            val destFile = File(context.cacheDir, "ocularnode_update.apk")
+            if (destFile.exists()) destFile.delete()
+
+            body.byteStream().use { input ->
+                FileOutputStream(destFile).use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var totalDownloaded = 0L
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        totalDownloaded += bytesRead
+                        val progress = if (totalBytes > 0) totalDownloaded.toFloat() / totalBytes else -1f
+                        onProgress(progress, totalDownloaded, totalBytes)
+                    }
+                    output.flush()
+                }
+            }
+
+            Log.i(TAG, "APK 下載完成: ${destFile.absolutePath} (${destFile.length()} bytes)")
+
+            // 2. 驗證簽名指紋 (S-5 安全防護)
+            onStageChange(UpdateInstallStage.VERIFYING, null)
+            val isValid = ZeroTouchProvisionManager.verifyApkSignature(context, destFile)
+            if (!isValid) {
+                destFile.delete()
+                val err = "安全驗證失敗：下載之 APK 簽名證書與當前 App 不一致，已終止安裝！"
+                Log.e(TAG, err)
+                onStageChange(UpdateInstallStage.FAILED, err)
+                return@withContext Result.failure(SecurityException(err))
+            }
+
+            // 3. 判斷權限並執行安裝
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+            val isDeviceOwner = dpm?.isDeviceOwnerApp(context.packageName) == true
+
+            if (isDeviceOwner) {
+                Log.i(TAG, "具備 Device Owner 特權，執行 PackageInstaller 靜默無感更新...")
+                onStageChange(UpdateInstallStage.INSTALLING_SILENT, null)
+                ZeroTouchProvisionManager.installAppApkSilently(context, destFile)
+                onStageChange(UpdateInstallStage.COMPLETED, null)
+            } else {
+                Log.i(TAG, "一般模式，透過 FileProvider 拉起系統原生安裝畫面...")
+                onStageChange(UpdateInstallStage.PROMPTING_SYSTEM_INSTALL, null)
+                val apkUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    destFile
+                )
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                }
+                context.startActivity(intent)
+                onStageChange(UpdateInstallStage.COMPLETED, null)
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "下載與安裝流程發生異常", e)
+            val errMsg = e.localizedMessage ?: e.message ?: "下載或安裝失敗"
+            onStageChange(UpdateInstallStage.FAILED, errMsg)
+            Result.failure(e)
+        }
     }
 
     /**

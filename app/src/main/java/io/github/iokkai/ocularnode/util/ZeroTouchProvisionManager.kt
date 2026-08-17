@@ -603,7 +603,7 @@ object ZeroTouchProvisionManager {
     /**
      * 特權靜默安裝 App APK
      */
-    private fun installAppApkSilently(context: Context, apkFile: File) {
+    internal fun installAppApkSilently(context: Context, apkFile: File) {
         try {
             val packageInstaller = context.packageManager.packageInstaller
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
@@ -645,7 +645,7 @@ object ZeroTouchProvisionManager {
     /**
      * 驗證下載的 APK 簽名證書指紋是否與當前運行的 App 完全一致
      */
-    private fun verifyApkSignature(context: Context, apkFile: File): Boolean {
+    internal fun verifyApkSignature(context: Context, apkFile: File): Boolean {
         return try {
             val pm = context.packageManager
 

@@ -614,6 +614,13 @@
     <string name="about_update_found_title">🎉 New Version Available</string>
     <string name="about_update_found_desc">A new version of OcularNode is available on GitHub:</string>
     <string name="about_update_notes_title">Release Notes:</string>
-    <string name="about_btn_download_now">Download Update (GitHub) ↗</string>
+    <string name="about_btn_download_now">⬇️ Download &amp; Update Now</string>
+    <string name="about_btn_browser_fallback">Open in GitHub Releases ↗</string>
+    <string name="about_update_downloading">Downloading update (%1$d%%)</string>
+    <string name="about_update_download_progress">%1$s / %2$s</string>
+    <string name="about_update_verifying">🔒 Verifying APK security signature…</string>
+    <string name="about_update_installing_silent">⚡ Installing update silently in background…</string>
+    <string name="about_update_prompting_install">📦 Launching package installer…</string>
+    <string name="about_update_complete">✅ Download and verification complete!</string>
     <string name="about_update_failed">Failed to check updates: %1$s</string>
 </resources>

@@ -69,4 +69,16 @@ class UpdateManagerTest {
         )
         assertFalse(resultSame)
     }
+
+    @Test
+    fun updateInstallStage_hasExpectedStages() {
+        val stages = UpdateInstallStage.entries
+        assertTrue(stages.contains(UpdateInstallStage.IDLE))
+        assertTrue(stages.contains(UpdateInstallStage.DOWNLOADING))
+        assertTrue(stages.contains(UpdateInstallStage.VERIFYING))
+        assertTrue(stages.contains(UpdateInstallStage.INSTALLING_SILENT))
+        assertTrue(stages.contains(UpdateInstallStage.PROMPTING_SYSTEM_INSTALL))
+        assertTrue(stages.contains(UpdateInstallStage.COMPLETED))
+        assertTrue(stages.contains(UpdateInstallStage.FAILED))
+    }
 }
