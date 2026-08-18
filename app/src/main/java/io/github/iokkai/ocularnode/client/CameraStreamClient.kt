@@ -563,7 +563,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
         if (_isSpeakingAudio.value) return
         _isSpeakingAudio.value = true
 
-        audioEngine.startRecording(scope)
+        audioEngine.startRecording()
 
         audioSpeakJob = scope.launch(Dispatchers.IO) {
             var socket: java.net.Socket? = null

@@ -639,7 +639,7 @@ class CameraApiHandler(
         ).toByteArray())
         output.flush()
 
-        audioEngine.startRecording(scope)
+        audioEngine.startRecording()
         scope.launch(Dispatchers.IO) {
             try {
                 audioEngine.audioBufferFlow.collect { chunk ->

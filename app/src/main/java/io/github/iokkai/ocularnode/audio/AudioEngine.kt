@@ -15,10 +15,13 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 
 class AudioEngine {
     private val sampleRate = 16000
@@ -36,12 +39,18 @@ class AudioEngine {
     private var isRecording = false
     private var isPlaying = false
 
+    private val recordingClientsCount = AtomicInteger(0)
+    private val playingClientsCount = AtomicInteger(0)
+    private val engineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     private val _audioBufferFlow = MutableSharedFlow<ByteArray>(extraBufferCapacity = 128)
     val audioBufferFlow: SharedFlow<ByteArray> = _audioBufferFlow
 
     @SuppressLint("MissingPermission")
-    fun startRecording(scope: CoroutineScope) {
-        if (isRecording) return
+    fun startRecording() {
+        if (recordingClientsCount.getAndIncrement() > 0) {
+            return // Already recording
+        }
         try {
             val audioSource = MediaRecorder.AudioSource.VOICE_COMMUNICATION
             audioRecord = try {
@@ -72,15 +81,9 @@ class AudioEngine {
             audioRecord?.startRecording()
             isRecording = true
 
-            recordJob = scope.launch(Dispatchers.IO) {
-                // 640 bytes = 320 16-bit PCM samples = 20ms frame at 16kHz for ultra-low latency
-                val poolSize = 16
-                val bufferPool = Array(poolSize) { ByteArray(640) }
-                var poolIndex = 0
-
+            recordJob = engineScope.launch {
                 while (isActive && isRecording) {
-                    val buf = bufferPool[poolIndex % poolSize]
-                    poolIndex++
+                    val buf = ByteArray(640) // 20ms frame at 16kHz. Allocate fresh to prevent flow race conditions.
                     val read = audioRecord?.read(buf, 0, buf.size) ?: 0
                     if (read > 0) {
                         if (read == buf.size) {
@@ -88,15 +91,23 @@ class AudioEngine {
                         } else {
                             _audioBufferFlow.emit(buf.copyOf(read))
                         }
+                    } else if (read < 0) {
+                        Log.e("AudioEngine", "AudioRecord read error: $read")
+                        delay(100) // Prevent 100% CPU lock if mic hardware is blocked
                     }
                 }
             }
         } catch (e: Exception) {
             Log.e("AudioEngine", "Error starting AudioRecord", e)
+            recordingClientsCount.decrementAndGet().coerceAtLeast(0)
         }
     }
 
     fun stopRecording() {
+        if (recordingClientsCount.decrementAndGet() > 0) {
+            return // Still in use by other clients
+        }
+        recordingClientsCount.set(0)
         isRecording = false
         recordJob?.cancel()
         recordJob = null
@@ -116,7 +127,9 @@ class AudioEngine {
 
     @Suppress("DEPRECATION")
     fun startPlaying(context: Context? = null) {
-        if (isPlaying) return
+        if (playingClientsCount.getAndIncrement() > 0) {
+            return // Already playing
+        }
         try {
             if (context != null) {
                 enableSpeakerphone(context, true)
@@ -156,6 +169,7 @@ class AudioEngine {
             isPlaying = true
         } catch (e: Exception) {
             Log.e("AudioEngine", "Error starting AudioTrack", e)
+            playingClientsCount.decrementAndGet().coerceAtLeast(0)
         }
     }
 
@@ -171,6 +185,10 @@ class AudioEngine {
     }
 
     fun stopPlaying() {
+        if (playingClientsCount.decrementAndGet() > 0) {
+            return // Still in use by other clients
+        }
+        playingClientsCount.set(0)
         isPlaying = false
         try {
             audioTrack?.stop()
