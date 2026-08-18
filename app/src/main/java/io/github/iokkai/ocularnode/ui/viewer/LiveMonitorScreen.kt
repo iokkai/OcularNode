@@ -84,6 +84,7 @@ fun LiveMonitorScreen(
     onBack: () -> Unit
 ) {
     BackHandler {
+        viewModel.disconnectCamera()
         onBack()
     }
 
@@ -334,7 +335,12 @@ fun LiveMonitorScreen(
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 IconButton(
-                    onClick = { showRemoteSettingsDialog = true },
+                    onClick = {
+                        coroutineScope.launch {
+                            viewModel.fetchCameraStatus(camera)
+                            showRemoteSettingsDialog = true
+                        }
+                    },
                     modifier = Modifier.size(34.dp).background(AppSecondaryContainer, CircleShape)
                 ) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings", tint = AppPrimary, modifier = Modifier.size(18.dp))

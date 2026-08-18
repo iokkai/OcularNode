@@ -187,7 +187,7 @@ class WebDashboardProvider(private val context: Context) {
 </head>
 <body>
     <header>
-        <h1><span class="badge">OcularNode</span> <span id="dev-name">$sLoading</span></h1>
+        <h1><span class="badge">OcularNode</span> <span id="dev-name">$sLoading</span> <span id="app-ver-tag" style="font-size:0.75rem; color:var(--subtext); font-weight:normal; margin-left:4px;"></span></h1>
         <div style="display: flex; gap: 8px; align-items: center;">
             <span class="live-tag" id="stream-status-tag">$sConnected</span>
             <span style="font-size: 0.85rem; color: var(--subtext);" id="fps-val">-- FPS</span>
@@ -868,8 +868,12 @@ class WebDashboardProvider(private val context: Context) {
                 const ping = Date.now() - startTime;
                 const data = await res.json();
 
-                const devName = document.getElementById('dev-name');
-                if (devName) devName.innerText = data.deviceName || 'OcularNode Camera';
+                const devEl = document.getElementById('dev-name');
+                if (devEl) devEl.innerText = data.deviceName || 'OcularNode Camera';
+                if (data.appVersion) {
+                    const verEl = document.getElementById('app-ver-tag');
+                    if (verEl) verEl.innerText = (data.appVersion.startsWith('v') ? data.appVersion : 'v' + data.appVersion);
+                }
 
                 let battTxt = (data.batteryLevel >= 0 ? data.batteryLevel + '%' : '--');
                 if (data.batteryTemp && data.batteryTemp > 0) battTxt += ' (' + data.batteryTemp.toFixed(1) + '°C)';

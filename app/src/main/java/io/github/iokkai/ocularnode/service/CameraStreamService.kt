@@ -210,6 +210,16 @@ class CameraStreamService : Service(), LifecycleOwner {
 
     private fun setupHttpServer() {
         httpServer = MjpegHttpServer(this, settingsManager.serverPort, audioEngine).apply {
+            deviceNameGetter = { settingsManager.cameraDeviceName }
+            operatingModeGetter = { settingsManager.operatingMode }
+            lensFacingGetter = { if (cameraHelper.lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front" }
+            resolutionGetter = { cameraHelper.currentResolutionString }
+            qualityGetter = { cameraHelper.jpegQuality }
+            nightVisionModeGetter = { cameraHelper.nightVisionMode }
+            nightVisionStateGetter = { cameraHelper.isNightVisionActive }
+            torchStateGetter = { cameraHelper.isTorchOn }
+            isMotionEnabledGetter = { cameraHelper.isMotionDetectionEnabled }
+
             deviceName = settingsManager.cameraDeviceName
             lensFacing = if (cameraHelper.lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front"
             isTorchOn = cameraHelper.isTorchOn

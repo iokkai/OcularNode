@@ -81,6 +81,16 @@ class MjpegHttpServer(
     @Volatile var isTorchOn: Boolean = false
     @Volatile var isMotionEnabled: Boolean = true
 
+    var deviceNameGetter: (() -> String) = { deviceName }
+    var operatingModeGetter: (() -> String) = { operatingMode }
+    var lensFacingGetter: (() -> String) = { lensFacing }
+    var resolutionGetter: (() -> String) = { resolution }
+    var qualityGetter: (() -> Int) = { quality }
+    var nightVisionModeGetter: (() -> String) = { nightVisionMode }
+    var nightVisionStateGetter: (() -> Boolean) = { isNightVisionActive }
+    var torchStateGetter: (() -> Boolean) = { isTorchOn }
+    var isMotionEnabledGetter: (() -> Boolean) = { isMotionEnabled }
+
     var onActiveClientsChanged: ((Int) -> Unit)? = null
     var onControlCommand: ((String, String) -> Unit)? = null
     var onBatchConfigUpdated: ((String) -> Unit)? = null
@@ -89,20 +99,20 @@ class MjpegHttpServer(
         context = context,
         audioEngine = audioEngine,
         settingsManager = settingsManager,
-        deviceNameGetter = { deviceName },
+        deviceNameGetter = { deviceNameGetter() },
         latestFrameBytesGetter = { latestFrameBytes },
         batteryLevelGetter = { batteryLevel },
         batteryTempGetter = { batteryTemp },
         isThermalThrottledGetter = { isThermalThrottled },
         fpsGetter = { fps },
-        nightVisionStateGetter = { isNightVisionActive },
-        operatingModeGetter = { operatingMode },
-        lensFacingGetter = { lensFacing },
-        resolutionGetter = { resolution },
-        qualityGetter = { quality },
-        nightVisionModeGetter = { nightVisionMode },
-        torchStateGetter = { isTorchOn },
-        isMotionEnabledGetter = { isMotionEnabled },
+        nightVisionStateGetter = { nightVisionStateGetter() },
+        operatingModeGetter = { operatingModeGetter() },
+        lensFacingGetter = { lensFacingGetter() },
+        resolutionGetter = { resolutionGetter() },
+        qualityGetter = { qualityGetter() },
+        nightVisionModeGetter = { nightVisionModeGetter() },
+        torchStateGetter = { torchStateGetter() },
+        isMotionEnabledGetter = { isMotionEnabledGetter() },
         onControlCommand = { cmd, value -> onControlCommand?.invoke(cmd, value) }
     )
 

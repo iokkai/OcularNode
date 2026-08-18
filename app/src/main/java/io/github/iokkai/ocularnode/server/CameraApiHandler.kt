@@ -164,9 +164,21 @@ class CameraApiHandler(
             totalGB = String.format(Locale.US, "%.1f GB", totalMB / 1024.0)
         } catch (_: Exception) {}
 
+        val packageInfo = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+            } else {
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+        } catch (_: Exception) { null }
+        val appVersionName = packageInfo?.versionName ?: io.github.iokkai.ocularnode.BuildConfig.VERSION_NAME
+        val appVersionCode = packageInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it) } ?: io.github.iokkai.ocularnode.BuildConfig.VERSION_CODE.toLong()
+
         val json = JSONObject().apply {
             put("status", "online")
             put("deviceName", deviceNameGetter())
+            put("appVersion", appVersionName)
+            put("versionCode", appVersionCode)
             put("tailscaleIp", ipInfo.tailscaleIp ?: "")
             put("localIp", ipInfo.localIp ?: "")
             put("batteryLevel", batteryPct)
@@ -183,10 +195,16 @@ class CameraApiHandler(
             put("fps", fpsGetter())
             put("nightVisionMode", nightVisionModeGetter())
             put("isNightVisionActive", nightVisionStateGetter())
+            put("nightVisionLuma", settingsManager.autoNightVisionThreshold)
+            put("nightVisionHysteresis", settingsManager.autoNightVisionHysteresis)
             put("operatingMode", operatingModeGetter())
             put("isMotionDetectionEnabled", isMotionEnabledGetter())
             put("motionSensitivity", settingsManager.motionSensitivity)
+            put("motionCooldown", settingsManager.motionCooldownSeconds)
             put("motionCooldownSeconds", settingsManager.motionCooldownSeconds)
+            put("playLocalAlarmOnMotion", settingsManager.playLocalAlarmOnMotion)
+            put("mlKitFilterEnabled", settingsManager.mlKitFilterEnabled)
+            put("autoStorageCleanupEnabled", settingsManager.autoStorageCleanupEnabled)
             put("streamRotation", settingsManager.streamRotation)
             put("connectedClients", connectedClients)
             put("storageFree", freeGB)
@@ -197,6 +215,7 @@ class CameraApiHandler(
             put("autoStartOnBoot", settingsManager.autoStartOnBoot)
             put("powerCutAlertEnabled", settingsManager.powerCutAlertEnabled)
             put("systemLogEnabled", settingsManager.systemLogEnabled)
+            put("telegramSendMediaType", settingsManager.telegramSendMediaType)
             put("motionScheduleEnabled", settingsManager.motionScheduleEnabled)
             put("motionScheduleStart", settingsManager.motionScheduleStartTime)
             put("motionScheduleEnd", settingsManager.motionScheduleEndTime)
@@ -219,6 +238,16 @@ class CameraApiHandler(
     }
 
     fun getConfigJson(port: Int): String {
+        val packageInfo = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+            } else {
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+        } catch (_: Exception) { null }
+        val appVersionName = packageInfo?.versionName ?: io.github.iokkai.ocularnode.BuildConfig.VERSION_NAME
+        val appVersionCode = packageInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it) } ?: io.github.iokkai.ocularnode.BuildConfig.VERSION_CODE.toLong()
+
         val catFilters = JSONObject()
         val catRecFilters = JSONObject()
         for (cat in NotificationCategory.entries) {
@@ -238,6 +267,8 @@ class CameraApiHandler(
                 put("deviceName", deviceNameGetter())
                 put("operatingMode", operatingModeGetter())
                 put("httpPort", port)
+                put("appVersion", appVersionName)
+                put("versionCode", appVersionCode)
             })
             put("camera", JSONObject().apply {
                 put("lensFacing", lensFacingGetter())

@@ -430,6 +430,7 @@
     <string name="remote_powercut_desc">拔除電源線或低電量時發送推播通知</string>
     <string name="remote_ota_title">鏡頭端韌體靜默更新 (OTA)</string>
     <string name="remote_ota_desc">向 GitHub Releases 查詢最新版 APK。若有新版本，鏡頭端將自動在背景靜默下載安裝並重啟監控服務。</string>
+    <string name="remote_ota_current_version">鏡頭端目前版本：%1$s</string>
     <string name="remote_ota_sending">發送指令中...</string>
     <string name="remote_ota_btn_check">🚀 立即檢查並更新鏡頭端 (OTA)</string>
     <string name="remote_ota_toast_sent">🚀 已向鏡頭端發送更新指令！若有新版本將自動進行升級並重啟</string>

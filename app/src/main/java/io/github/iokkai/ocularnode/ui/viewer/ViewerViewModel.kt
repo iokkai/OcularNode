@@ -356,7 +356,11 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     suspend fun saveRemoteConfig(camera: CameraDevice, draftConfigJson: String): Boolean {
-        return streamClient.postRemoteConfig(camera, draftConfigJson)
+        val success = streamClient.postRemoteConfig(camera, draftConfigJson)
+        if (success) {
+            fetchCameraStatus(camera)
+        }
+        return success
     }
 
     suspend fun fetchRemoteConfig(camera: CameraDevice): org.json.JSONObject? {

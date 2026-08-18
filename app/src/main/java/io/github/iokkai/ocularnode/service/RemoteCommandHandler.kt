@@ -236,7 +236,7 @@ class RemoteCommandHandler(
                         Log.e("RemoteCommandHandler", "Error parsing category_toggle JSON", e)
                     }
                 }
-                "update", "silent_update", "check_update", "ota" -> {
+                "update", "silent_update", "check_update", "ota", "trigger_ota_update" -> {
                     Log.i("RemoteCommandHandler", "收到遠端更新指令，開始執行 GitHub Releases 靜默更新...")
                     scope.launch(Dispatchers.IO) {
                         try {
@@ -323,6 +323,16 @@ class RemoteCommandHandler(
                             settingsManager.nightVisionMode = nvMode
                             cameraHelper.nightVisionMode = nvMode
                         }
+                        if (camObj.has("nightVisionLuma")) {
+                            val luma = camObj.optDouble("nightVisionLuma", 45.0).toFloat()
+                            settingsManager.autoNightVisionThreshold = luma
+                            cameraHelper.autoNightVisionThreshold = luma
+                        }
+                        if (camObj.has("nightVisionHysteresis")) {
+                            val hyst = camObj.optDouble("nightVisionHysteresis", 8.0).toFloat()
+                            settingsManager.autoNightVisionHysteresis = hyst
+                            cameraHelper.autoNightVisionHysteresis = hyst
+                        }
                         if (camObj.has("isTorchOn")) {
                             val torch = camObj.optBoolean("isTorchOn", false)
                             cameraHelper.setTorch(torch)
@@ -367,6 +377,12 @@ class RemoteCommandHandler(
                             settingsManager.motionCooldownSeconds = cd
                             cameraHelper.motionCooldownSeconds = cd
                         }
+                        if (mdObj.has("playLocalAlarm")) {
+                            settingsManager.playLocalAlarmOnMotion = mdObj.optBoolean("playLocalAlarm", false)
+                        }
+                        if (mdObj.has("mlKitEnabled")) {
+                            settingsManager.mlKitFilterEnabled = mdObj.optBoolean("mlKitEnabled", true)
+                        }
                         if (mdObj.has("categories")) {
                             val catObj = mdObj.optJSONObject("categories")
                             if (catObj != null) {
@@ -395,6 +411,14 @@ class RemoteCommandHandler(
                         if (recObj.has("maxStorageGb")) {
                             val gb = recObj.optDouble("maxStorageGb", 2.0).toFloat()
                             settingsManager.storageLimitGB = gb
+                        }
+                        if (recObj.has("maxEventCount")) {
+                            val maxCount = recObj.optInt("maxEventCount", 200)
+                            settingsManager.maxEventCountLimit = maxCount
+                        }
+                        if (recObj.has("autoCleanup")) {
+                            val autoClean = recObj.optBoolean("autoCleanup", true)
+                            settingsManager.autoStorageCleanupEnabled = autoClean
                         }
                         if (recObj.has("categoryRecording")) {
                             val catRecObj = recObj.optJSONObject("categoryRecording")

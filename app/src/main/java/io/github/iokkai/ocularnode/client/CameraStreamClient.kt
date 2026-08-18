@@ -105,6 +105,11 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
 
         disconnectCallAndJobsOnly()
 
+        _isConnected.value = false
+        _currentFrame.value = null
+        _fps.value = 0
+        _lastFrameTimestamp.value = 0L
+        _cameraStatusJson.value = null
         _isConnecting.value = true
         _statusMessage.value = "Connecting to ${cameraDevice.name} (${cameraDevice.ipAddress})..."
 
@@ -358,6 +363,7 @@ class CameraStreamClient(private val audioEngine: AudioEngine) {
                 val bodyStr = response.body!!.string()
                 val json = JSONObject(bodyStr)
                 response.close()
+                _cameraStatusJson.value = json
                 return@withContext json
             }
             response.close()

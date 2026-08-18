@@ -641,21 +641,23 @@ fun CameraDeviceCard(
         }
     }
 
-    LaunchedEffect(snapshotUrl) {
-        val request = ImageRequest.Builder(context)
-            .data(snapshotUrl)
-            .allowHardware(false)
-            .memoryCachePolicy(CachePolicy.DISABLED)
-            .diskCachePolicy(CachePolicy.DISABLED)
-            .build()
-        val result = context.imageLoader.execute(request)
-        if (result is coil.request.SuccessResult) {
-            val drawable = result.drawable
-            if (drawable is android.graphics.drawable.BitmapDrawable) {
-                currentBitmap = drawable.bitmap.asImageBitmap()
+    LaunchedEffect(snapshotUrl, isOnlineStatus) {
+        if (isOnlineStatus != false) {
+            val request = ImageRequest.Builder(context)
+                .data(snapshotUrl)
+                .allowHardware(false)
+                .memoryCachePolicy(CachePolicy.DISABLED)
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .build()
+            val result = context.imageLoader.execute(request)
+            if (result is coil.request.SuccessResult) {
+                val drawable = result.drawable
+                if (drawable is android.graphics.drawable.BitmapDrawable) {
+                    currentBitmap = drawable.bitmap.asImageBitmap()
+                }
             }
+            isLoading = false
         }
-        isLoading = false
     }
 
     Card(

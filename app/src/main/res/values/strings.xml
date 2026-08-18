@@ -430,6 +430,7 @@
     <string name="remote_powercut_desc">Sends push alert when power is unplugged or battery is low</string>
     <string name="remote_ota_title">Silent Firmware Update (OTA)</string>
     <string name="remote_ota_desc">Checks GitHub Releases for the latest APK. If available, the camera device will quietly download, install, and restart the monitoring service in the background.</string>
+    <string name="remote_ota_current_version">Current Camera Version: %1$s</string>
     <string name="remote_ota_sending">Sending command…</string>
     <string name="remote_ota_btn_check">🚀 Check &amp; Update Camera (OTA)</string>
     <string name="remote_ota_toast_sent">🚀 Update command sent to camera! If an update is available, it will upgrade and restart automatically.</string>

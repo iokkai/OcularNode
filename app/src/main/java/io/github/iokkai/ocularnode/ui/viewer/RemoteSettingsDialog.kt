@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.FlipCameraAndroid
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -119,7 +120,7 @@ fun RemoteSettingsScreen(
     val lensFacing = cameraStatusJson?.optString("lensFacing", "back") ?: "back"
 
     val motionSensitivity = cameraStatusJson?.optDouble("motionSensitivity", 5.0)?.toFloat() ?: 5.0f
-    val motionCooldown = cameraStatusJson?.optInt("motionCooldown", 30) ?: 30
+    val motionCooldown = cameraStatusJson?.optInt("motionCooldownSeconds", cameraStatusJson?.optInt("motionCooldown", 30) ?: 30) ?: 30
     val playLocalAlarm = cameraStatusJson?.optBoolean("playLocalAlarmOnMotion", false) ?: false
     val mlKitEnabled = cameraStatusJson?.optBoolean("mlKitFilterEnabled", true) ?: true
 
@@ -137,39 +138,40 @@ fun RemoteSettingsScreen(
     val notifSchedEnable = cameraStatusJson?.optBoolean("notificationScheduleEnabled", false) ?: (cameraStatusJson?.optJSONObject("notifications")?.optBoolean("scheduleEnabled", false) ?: false)
     val notifSchedStart = cameraStatusJson?.optString("notificationScheduleStart", "22:00")?.ifBlank { "22:00" } ?: "22:00"
     val notifSchedEnd = cameraStatusJson?.optString("notificationScheduleEnd", "06:00")?.ifBlank { "06:00" } ?: "06:00"
+    val remoteAppVersion = cameraStatusJson?.optString("appVersion", "")?.ifBlank { null }
 
-    // Local DraftState
-    var editingName by remember(deviceNameStr) { mutableStateOf(deviceNameStr) }
-    var localResolution by remember(currentRes) { mutableStateOf(currentRes) }
-    var localQuality by remember(currentQuality) { mutableFloatStateOf(currentQuality.toFloat()) }
-    var localSens by remember(motionSensitivity) { mutableFloatStateOf(motionSensitivity) }
-    var localCooldown by remember(motionCooldown) { mutableFloatStateOf(motionCooldown.toFloat()) }
-    var localNightLuma by remember(nightLuma) { mutableFloatStateOf(nightLuma) }
-    var localNightHysteresis by remember(nightHysteresis) { mutableFloatStateOf(nightHysteresis) }
-    var localStorageGB by remember(storageLimitGB) { mutableFloatStateOf(storageLimitGB) }
-    var localMaxEvents by remember(maxEventCount) { mutableFloatStateOf(maxEventCount.toFloat()) }
+    // Local DraftState (remembered once per settings screen session, not reset by background heartbeat polling)
+    var editingName by remember { mutableStateOf(deviceNameStr) }
+    var localResolution by remember { mutableStateOf(currentRes) }
+    var localQuality by remember { mutableFloatStateOf(currentQuality.toFloat()) }
+    var localSens by remember { mutableFloatStateOf(motionSensitivity) }
+    var localCooldown by remember { mutableFloatStateOf(motionCooldown.toFloat()) }
+    var localNightLuma by remember { mutableFloatStateOf(nightLuma) }
+    var localNightHysteresis by remember { mutableFloatStateOf(nightHysteresis) }
+    var localStorageGB by remember { mutableFloatStateOf(storageLimitGB) }
+    var localMaxEvents by remember { mutableFloatStateOf(maxEventCount.toFloat()) }
 
-    var localIsMotion by remember(isMotion) { mutableStateOf(isMotion) }
-    var localNightMode by remember(nightMode) { mutableStateOf(nightMode) }
-    var localOpMode by remember(currentOpMode) { mutableStateOf(currentOpMode) }
-    var localTorchOn by remember(isTorchOn) { mutableStateOf(isTorchOn) }
-    var localLensFacing by remember(lensFacing) { mutableStateOf(lensFacing) }
-    var localPlayLocalAlarm by remember(playLocalAlarm) { mutableStateOf(playLocalAlarm) }
-    var localMlKitEnabled by remember(mlKitEnabled) { mutableStateOf(mlKitEnabled) }
-    var localAutoCleanup by remember(autoCleanup) { mutableStateOf(autoCleanup) }
-    var localAutoStartOnBoot by remember(autoStartOnBoot) { mutableStateOf(autoStartOnBoot) }
-    var localPowerCutAlert by remember(powerCutAlertEnabled) { mutableStateOf(powerCutAlertEnabled) }
-    var localSystemLogEnabled by remember(systemLogEnabled) { mutableStateOf(systemLogEnabled) }
-    var localTelegramMediaType by remember(remoteSendMediaType) { mutableStateOf(remoteSendMediaType) }
+    var localIsMotion by remember { mutableStateOf(isMotion) }
+    var localNightMode by remember { mutableStateOf(nightMode) }
+    var localOpMode by remember { mutableStateOf(currentOpMode) }
+    var localTorchOn by remember { mutableStateOf(isTorchOn) }
+    var localLensFacing by remember { mutableStateOf(lensFacing) }
+    var localPlayLocalAlarm by remember { mutableStateOf(playLocalAlarm) }
+    var localMlKitEnabled by remember { mutableStateOf(mlKitEnabled) }
+    var localAutoCleanup by remember { mutableStateOf(autoCleanup) }
+    var localAutoStartOnBoot by remember { mutableStateOf(autoStartOnBoot) }
+    var localPowerCutAlert by remember { mutableStateOf(powerCutAlertEnabled) }
+    var localSystemLogEnabled by remember { mutableStateOf(systemLogEnabled) }
+    var localTelegramMediaType by remember { mutableStateOf(remoteSendMediaType) }
 
-    var localMotionSchedEnable by remember(motionSchedEnable) { mutableStateOf(motionSchedEnable) }
-    var localMotionSchedStart by remember(motionSchedStart) { mutableStateOf(motionSchedStart) }
-    var localMotionSchedEnd by remember(motionSchedEnd) { mutableStateOf(motionSchedEnd) }
-    var localNotifSchedEnable by remember(notifSchedEnable) { mutableStateOf(notifSchedEnable) }
-    var localNotifSchedStart by remember(notifSchedStart) { mutableStateOf(notifSchedStart) }
-    var localNotifSchedEnd by remember(notifSchedEnd) { mutableStateOf(notifSchedEnd) }
+    var localMotionSchedEnable by remember { mutableStateOf(motionSchedEnable) }
+    var localMotionSchedStart by remember { mutableStateOf(motionSchedStart) }
+    var localMotionSchedEnd by remember { mutableStateOf(motionSchedEnd) }
+    var localNotifSchedEnable by remember { mutableStateOf(notifSchedEnable) }
+    var localNotifSchedStart by remember { mutableStateOf(notifSchedStart) }
+    var localNotifSchedEnd by remember { mutableStateOf(notifSchedEnd) }
 
-    val categoryStates = remember(cameraStatusJson) {
+    val categoryStates = remember {
         val catJson = cameraStatusJson?.optJSONObject("categoryFilters")
         mutableStateMapOf<NotificationCategory, Boolean>().apply {
             NotificationCategory.entries.forEach { cat ->
@@ -177,7 +179,7 @@ fun RemoteSettingsScreen(
             }
         }
     }
-    val categoryRecordStates = remember(cameraStatusJson) {
+    val categoryRecordStates = remember {
         val catRecordJson = cameraStatusJson?.optJSONObject("categoryRecordingFilters")
         mutableStateMapOf<NotificationCategory, Boolean>().apply {
             NotificationCategory.entries.forEach { cat ->
@@ -1210,6 +1212,32 @@ fun RemoteSettingsScreen(
                                             color = textSecondaryColor,
                                             lineHeight = 16.sp
                                         )
+                                        if (!remoteAppVersion.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = brandPrimaryColor.copy(alpha = 0.12f)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Info,
+                                                        contentDescription = null,
+                                                        tint = brandPrimaryColor,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = stringResource(R.string.remote_ota_current_version, remoteAppVersion),
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = brandPrimaryColor
+                                                    )
+                                                }
+                                            }
+                                        }
                                         Spacer(modifier = Modifier.height(12.dp))
 
                                         Button(
