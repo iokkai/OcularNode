@@ -405,6 +405,17 @@ class CameraApiHandler(
                             context.getExternalFilesDir(android.os.Environment.DIRECTORY_MOVIES)?.let { File(it, "OcularNode") }
                         ).any { File(it, File(ev.videoPath).name).exists() }
                     )
+                    val thumbnailStr = if (!ev.thumbnailBase64.isNullOrEmpty()) {
+                        ev.thumbnailBase64
+                    } else if (!ev.snapshotPath.isNullOrEmpty()) {
+                        try {
+                            val f = File(ev.snapshotPath)
+                            if (f.exists() && f.canRead()) {
+                                android.util.Base64.encodeToString(f.readBytes(), android.util.Base64.NO_WRAP)
+                            } else ""
+                        } catch (_: Exception) { "" }
+                    } else ""
+
                     val item = JSONObject().apply {
                         put("id", ev.id)
                         put("timestamp", ev.timestamp)
@@ -413,7 +424,7 @@ class CameraApiHandler(
                         put("downloadUrl", "/download?id=${ev.id}")
                         put("videoUrl", "/video?id=${ev.id}")
                         put("hasVideo", hasVid)
-                        put("thumbnailBase64", ev.thumbnailBase64 ?: "")
+                        put("thumbnailBase64", thumbnailStr)
                         put("aiSummary", ev.aiSummary)
                         put("aiFiltered", ev.aiFiltered)
                         put("cameraName", ev.cameraName)

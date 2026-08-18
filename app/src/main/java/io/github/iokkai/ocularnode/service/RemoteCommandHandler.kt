@@ -240,6 +240,16 @@ class RemoteCommandHandler(
                     Log.i("RemoteCommandHandler", "收到遠端更新指令，開始執行 GitHub Releases 靜默更新...")
                     scope.launch(Dispatchers.IO) {
                         try {
+                            if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                                io.github.iokkai.ocularnode.util.TelegramNotifier.sendSystemAlert(
+                                    botToken = settingsManager.telegramBotToken,
+                                    chatId = settingsManager.telegramChatId,
+                                    deviceName = settingsManager.cameraDeviceName,
+                                    alertTitle = "🚀 *收到遠端 OTA 更新指令*",
+                                    alertDetails = "鏡頭端已確認收到更新請求，正在向 GitHub 檢查最新版本...",
+                                    context = context
+                                )
+                            }
                             UpdateManager.checkAndSilentUpdate(context)
                         } catch (e: Exception) {
                             Log.e("RemoteCommandHandler", "遠端執行靜默更新失敗", e)
