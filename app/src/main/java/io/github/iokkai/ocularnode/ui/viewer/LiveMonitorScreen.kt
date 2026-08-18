@@ -286,6 +286,7 @@ fun LiveMonitorScreen(
 
                     val cpuText = if (cpuVal >= 0) "CPU: $cpuVal%" else "CPU: --"
                     val memText = if (memVal >= 0) "RAM: $memVal%" else "RAM: --"
+                    val pingText = if (pingVal >= 0) "Ping: ${pingVal}ms" else "Ping: --"
                     val serverRes = cameraStatusJson?.optString("resolution", adaptiveState.currentResolution) ?: adaptiveState.currentResolution
                     val serverQual = cameraStatusJson?.optInt("quality", adaptiveState.currentQuality) ?: adaptiveState.currentQuality
                     val adaptiveStatusStr = if (adaptiveState.isEnabled) {

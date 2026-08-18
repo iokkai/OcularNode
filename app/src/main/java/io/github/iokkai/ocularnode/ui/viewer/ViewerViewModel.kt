@@ -129,35 +129,40 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         fetchTailscaleDevicesStatus()
     }
 
-    private val _cameras = MutableStateFlow<List<CameraDevice>>(emptyList())
-    val cameras: StateFlow<List<CameraDevice>> = _cameras.asStateFlow()
+    val cameraList: StateFlow<List<CameraDevice>> = cameraDao.getAllCameras()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+    val cameras: StateFlow<List<CameraDevice>> get() = cameraList
 
     private val _selectedCamera = MutableStateFlow<CameraDevice?>(null)
     val selectedCamera: StateFlow<CameraDevice?> = _selectedCamera.asStateFlow()
 
     fun loadCameras() {
-        viewModelScope.launch {
-            cameraDao.getAllCameras().collect {
-                _cameras.value = it
-            }
-        }
+        // cameraList is directly bound to cameraDao.getAllCameras() via stateIn
     }
 
     fun addCamera(name: String, ipAddress: String, port: Int = 8080) {
-        viewModelScope.launch {
-            val camera = CameraDevice(name = name, ipAddress = ipAddress, port = port)
+        viewModelScope.launch(Dispatchers.IO) {
+            val camera = CameraDevice(
+                name = name.ifBlank { "Camera Node" },
+                ipAddress = ipAddress.trim(),
+                port = port
+            )
             cameraDao.insertCamera(camera)
         }
     }
 
     fun updateCamera(camera: CameraDevice) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             cameraDao.updateCamera(camera)
         }
     }
 
     fun deleteCamera(camera: CameraDevice) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (_selectedCamera.value?.id == camera.id) {
                 disconnectCamera()
             }
