@@ -138,6 +138,7 @@ dependencies {
   implementation("androidx.security:security-crypto:1.1.0")
   implementation(libs.retrofit)
   implementation(libs.stream.webrtc.android)
+  implementation(libs.paho.mqtt)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
