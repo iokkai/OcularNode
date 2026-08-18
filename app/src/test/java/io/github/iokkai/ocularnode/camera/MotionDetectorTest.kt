@@ -21,7 +21,7 @@ class MotionDetectorTest {
         val totalCells = gridWidth * gridHeight
         private var prevGrid = FloatArray(totalCells)
         private var hasPrev = false
-        private var lastMotionTime = 0L
+        private var lastMotionTime = -1000000L // 初始設定為遙遠過去，確保首次偵測正常觸發
 
         fun processFrame(currentGrid: FloatArray, now: Long = System.currentTimeMillis()): Pair<Boolean, Float> {
             if (!hasPrev) {

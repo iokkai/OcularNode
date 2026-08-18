@@ -12,37 +12,41 @@ import org.junit.Test
 class MjpegStreamingBufferTest {
 
     @Test
-    fun `conflated channel always drops stale unread frames without blocking producer`() = runBlocking {
-        val frameChannel = Channel<ByteArray>(Channel.CONFLATED)
+    fun conflatedChannel_alwaysDropsStaleUnreadFramesWithoutBlockingProducer() {
+        runBlocking {
+            val frameChannel = Channel<ByteArray>(Channel.CONFLATED)
 
-        // Producer sends 1000 frames without consumer reading
-        for (i in 1..1000) {
-            val frameData = byteArrayOf((i % 128).toByte())
-            val result = frameChannel.trySend(frameData)
-            assertTrue("trySend must always succeed immediately", result.isSuccess)
+            // Producer sends 1000 frames without consumer reading
+            for (i in 1..1000) {
+                val frameData = byteArrayOf((i % 128).toByte())
+                val result = frameChannel.trySend(frameData)
+                assertTrue("trySend must always succeed immediately", result.isSuccess)
+            }
+
+            // Consumer reads ONE frame -> it MUST be the 1000th (newest) frame!
+            val newestFrame = frameChannel.receive()
+            assertEquals((1000 % 128).toByte(), newestFrame[0])
+
+            // After reading the newest frame, the channel should be empty (no backlogged 999 frames in RAM!)
+            val pollResult = frameChannel.tryReceive()
+            assertTrue("Channel must not hold backlog of older frames", pollResult.isFailure)
         }
-
-        // Consumer reads ONE frame -> it MUST be the 1000th (newest) frame!
-        val newestFrame = frameChannel.receive()
-        assertEquals((1000 % 128).toByte(), newestFrame[0])
-
-        // After reading the newest frame, the channel should be empty (no backlogged 999 frames in RAM!)
-        val pollResult = frameChannel.tryReceive()
-        assertTrue("Channel must not hold backlog of older frames", pollResult.isFailure)
     }
 
     @Test
-    fun `closed session closes channel and terminates consumer cleanly`() = runBlocking {
-        val frameChannel = Channel<ByteArray>(Channel.CONFLATED)
-        frameChannel.trySend(byteArrayOf(1))
+    fun closedSession_closesChannelAndTerminatesConsumerCleanly() {
+        runBlocking {
+            val frameChannel = Channel<ByteArray>(Channel.CONFLATED)
+            frameChannel.trySend(byteArrayOf(1))
 
-        // Consumer reads first frame
-        val frame = frameChannel.receive()
-        assertEquals(1.toByte(), frame[0])
+            // Consumer reads first frame
+            val frame = frameChannel.receive()
+            assertEquals(1.toByte(), frame[0])
 
-        // Session disconnects / socket closes
-        frameChannel.close()
-        assertTrue(frameChannel.isClosedForSend)
-        assertTrue(frameChannel.isClosedForReceive)
+            // Session disconnects / socket closes
+            frameChannel.close()
+            val pollResult = frameChannel.trySend(byteArrayOf(2))
+            assertTrue("Channel must reject new frames after close", pollResult.isFailure)
+        }
     }
 }

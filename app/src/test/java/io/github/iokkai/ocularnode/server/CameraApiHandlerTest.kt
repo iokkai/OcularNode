@@ -5,11 +5,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.io.File
 
 /**
  * 測試鏡頭端 REST API 與遠端設定狀態序列化 (Camera API Status JSON & Path Traversal Security)。
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class CameraApiHandlerTest {
 
     data class MockCameraStatus(

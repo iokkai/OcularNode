@@ -5,10 +5,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * 測試免碰觸部署 QR Code Payload 解析與驗證 (Zero-Touch Provisioning QR Payload & Role Validation)。
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class ZeroTouchProvisionTest {
 
     data class ProvisionConfig(

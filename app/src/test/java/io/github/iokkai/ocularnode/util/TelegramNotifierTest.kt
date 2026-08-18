@@ -43,41 +43,47 @@ class TelegramNotifierTest {
     }
 
     @Test
-    fun `executeWithRetry succeeds on first attempt if network is healthy`() = runBlocking {
-        var attempts = 0
-        val result = executeWithRetry(maxRetries = 2) {
-            attempts++
-            "SUCCESS"
+    fun executeWithRetry_succeedsOnFirstAttemptIfNetworkHealthy() {
+        runBlocking {
+            var attempts = 0
+            val result = executeWithRetry(maxRetries = 2) {
+                attempts++
+                "SUCCESS"
+            }
+            assertEquals("SUCCESS", result)
+            assertEquals(1, attempts)
         }
-        assertEquals("SUCCESS", result)
-        assertEquals(1, attempts)
     }
 
     @Test
-    fun `executeWithRetry recovers successfully on second attempt after transient network glitch`() = runBlocking {
-        var attempts = 0
-        val result = executeWithRetry(maxRetries = 2) { attempt ->
-            attempts++
-            if (attempt == 0) {
-                throw IOException("Temporary Wi-Fi drop")
+    fun executeWithRetry_recoversSuccessfullyOnSecondAttemptAfterTransientGlitch() {
+        runBlocking {
+            var attempts = 0
+            val result = executeWithRetry(maxRetries = 2) { attempt ->
+                attempts++
+                if (attempt == 0) {
+                    throw IOException("Temporary Wi-Fi drop")
+                }
+                "RECOVERED_SUCCESS"
             }
-            "RECOVERED_SUCCESS"
+            assertEquals("RECOVERED_SUCCESS", result)
+            assertEquals(2, attempts)
         }
-        assertEquals("RECOVERED_SUCCESS", result)
-        assertEquals(2, attempts)
     }
 
     @Test(expected = IOException::class)
-    fun `executeWithRetry throws IOException when all retries are exhausted`() = runBlocking {
-        var attempts = 0
-        executeWithRetry<String>(maxRetries = 2) {
-            attempts++
-            throw IOException("Network unreachable")
+    fun executeWithRetry_throwsIOExceptionWhenAllRetriesExhausted() {
+        runBlocking {
+            var attempts = 0
+            executeWithRetry<String>(maxRetries = 2) {
+                attempts++
+                throw IOException("Network unreachable")
+            }
         }
     }
 
     @Test
-    fun `formatMotionCaption formats alert text with AI summary when present`() {
+    fun formatMotionCaption_formatsAlertTextWithAiSummaryWhenPresent() {
         val caption = formatMotionCaption(
             deviceName = "LivingRoom-Cam",
             motionPercentage = 12.5f,
