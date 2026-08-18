@@ -22,8 +22,34 @@ class PackageInstallReceiver : BroadcastReceiver() {
             if (status == PackageInstaller.STATUS_SUCCESS) {
                 Log.i("PackageInstallReceiver", "APK 安裝成功！Package: $packageName")
                 val settingsManager = SettingsManager.getInstance(context)
-                val authKey = settingsManager.tailscaleAuthKey
-                ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
+
+                if (packageName == context.packageName || packageName.isBlank() || packageName.contains("ocularnode", ignoreCase = true)) {
+                    Log.i("PackageInstallReceiver", "偵測到 OcularNode 自身更新完成，立即拉起 MainActivity 與服務...")
+                    try {
+                        val activityIntent = Intent(context, io.github.iokkai.ocularnode.MainActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        context.startActivity(activityIntent)
+                        Log.i("PackageInstallReceiver", "已成功透過 PackageInstallReceiver 喚醒並啟動 MainActivity")
+                    } catch (e: Exception) {
+                        Log.e("PackageInstallReceiver", "無法啟動 MainActivity", e)
+                    }
+
+                    try {
+                        val serviceIntent = Intent(context, io.github.iokkai.ocularnode.service.CameraStreamService::class.java)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
+                        } else {
+                            context.startService(serviceIntent)
+                        }
+                        Log.i("PackageInstallReceiver", "已成功透過 PackageInstallReceiver 啟動 CameraStreamService")
+                    } catch (e: Exception) {
+                        Log.e("PackageInstallReceiver", "無法啟動 CameraStreamService", e)
+                    }
+                } else {
+                    val authKey = settingsManager.tailscaleAuthKey
+                    ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
+                }
             } else if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
                 val confirmationIntent = androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)
                 if (confirmationIntent != null) {
