@@ -1281,9 +1281,17 @@ fun RemoteSettingsScreen(
 
                     3 -> {
                         // TAB 4: Telegram Sync Card
+                        val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context) }
+                        var isLocalTgSynced by remember { mutableStateOf(false) }
                         val remoteBotToken = cameraStatusJson?.optString("telegramBotToken", "") ?: ""
                         val remoteChatId = cameraStatusJson?.optString("telegramChatId", "") ?: ""
-                        val hasRemoteTelegram = remoteBotToken.isNotBlank() && remoteChatId.isNotBlank()
+                        val isConfiguredInJson = cameraStatusJson?.optBoolean("telegramConfigured", false) == true
+                        val hasRemoteTelegram = isLocalTgSynced || isConfiguredInJson || (remoteBotToken.isNotBlank() && remoteChatId.isNotBlank())
+                        val displayChatId = if (isLocalTgSynced && settingsManager.telegramChatId.isNotBlank()) {
+                            settingsManager.telegramChatId
+                        } else {
+                            remoteChatId.ifBlank { if (hasRemoteTelegram) settingsManager.telegramChatId else "" }
+                        }
 
                         Card(
                             shape = RoundedCornerShape(20.dp),
@@ -1304,9 +1312,9 @@ fun RemoteSettingsScreen(
                                             fontSize = 13.sp,
                                             color = if (hasRemoteTelegram) AppSuccess else AppError
                                         )
-                                        if (hasRemoteTelegram) {
+                                        if (hasRemoteTelegram && displayChatId.isNotBlank()) {
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            Text("Chat ID: $remoteChatId", fontSize = 11.sp, color = AppSuccessDark)
+                                            Text("Chat ID: $displayChatId", fontSize = 11.sp, color = AppSuccessDark)
                                         }
                                     }
                                 }
@@ -1320,8 +1328,13 @@ fun RemoteSettingsScreen(
 
                                 Button(
                                     onClick = {
-                                        onSyncTelegram()
-                                        Toast.makeText(context, context.getString(R.string.remote_settings_toast_success), Toast.LENGTH_SHORT).show()
+                                        if (settingsManager.telegramBotToken.isBlank() && settingsManager.telegramChatId.isBlank()) {
+                                            Toast.makeText(context, "請先於觀看端設定 Telegram Bot Token 與 Chat ID", Toast.LENGTH_LONG).show()
+                                        } else {
+                                            onSyncTelegram()
+                                            isLocalTgSynced = true
+                                            Toast.makeText(context, context.getString(R.string.remote_settings_toast_success), Toast.LENGTH_SHORT).show()
+                                        }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = brandPrimaryColor, contentColor = Color.White),
                                     shape = RoundedCornerShape(12.dp),
