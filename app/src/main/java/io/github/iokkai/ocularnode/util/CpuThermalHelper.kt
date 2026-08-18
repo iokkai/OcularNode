@@ -26,7 +26,7 @@ object CpuThermalHelper {
                     HardwarePropertiesManager.DEVICE_TEMPERATURE_CPU,
                     HardwarePropertiesManager.TEMPERATURE_CURRENT
                 )
-                if (!temps.isNullOrEmpty()) {
+                if (temps != null && temps.isNotEmpty()) {
                     val validTemps = temps.filter { it in 15.0f..115.0f }
                     if (validTemps.isNotEmpty()) {
                         return validTemps.maxOrNull()
