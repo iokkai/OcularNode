@@ -43,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -191,75 +192,6 @@ fun LiveMonitorScreen(
             }
         }
 
-        // Top-Left Zoom Overlay Controls
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 68.dp, start = 12.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(AppOverlayDark)
-                .padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = { zoomScale = (zoomScale - 0.25f).coerceIn(1f, 5f) },
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(Icons.Default.ZoomOut, contentDescription = stringResource(R.string.monitor_btn_zoom_out), tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { zoomScale = 1f; panOffset = Offset.Zero }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = String.format("%.1fx", zoomScale),
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-            }
-            IconButton(
-                onClick = { zoomScale = (zoomScale + 0.25f).coerceIn(1f, 5f) },
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(Icons.Default.ZoomIn, contentDescription = stringResource(R.string.monitor_btn_zoom_in), tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        }
-
-        // Top-Right Rotate Overlay Controls
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 70.dp, end = 12.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(AppOverlayDark)
-                .padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = {
-                    coroutineScope.launch {
-                        viewModel.sendControlCommandSuspend("rotation", "-1")
-                    }
-                },
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.RotateLeft, contentDescription = stringResource(R.string.monitor_btn_rotate_left), tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-            IconButton(
-                onClick = {
-                    coroutineScope.launch {
-                        viewModel.sendControlCommandSuspend("rotation", "+1")
-                    }
-                },
-                modifier = Modifier.size(34.dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = stringResource(R.string.monitor_btn_rotate_right), tint = Color.White, modifier = Modifier.size(18.dp))
-            }
-        }
-
         // Top Status Header Overlay
         Row(
             modifier = Modifier
@@ -279,7 +211,25 @@ fun LiveMonitorScreen(
                 }
                 Spacer(modifier = Modifier.width(4.dp))
                 Column {
-                    Text(camera.name, color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    val remoteAppVersion = cameraStatusJson?.optString("appVersion", "")?.ifBlank { null }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(camera.name, color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        if (!remoteAppVersion.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = AppPrimaryContainer
+                            ) {
+                                Text(
+                                    text = if (remoteAppVersion.startsWith("v")) remoteAppVersion else "v$remoteAppVersion",
+                                    color = AppOnPrimaryContainer,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
+                    }
                     val cpuVal = cameraStatusJson?.optInt("cpuUsage", -1) ?: -1
                     val memVal = cameraStatusJson?.optInt("memoryUsage", -1) ?: -1
                     val pingVal = cameraStatusJson?.optInt("pingMs", -1) ?: -1
@@ -326,6 +276,75 @@ fun LiveMonitorScreen(
                 ) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings", tint = AppPrimary, modifier = Modifier.size(18.dp))
                 }
+            }
+        }
+
+        // Top-Left Zoom Overlay Controls (position below Top Status Header)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 96.dp, start = 12.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AppOverlayDark)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = { zoomScale = (zoomScale - 0.25f).coerceIn(1f, 5f) },
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(Icons.Default.ZoomOut, contentDescription = stringResource(R.string.monitor_btn_zoom_out), tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { zoomScale = 1f; panOffset = Offset.Zero }
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = String.format("%.1fx", zoomScale),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+            IconButton(
+                onClick = { zoomScale = (zoomScale + 0.25f).coerceIn(1f, 5f) },
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(Icons.Default.ZoomIn, contentDescription = stringResource(R.string.monitor_btn_zoom_in), tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
+
+        // Top-Right Rotate Overlay Controls (position below Top Status Header)
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 96.dp, end = 12.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(AppOverlayDark)
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        viewModel.sendControlCommandSuspend("rotation", "-1")
+                    }
+                },
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.RotateLeft, contentDescription = stringResource(R.string.monitor_btn_rotate_left), tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+            IconButton(
+                onClick = {
+                    coroutineScope.launch {
+                        viewModel.sendControlCommandSuspend("rotation", "+1")
+                    }
+                },
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.RotateRight, contentDescription = stringResource(R.string.monitor_btn_rotate_right), tint = Color.White, modifier = Modifier.size(18.dp))
             }
         }
 
