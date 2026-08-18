@@ -46,7 +46,12 @@ class AdminReceiver : DeviceAdminReceiver() {
                 val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
                 val admin = ZeroTouchProvisionManager.getAdminComponent(context)
                 if (dpm?.isDeviceOwnerApp(context.packageName) == true) {
-                    dpm.setAutoTimeRequired(admin, true)
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        dpm.setAutoTimeEnabled(admin, true)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        dpm.setAutoTimeRequired(admin, true)
+                    }
                     Log.i("AdminReceiver", "已成功啟用 Device Owner 強制 NTP 自動校時 (Auto Time Required)")
                 }
             } catch (e: Exception) {

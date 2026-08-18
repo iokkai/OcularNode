@@ -14,41 +14,41 @@ class MlKitFilterHelperTest {
 
     @Test
     fun `maps person and human related keywords to HUMAN_AND_ACTIVITY`() {
-        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategoryForLabel("person"))
-        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategoryForLabel("man"))
-        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategoryForLabel("woman"))
-        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategoryForLabel("child"))
-        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategoryForLabel("running"))
+        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategory("person"))
+        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategory("man"))
+        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategory("woman"))
+        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategory("child"))
+        assertEquals(NotificationCategory.HUMAN_AND_ACTIVITY, LabelMapper.getCategory("running"))
     }
 
     @Test
     fun `maps pet and animal keywords to PET_AND_ANIMAL`() {
-        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategoryForLabel("dog"))
-        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategoryForLabel("cat"))
-        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategoryForLabel("bird"))
-        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategoryForLabel("puppy"))
+        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategory("dog"))
+        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategory("cat"))
+        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategory("bird"))
+        assertEquals(NotificationCategory.PET_AND_ANIMAL, LabelMapper.getCategory("puppy"))
     }
 
     @Test
     fun `maps vehicle keywords to VEHICLE_AND_TRANSPORT`() {
-        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategoryForLabel("car"))
-        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategoryForLabel("motorcycle"))
-        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategoryForLabel("bicycle"))
-        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategoryForLabel("truck"))
+        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategory("car"))
+        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategory("motorcycle"))
+        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategory("bicycle"))
+        assertEquals(NotificationCategory.VEHICLE_AND_TRANSPORT, LabelMapper.getCategory("truck"))
     }
 
     @Test
     fun `maps household items to HOUSEHOLD_ITEM`() {
-        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategoryForLabel("chair"))
-        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategoryForLabel("couch"))
-        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategoryForLabel("laptop"))
-        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategoryForLabel("bottle"))
+        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategory("chair"))
+        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategory("couch"))
+        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategory("laptop"))
+        assertEquals(NotificationCategory.HOUSEHOLD_ITEM, LabelMapper.getCategory("bottle"))
     }
 
     @Test
     fun `unknown labels fallback safely to OTHER`() {
-        assertEquals(NotificationCategory.OTHER, LabelMapper.getCategoryForLabel("completely_unknown_alien_object"))
-        assertEquals(NotificationCategory.OTHER, LabelMapper.getCategoryForLabel(""))
+        assertEquals(NotificationCategory.OTHER, LabelMapper.getCategory("completely_unknown_alien_object"))
+        assertEquals(NotificationCategory.OTHER, LabelMapper.getCategory(""))
     }
 
     @Test
@@ -56,15 +56,15 @@ class MlKitFilterHelperTest {
         val enabledCategories = setOf(NotificationCategory.HUMAN_AND_ACTIVITY)
 
         // When "person" is detected -> category is enabled -> pass
-        val personCategory = LabelMapper.getCategoryForLabel("person")
+        val personCategory = LabelMapper.getCategory("person")
         assertTrue(enabledCategories.contains(personCategory))
 
         // When "dog" is detected -> category is disabled -> blocked
-        val petCategory = LabelMapper.getCategoryForLabel("dog")
+        val petCategory = LabelMapper.getCategory("dog")
         assertFalse(enabledCategories.contains(petCategory))
 
         // When "chair" is detected -> category is disabled -> blocked
-        val itemCategory = LabelMapper.getCategoryForLabel("chair")
+        val itemCategory = LabelMapper.getCategory("chair")
         assertFalse(enabledCategories.contains(itemCategory))
     }
 }

@@ -158,7 +158,12 @@ fun MainAppScreen(
                 val adminComponent = ZeroTouchProvisionManager.getAdminComponent(context)
                 dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.CAMERA, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
                 dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
-                dpm?.setAutoTimeRequired(adminComponent, true)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    dpm?.setAutoTimeEnabled(adminComponent, true)
+                } else {
+                    @Suppress("DEPRECATION")
+                    dpm?.setAutoTimeRequired(adminComponent, true)
+                }
                 Log.i("MainActivity", "自動賦予相機與麥克風權限並啟用 NTP 自動校時成功")
             } catch (e: Exception) {
                 Log.e("MainActivity", "自動配置 DO 權限或校時失敗", e)
