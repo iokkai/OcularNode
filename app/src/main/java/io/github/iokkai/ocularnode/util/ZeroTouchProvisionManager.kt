@@ -384,10 +384,10 @@ object ZeroTouchProvisionManager {
                 Log.i(TAG, "成功注入 Tailscale Restriction (AuthKey: ${authKey.take(10)}...)")
             }
 
-            // 2. 強制啟動 Always-On VPN
+            // 2. 啟動 Always-On VPN (lockdownEnabled 設為 false，避免封鎖非 VPN 連線導致無法連線或解析 Telegram 等外網服務)
             try {
-                dpm.setAlwaysOnVpnPackage(admin, TAILSCALE_PACKAGE, true)
-                Log.i(TAG, "成功設置 Tailscale 為 Always-On VPN")
+                dpm.setAlwaysOnVpnPackage(admin, TAILSCALE_PACKAGE, false)
+                Log.i(TAG, "成功設置 Tailscale 為 Always-On VPN (非封鎖模式)")
             } catch (e: Exception) {
                 Log.e(TAG, "設置 Always-On VPN 失敗 (Tailscale 可能尚未安裝完成)", e)
             }
