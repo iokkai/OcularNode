@@ -67,14 +67,14 @@ class CameraManagerHelper(private val context: Context) {
         private set
     var isTorchOn: Boolean = false
         private set
-    var jpegQuality: Int = 60
-    var currentResolutionString: String = "720p"
+    var jpegQuality: Int = 30
+    var currentResolutionString: String = "360p"
     var nightVisionMode: String = "auto" // "off", "on", "auto"
     var isNightVisionActive: Boolean = false
         private set
     var dynamicFpsAdjustmentEnabled: Boolean = false
     var dynamicScaleFactor = 1.0f
-    var defaultJpegQuality: Int = 60
+    var defaultJpegQuality: Int = 30
     private var lastProcessedFrameTime = 0L
     private var dynamicTargetFps = 15
     var targetFps: Int

@@ -272,13 +272,13 @@ class SettingsManager(context: Context) {
         set(value) = prefs.edit().putInt(KEY_STREAM_ROTATION, value).apply()
 
     var defaultQuality: Int // JPEG compression 30..90
-        get() = prefs.getInt(KEY_DEFAULT_QUALITY, 60)
+        get() = prefs.getInt(KEY_DEFAULT_QUALITY, 30)
         set(value) = prefs.edit().putInt(KEY_DEFAULT_QUALITY, value).apply()
 
     var defaultResolution: String // "720p", "960p", "480p", "360p", "1080p"
         get() {
-            val res = prefs.getString(KEY_DEFAULT_RESOLUTION, "720p") ?: "720p"
-            return if (res.equals("Max", ignoreCase = true)) "720p" else res
+            val res = prefs.getString(KEY_DEFAULT_RESOLUTION, "360p") ?: "360p"
+            return if (res.equals("Max", ignoreCase = true)) "360p" else res
         }
         set(value) = prefs.edit().putString(KEY_DEFAULT_RESOLUTION, value).apply()
 

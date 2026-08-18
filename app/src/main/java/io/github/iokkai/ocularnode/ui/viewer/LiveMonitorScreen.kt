@@ -191,37 +191,11 @@ fun LiveMonitorScreen(
             }
         }
 
-        // Top-Left Adaptive Mode Badge Overlay
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = 68.dp, start = 12.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    if (adaptiveState.isDowngraded) AppWarning
-                    else if (adaptiveState.isEnabled) AppPrimary
-                    else AppTextSecondary
-                )
-                .clickable {
-                    viewModel.setAdaptiveModeEnabled(!adaptiveState.isEnabled)
-                }
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = adaptiveState.labelText,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp
-                )
-            }
-        }
-
         // Top-Left Zoom Overlay Controls
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(top = 108.dp, start = 12.dp)
+                .padding(top = 68.dp, start = 12.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(AppOverlayDark)
                 .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -312,8 +286,14 @@ fun LiveMonitorScreen(
 
                     val cpuText = if (cpuVal >= 0) "CPU: $cpuVal%" else "CPU: --"
                     val memText = if (memVal >= 0) "RAM: $memVal%" else "RAM: --"
-                    val pingText = if (pingVal >= 0) "Ping: ${pingVal}ms" else "Ping: --"
-                    val adaptiveStatusStr = if (adaptiveState.isDowngraded) "⚡ Adaptive: ${adaptiveState.currentResolution} (${adaptiveState.reasonText})" else if (adaptiveState.isEnabled) "⚡ Adaptive: ${adaptiveState.currentResolution}" else "⚡ Adaptive: Off"
+                    val serverRes = cameraStatusJson?.optString("resolution", adaptiveState.currentResolution) ?: adaptiveState.currentResolution
+                    val serverQual = cameraStatusJson?.optInt("quality", adaptiveState.currentQuality) ?: adaptiveState.currentQuality
+                    val adaptiveStatusStr = if (adaptiveState.isEnabled) {
+                        if (adaptiveState.isDowngraded) "⚡ 自適應: $serverRes (${adaptiveState.reasonText})"
+                        else "⚡ 自適應: $serverRes (${serverQual}%)"
+                    } else {
+                        "⚡ 解析度: $serverRes (${serverQual}% 手動)"
+                    }
 
                     Text("$cpuText | $memText | $pingText\n$adaptiveStatusStr", color = AppPrimary, fontWeight = FontWeight.SemiBold, fontSize = 10.sp)
                 }

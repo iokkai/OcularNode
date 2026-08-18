@@ -75,8 +75,8 @@ class MjpegHttpServer(
     @Volatile var isNightVisionActive: Boolean = false
     @Volatile var operatingMode: String = "monitor"
     @Volatile var lensFacing: String = "Back"
-    @Volatile var resolution: String = "720p"
-    @Volatile var quality: Int = 60
+    @Volatile var resolution: String = "360p"
+    @Volatile var quality: Int = 30
     @Volatile var nightVisionMode: String = "auto"
     @Volatile var isTorchOn: Boolean = false
     @Volatile var isMotionEnabled: Boolean = true

@@ -200,7 +200,7 @@ class WebDashboardProvider(private val context: Context) {
         <div class="video-card">
             <img id="stream" src="/mjpeg" class="video-feed" alt="$sVideoAlt" onerror="onStreamError()">
             <div style="position: absolute; top: 12px; left: 12px; display: flex; gap: 6px;">
-                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">720p (Quality 60%)</span>
+                <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="res-badge">360p (Quality 30%)</span>
                 <span style="background: rgba(15,23,42,0.8); color: white; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #334155;" id="zoom-badge">1.0x</span>
             </div>
             <div style="position: absolute; bottom: 12px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap;">

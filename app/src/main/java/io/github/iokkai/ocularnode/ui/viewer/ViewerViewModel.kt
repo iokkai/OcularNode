@@ -19,12 +19,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class AdaptiveModeState(
-    val isEnabled: Boolean = true,
+    val isEnabled: Boolean = false,
     val isDowngraded: Boolean = false,
-    val currentResolution: String = "720p",
-    val currentQuality: Int = 60,
-    val targetFps: Int = 30,
-    val labelText: String = "⚡ Adaptive: Auto",
+    val currentResolution: String = "360p",
+    val currentQuality: Int = 30,
+    val targetFps: Int = 15,
+    val labelText: String = "⚡ 360p (手動模式)",
     val reasonText: String = "",
     val pingMs: Int = -1,
     val fps: Int = 0
@@ -65,6 +65,19 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                 _isTailscaleConnected.value = ipInfo.isTailscaleConnected
                 _isVpnActive.value = ipInfo.isVpnActive
                 _tailscaleIp.value = ipInfo.tailscaleIp
+            }
+        }
+        viewModelScope.launch {
+            streamClient.cameraStatusJson.collect { json ->
+                if (!_adaptiveState.value.isEnabled && json != null) {
+                    val res = json.optString("resolution", "360p")
+                    val qual = json.optInt("quality", 30)
+                    _adaptiveState.value = _adaptiveState.value.copy(
+                        currentResolution = res,
+                        currentQuality = qual,
+                        labelText = "⚡ $res ($qual% 手動)"
+                    )
+                }
             }
         }
         fetchTailscaleDevicesStatus()
@@ -116,35 +129,35 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         fetchTailscaleDevicesStatus()
     }
 
-    val cameraList: StateFlow<List<CameraDevice>> = cameraDao.getAllCameras()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _cameras = MutableStateFlow<List<CameraDevice>>(emptyList())
+    val cameras: StateFlow<List<CameraDevice>> = _cameras.asStateFlow()
 
     private val _selectedCamera = MutableStateFlow<CameraDevice?>(null)
     val selectedCamera: StateFlow<CameraDevice?> = _selectedCamera.asStateFlow()
 
+    fun loadCameras() {
+        viewModelScope.launch {
+            cameraDao.getAllCameras().collect {
+                _cameras.value = it
+            }
+        }
+    }
+
     fun addCamera(name: String, ipAddress: String, port: Int = 8080) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val camera = CameraDevice(
-                name = name.ifBlank { "Camera Node" },
-                ipAddress = ipAddress.trim(),
-                port = port
-            )
+        viewModelScope.launch {
+            val camera = CameraDevice(name = name, ipAddress = ipAddress, port = port)
             cameraDao.insertCamera(camera)
         }
     }
 
     fun updateCamera(camera: CameraDevice) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             cameraDao.updateCamera(camera)
         }
     }
 
     fun deleteCamera(camera: CameraDevice) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             if (_selectedCamera.value?.id == camera.id) {
                 disconnectCamera()
             }
@@ -163,9 +176,14 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setAdaptiveModeEnabled(enabled: Boolean) {
+        val curRes = streamClient.cameraStatusJson.value?.optString("resolution", _adaptiveState.value.currentResolution) ?: _adaptiveState.value.currentResolution
+        val curQual = streamClient.cameraStatusJson.value?.optInt("quality", _adaptiveState.value.currentQuality) ?: _adaptiveState.value.currentQuality
         _adaptiveState.value = _adaptiveState.value.copy(
             isEnabled = enabled,
-            labelText = if (enabled) "⚡ Adaptive Mode: Auto" else "⚡ Adaptive: Off"
+            isDowngraded = false,
+            currentResolution = curRes,
+            currentQuality = curQual,
+            labelText = if (enabled) "⚡ 自適應: $curRes" else "⚡ 解析度: $curRes ($curQual% 手動)"
         )
         if (enabled) {
             startAdaptiveResolutionMonitor()
@@ -182,6 +200,8 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
             var severeConsecutiveCount = 0
             var recoveryConsecutiveCount = 0
             var lastDowngradeTime = 0L
+            var lastUpgradeTime = 0L
+            var flappingLockoutUntil = 0L
 
             while (isActive) {
                 delay(2000L)
@@ -204,16 +224,23 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                 val now = System.currentTimeMillis()
                 val timeSinceLastFrame = if (lastFrameTs > 0) now - lastFrameTs else 0L
 
-                val serverRes = statusJson?.optString("resolution", "720p") ?: "720p"
-                val serverQual = statusJson?.optInt("quality", 60) ?: 60
+                val serverRes = statusJson?.optString("resolution", "360p") ?: "360p"
+                val serverQual = statusJson?.optInt("quality", 30) ?: 30
 
-                // Dynamic Adaptive FPS & Resolution Trigger Conditions
-                val isSevereLowFps = (currentFps in 1..5 && lastFrameTs > 0) || (currentFps == 0 && isConnected && now - lastDowngradeTime > 3000)
-                val isModerateLowFps = currentFps in 6..12 && lastFrameTs > 0
-                val isHighPing = pingMs > 280
-                val isSeverePing = pingMs > 450
-                val isFrameLag = lastFrameTs > 0 && timeSinceLastFrame > 1500
-                val isSevereFrameLag = lastFrameTs > 0 && timeSinceLastFrame > 2500
+                val currentLevel = when (serverRes) {
+                    "360p" -> 0
+                    "480p" -> 1
+                    "720p" -> 2
+                    "1080p" -> 3
+                    else -> 0
+                }
+
+                val isSevereLowFps = (currentFps in 1..5 && lastFrameTs > 0) || (currentFps == 0 && isConnected && now - lastDowngradeTime > 5000)
+                val isModerateLowFps = currentFps in 6..11 && lastFrameTs > 0
+                val isHighPing = pingMs > 350
+                val isSeverePing = pingMs > 600
+                val isFrameLag = lastFrameTs > 0 && timeSinceLastFrame > 2000
+                val isSevereFrameLag = lastFrameTs > 0 && timeSinceLastFrame > 3500
 
                 val needsLagAction = isModerateLowFps || isHighPing || isFrameLag
                 val needsSevereAction = isSevereLowFps || isSeverePing || isSevereFrameLag
@@ -229,25 +256,28 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                 } else {
                     lagConsecutiveCount = 0
                     severeConsecutiveCount = 0
-                    if (pingMs in 1..200 && currentFps >= 15 && timeSinceLastFrame < 1000) {
+                    if (pingMs in 1..150 && currentFps >= 14 && timeSinceLastFrame < 800 && now > flappingLockoutUntil) {
                         recoveryConsecutiveCount++
                     } else {
                         recoveryConsecutiveCount = 0
                     }
                 }
 
-                // Severe Downgrade: FPS <= 5 or High Ping > 450ms -> Switch to 360p Quality 20% & Target 15 FPS
-                if (severeConsecutiveCount >= 1 && (serverRes != "360p" || serverQual > 20) && (now - lastDowngradeTime > 3000)) {
+                if (severeConsecutiveCount >= 2 && currentLevel > 0 && (now - lastDowngradeTime > 5000)) {
+                    if (now - lastUpgradeTime < 30_000L) {
+                        flappingLockoutUntil = now + 120_000L
+                    }
                     lastDowngradeTime = now
+                    recoveryConsecutiveCount = 0
                     streamClient.sendControlCommand(camera, "resolution", "360p")
                     streamClient.sendControlCommand(camera, "quality", "20")
                     streamClient.sendControlCommand(camera, "fps", "15")
 
                     val reason = when {
-                        isSevereLowFps -> "FPS critically low ($currentFps FPS)"
-                        isSeverePing -> "High Ping (${pingMs}ms)"
-                        isSevereFrameLag -> "Stuttering (${timeSinceLastFrame}ms)"
-                        else -> "Network & FPS loss"
+                        isSevereLowFps -> "FPS 極低 ($currentFps FPS)"
+                        isSeverePing -> "延遲過高 (${pingMs}ms)"
+                        isSevereFrameLag -> "嚴重延遲 (${timeSinceLastFrame}ms)"
+                        else -> "網路重度卡頓"
                     }
                     _adaptiveState.value = AdaptiveModeState(
                         isEnabled = true,
@@ -255,62 +285,76 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                         currentResolution = "360p",
                         currentQuality = 20,
                         targetFps = 15,
-                        labelText = "⚡ Adaptive: 360p ($reason / Quality 20%)",
+                        labelText = "⚡ 自適應: 360p ($reason)",
                         reasonText = reason,
                         pingMs = pingMs,
                         fps = currentFps
                     )
                 }
-                // Moderate Downgrade: FPS 6..12 or Ping > 280ms -> Switch to 480p Quality 30% & Target 20 FPS
-                else if (lagConsecutiveCount >= 2 && !_adaptiveState.value.isDowngraded && (now - lastDowngradeTime > 3000)) {
+                else if (lagConsecutiveCount >= 3 && currentLevel > 0 && (now - lastDowngradeTime > 6000)) {
+                    if (now - lastUpgradeTime < 30_000L) {
+                        flappingLockoutUntil = now + 120_000L
+                    }
                     lastDowngradeTime = now
-                    streamClient.sendControlCommand(camera, "resolution", "480p")
-                    streamClient.sendControlCommand(camera, "quality", "30")
-                    streamClient.sendControlCommand(camera, "fps", "20")
+                    recoveryConsecutiveCount = 0
+                    val nextLevel = (currentLevel - 1).coerceAtLeast(0)
+                    val (nextRes, nextQual, nextFps) = when (nextLevel) {
+                        0 -> Triple("360p", 25, 15)
+                        1 -> Triple("480p", 30, 15)
+                        else -> Triple("360p", 20, 15)
+                    }
+                    streamClient.sendControlCommand(camera, "resolution", nextRes)
+                    streamClient.sendControlCommand(camera, "quality", nextQual.toString())
+                    streamClient.sendControlCommand(camera, "fps", nextFps.toString())
 
                     val reason = when {
-                        isModerateLowFps -> "FPS low ($currentFps FPS)"
-                        isHighPing -> "High Ping (${pingMs}ms)"
-                        isFrameLag -> "Frame lag"
-                        else -> "Network & FPS instability"
+                        isModerateLowFps -> "FPS 偏低 ($currentFps FPS)"
+                        isHighPing -> "延遲偏高 (${pingMs}ms)"
+                        isFrameLag -> "影格延遲"
+                        else -> "網路不穩"
                     }
                     _adaptiveState.value = AdaptiveModeState(
                         isEnabled = true,
                         isDowngraded = true,
-                        currentResolution = "480p",
-                        currentQuality = 30,
-                        targetFps = 20,
-                        labelText = "⚡ Adaptive: 480p ($reason / Quality 30%)",
+                        currentResolution = nextRes,
+                        currentQuality = nextQual,
+                        targetFps = nextFps,
+                        labelText = "⚡ 自適應: $nextRes ($reason)",
                         reasonText = reason,
                         pingMs = pingMs,
                         fps = currentFps
                     )
                 }
-                // Auto Recovery: Restore to 720p Quality 60% & 30 FPS after 5 consecutive stable checks (10s)
-                else if (recoveryConsecutiveCount >= 5 && _adaptiveState.value.isDowngraded) {
+                else if (recoveryConsecutiveCount >= 15 && currentLevel < 2 && now > flappingLockoutUntil && (now - lastDowngradeTime > 20000)) {
                     recoveryConsecutiveCount = 0
-                    lastDowngradeTime = now
-                    streamClient.sendControlCommand(camera, "resolution", "720p")
-                    streamClient.sendControlCommand(camera, "quality", "60")
-                    streamClient.sendControlCommand(camera, "fps", "30")
+                    lastUpgradeTime = now
+                    val nextLevel = currentLevel + 1
+                    val (nextRes, nextQual, nextFps) = when (nextLevel) {
+                        1 -> Triple("480p", 30, 15)
+                        2 -> Triple("720p", 40, 20)
+                        else -> Triple("480p", 30, 15)
+                    }
+                    streamClient.sendControlCommand(camera, "resolution", nextRes)
+                    streamClient.sendControlCommand(camera, "quality", nextQual.toString())
+                    streamClient.sendControlCommand(camera, "fps", nextFps.toString())
 
                     _adaptiveState.value = AdaptiveModeState(
                         isEnabled = true,
                         isDowngraded = false,
-                        currentResolution = "720p",
-                        currentQuality = 60,
-                        targetFps = 30,
-                        labelText = "⚡ Adaptive: Auto (${serverRes} / $currentFps FPS)",
-                        reasonText = "Smooth connection restored",
+                        currentResolution = nextRes,
+                        currentQuality = nextQual,
+                        targetFps = nextFps,
+                        labelText = "⚡ 自適應: $nextRes ($nextQual%)",
+                        reasonText = "連線良好已升級",
                         pingMs = pingMs,
                         fps = currentFps
                     )
                 } else {
                     val cur = _adaptiveState.value
                     val label = if (cur.isDowngraded) {
-                        "⚡ Adaptive: ${serverRes} (${cur.reasonText})"
+                        "⚡ 自適應: ${serverRes} (${cur.reasonText})"
                     } else {
-                        "⚡ Adaptive: Auto (${serverRes} / ${currentFps} FPS)"
+                        "⚡ 自適應: ${serverRes} (${serverQual}%)"
                     }
                     _adaptiveState.value = cur.copy(
                         currentResolution = serverRes,
