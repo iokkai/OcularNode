@@ -3,10 +3,15 @@
 [English](README_en.md) | [正體中文](README.md)
 
 [![Android CI](https://github.com/iokkai/OcularNode/actions/workflows/android.yml/badge.svg)](https://github.com/iokkai/OcularNode/actions)
+[![Development Status](https://img.shields.io/badge/Status-Under%20Active%20Development-orange.svg)](https://github.com/iokkai/OcularNode)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=24)
 
 > 📱 **Transform spare Android smartphones into dedicated, high-performance smart surveillance cameras.**
+
+> [!WARNING]
+> ⚠️ **Project Under Active Development (WIP / Experimental)**  
+> This project is under intensive development. **All features are currently experimental, unstable, and subject to breaking changes.** It is not intended for mission-critical security setups. Feedback, issues, and PRs are warmly welcome!
 
 > [!IMPORTANT]
 > 🔒 **100% Zero Central Server・Maximum Privacy Guarantee**  

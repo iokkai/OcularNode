@@ -3,11 +3,16 @@
 [English](README_en.md) | [正體中文](README.md)
 
 [![Android CI](https://github.com/iokkai/OcularNode/actions/workflows/android.yml/badge.svg)](https://github.com/iokkai/OcularNode/actions)
+[![Development Status](https://img.shields.io/badge/Status-Under%20Active%20Development-orange.svg)](https://github.com/iokkai/OcularNode)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=24)
 
 > 📱 **Transform spare Android smartphones into dedicated, high-performance smart surveillance cameras.**  
 > 將閒置舊 Android 手機化身為專業、低功耗、支援安全內網穿透的專用智慧監控節點。
+
+> [!WARNING]
+> ⚠️ **專案處於積極開發階段（Under Active Development / WIP）**  
+> 本專案目前仍處於密集開發與實驗階段，**所有功能皆不穩定且可能隨時變動**。請勿使用於高度關鍵性或高風險安防場景。歡迎提出 Issue、回報 Bug 與參與測試！
 
 > [!IMPORTANT]
 > 🔒 **100% 無中央伺服器・極致隱私保障 (Zero Central Server / Decentralized)**  
