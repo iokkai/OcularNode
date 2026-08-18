@@ -50,3 +50,9 @@
 # --- Data Models ---
 -keep class io.github.iokkai.ocularnode.data.** { *; }
 
+# --- WebRTC ---
+-keep class org.webrtc.** { *; }
+-dontwarn org.webrtc.**
+-keep class io.getstream.webrtc.android.** { *; }
+-dontwarn io.getstream.webrtc.android.**
+

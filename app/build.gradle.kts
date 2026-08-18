@@ -137,6 +137,7 @@ dependencies {
   implementation("com.google.zxing:core:3.5.4")
   implementation("androidx.security:security-crypto:1.1.0")
   implementation(libs.retrofit)
+  implementation(libs.stream.webrtc.android)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

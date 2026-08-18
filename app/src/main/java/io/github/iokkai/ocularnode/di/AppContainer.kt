@@ -37,4 +37,8 @@ class AppContainer(private val context: Context) {
     val audioEngine: AudioEngine by lazy {
         AudioEngine()
     }
+
+    val webRtcSessionManager: io.github.iokkai.ocularnode.webrtc.WebRtcSessionManager by lazy {
+        io.github.iokkai.ocularnode.webrtc.WebRtcSessionManager(context)
+    }
 }

@@ -41,9 +41,11 @@ secretsGradlePlugin = "2.0.1"
 googleServices = "4.5.0"
 credentials = "1.5.0"
 googleid = "1.1.1"
+streamWebRtc = "1.1.4"
 
 
 [libraries]
+stream-webrtc-android = { group = "io.getstream", name = "stream-webrtc-android", version.ref = "streamWebRtc" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
