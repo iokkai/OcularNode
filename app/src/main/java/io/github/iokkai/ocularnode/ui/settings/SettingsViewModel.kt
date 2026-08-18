@@ -221,12 +221,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val startTime = timeFormat.format(java.util.Date())
             _syncStatus.value = "⏳ [$startTime] Syncing to cameras..."
 
+            val token = _botToken.value
+            val id = _chatId.value
+            if (token.isBlank() && id.isBlank()) {
+                _syncStatus.value = "⚠️ [$startTime] 請先填寫 Telegram Bot Token 與 Chat ID"
+                return@launch
+            }
+
             try {
-                val token = _botToken.value
-                val id = _chatId.value
                 val cameras = AppDatabase.getDatabase(getApplication()).cameraDeviceDao().getCamerasListOnce()
                 if (cameras.isEmpty()) {
-                    _syncStatus.value = "⚠️ [$startTime] No camera devices linked"
+                    _syncStatus.value = "⚠️ [$startTime] 未找到已連線之鏡頭裝置"
                     return@launch
                 }
 
@@ -241,6 +246,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     put("mediaType", _telegramSendMediaType.value)
                 }.toString()
 
+                val pin = settingsManager.httpPinCode
                 var syncedCount = 0
                 val errors = mutableListOf<String>()
                 for (cam in cameras) {
@@ -250,12 +256,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             put("value", configJson)
                         }
                         val body = reqJson.toString().toRequestBody("application/json".toMediaType())
-                        val request = Request.Builder()
+                        val reqBuilder = Request.Builder()
                             .url(cam.getControlUrl())
                             .post(body)
-                            .build()
 
-                        val response = client.newCall(request).execute()
+                        if (pin.isNotBlank()) {
+                            reqBuilder.addHeader("X-PIN-Code", pin)
+                        }
+
+                        val response = client.newCall(reqBuilder.build()).execute()
                         if (response.isSuccessful) syncedCount++
                         response.close()
                     } catch (e: Exception) {
@@ -265,14 +274,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
                 val finishTime = timeFormat.format(java.util.Date())
                 if (syncedCount > 0) {
-                    _syncStatus.value = "⚡ [$finishTime] Successfully synced to $syncedCount connected cameras"
+                    _syncStatus.value = "⚡ [$finishTime] 成功同步至 $syncedCount 台鏡頭"
                 } else {
                     val failedList = errors.joinToString(", ")
-                    _syncStatus.value = "❌ [$finishTime] Cannot connect to camera: $failedList\nPlease ensure camera service is running on the same network"
+                    _syncStatus.value = "❌ [$finishTime] 無法連線至鏡頭: $failedList\n請確認鏡頭服務是否在同一網路中運作"
                 }
             } catch (e: Exception) {
                 Log.e("SettingsViewModel", "Error syncing to cameras", e)
-                _syncStatus.value = "❌ Sync error: ${e.message}"
+                _syncStatus.value = "❌ 同步發生錯誤: ${e.message}"
             } finally {
                 _isSyncing.value = false
             }

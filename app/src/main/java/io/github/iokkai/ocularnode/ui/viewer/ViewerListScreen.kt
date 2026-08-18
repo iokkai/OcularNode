@@ -149,9 +149,11 @@ fun ViewerListScreen(
             onSyncTelegram = {
                 val token = viewModel.settingsManager.telegramBotToken
                 val chatId = viewModel.settingsManager.telegramChatId
+                val mediaType = viewModel.settingsManager.telegramSendMediaType
                 val json = org.json.JSONObject().apply {
                     put("token", token)
                     put("chatId", chatId)
+                    put("mediaType", mediaType)
                 }.toString()
                 viewModel.sendControlCommandToCamera(camera, "telegram_config", json)
             },

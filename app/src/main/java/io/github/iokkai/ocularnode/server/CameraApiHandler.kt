@@ -226,7 +226,10 @@ class CameraApiHandler(
             put("notificationScheduleEnabled", settingsManager.notificationScheduleEnabled)
             put("notificationScheduleStart", settingsManager.notificationScheduleStartTime)
             put("notificationScheduleEnd", settingsManager.notificationScheduleEndTime)
-            put("telegramConfigured", settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank())
+            val isTgConfigured = settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()
+            put("telegramConfigured", isTgConfigured)
+            put("telegramChatId", settingsManager.telegramChatId)
+            put("telegramBotToken", if (settingsManager.telegramBotToken.isNotBlank()) "configured" else "")
             put("httpAuthEnabled", settingsManager.httpAuthEnabled)
 
             val catJson = JSONObject()
