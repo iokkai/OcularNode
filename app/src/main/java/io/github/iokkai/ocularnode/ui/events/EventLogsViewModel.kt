@@ -149,10 +149,15 @@ class EventLogsViewModel(application: Application) : AndroidViewModel(applicatio
                 .readTimeout(5, TimeUnit.SECONDS)
                 .build()
 
+            val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(getApplication())
+            val pin = settingsManager.httpPinCode
             val url = "http://${camera.ipAddress}:${camera.port}/events"
             try {
-                val request = Request.Builder().url(url).get().build()
-                val response = client.newCall(request).execute()
+                val reqBuilder = Request.Builder().url(url).get()
+                if (pin.isNotBlank()) {
+                    reqBuilder.addHeader("X-PIN-Code", pin)
+                }
+                val response = client.newCall(reqBuilder.build()).execute()
 
                 if (response.isSuccessful && response.body != null) {
                     val bodyStr = response.body!!.string()

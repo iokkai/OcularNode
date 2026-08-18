@@ -97,13 +97,17 @@ class MotionPipelineManager(
                 filesDir = context.filesDir
             )
 
+            val thumbBase64 = if (thumbnailBytes.isNotEmpty()) {
+                android.util.Base64.encodeToString(thumbnailBytes, android.util.Base64.NO_WRAP)
+            } else null
+
             val ipAddresses = NetworkUtils.getIpAddresses(context)
             val event = MotionEvent(
                 timestamp = timestamp,
                 cameraName = settingsManager.cameraDeviceName,
                 cameraIp = ipAddresses.tailscaleIp ?: ipAddresses.localIp ?: "Unknown",
                 motionPercentage = percentage,
-                thumbnailBase64 = null,
+                thumbnailBase64 = thumbBase64,
                 isRead = false,
                 telegramSentSuccess = false,
                 aiSummary = aiSummary,

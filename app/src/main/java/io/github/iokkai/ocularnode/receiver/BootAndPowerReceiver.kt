@@ -50,6 +50,7 @@ class BootAndPowerReceiver : BroadcastReceiver() {
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                             val options = android.app.ActivityOptions.makeBasic()
+                            @Suppress("DEPRECATION")
                             options.setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                             val pi = android.app.PendingIntent.getActivity(
                                 context, 0, activityIntent,

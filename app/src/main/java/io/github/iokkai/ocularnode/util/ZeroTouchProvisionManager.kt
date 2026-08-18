@@ -507,8 +507,19 @@ object ZeroTouchProvisionManager {
 
                 Log.i(TAG, "當前本機: $currentVersionName (code: $currentVersionCode), GitHub 最新: $tagName, isNewer=$isNewer")
 
+                val settings = SettingsManager.getInstance(context)
                 if (isNewer) {
                     Log.i(TAG, "發現新版本 ($tagName)！準備背景下載 APK 並執行特權靜默更新...")
+                    if (settings.telegramBotToken.isNotBlank() && settings.telegramChatId.isNotBlank()) {
+                        TelegramNotifier.sendSystemAlert(
+                            botToken = settings.telegramBotToken,
+                            chatId = settings.telegramChatId,
+                            deviceName = settings.cameraDeviceName,
+                            alertTitle = "📦 *發現新版本 ($tagName)*",
+                            alertDetails = "已下載最新版本 APK 並驗證簽名，即將執行靜默安裝並自動重啟...",
+                            context = context
+                        )
+                    }
 
                     // 2. 背景下載：挑選符合當前裝置架構之 APK browser_download_url
                     val assets = jsonObject.optJSONArray("assets")
@@ -541,6 +552,16 @@ object ZeroTouchProvisionManager {
                     }
                 } else {
                     Log.i(TAG, "當前已是最新版本，無需更新")
+                    if (settings.telegramBotToken.isNotBlank() && settings.telegramChatId.isNotBlank()) {
+                        TelegramNotifier.sendSystemAlert(
+                            botToken = settings.telegramBotToken,
+                            chatId = settings.telegramChatId,
+                            deviceName = settings.cameraDeviceName,
+                            alertTitle = "✅ *軟體已是最新版本*",
+                            alertDetails = "目前版本 ($currentVersionName) 已是 GitHub 最新版 ($tagName)，無需更新。",
+                            context = context
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
