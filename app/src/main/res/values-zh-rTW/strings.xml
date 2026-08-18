@@ -209,6 +209,10 @@
     <string name="settings_power_alert_title">斷電與低電量警報</string>
     <string name="settings_power_alert_desc_on">由「充電中」轉為「放電中」或電量低於 60% 時立即發送 Telegram 警報</string>
     <string name="settings_power_alert_desc_off">關閉電源與低電量警報推播</string>
+    <string name="settings_scheduled_reboot_title">⏰ 定期排程自我淨化重啟</string>
+    <string name="settings_scheduled_reboot_desc">於指定時間自動重開機（需具備 Device Owner 權限），徹底清理長期運作累積之記憶體碎片與 NPU 暫存器</string>
+    <string name="settings_scheduled_reboot_time_label">重啟執行時間</string>
+    <string name="settings_scheduled_reboot_do_required">⚠️ 此功能需具備 Device Owner 特權方可執行系統級自動重啟</string>
 
     <!-- 9. 設定 - 動態、AI 與排程 -->
     <string name="settings_motion_group">動態警報敏感度與冷卻</string>

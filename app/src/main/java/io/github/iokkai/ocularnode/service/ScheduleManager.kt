@@ -1,18 +1,27 @@
 package io.github.iokkai.ocularnode.service
 
+import android.app.admin.DevicePolicyManager
+import android.content.Context
 import android.util.Log
 import io.github.iokkai.ocularnode.camera.CameraManagerHelper
 import io.github.iokkai.ocularnode.data.SettingsManager
+import io.github.iokkai.ocularnode.util.TelegramNotifier
+import io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 /**
- * Manages schedule evaluation and periodically synchronizes motion detection state.
+ * Manages schedule evaluation, motion detection state, and scheduled self-healing reboot.
  */
 class ScheduleManager(
+    private val context: Context,
     private val scope: CoroutineScope,
     private val settingsManager: SettingsManager,
     private val cameraHelper: CameraManagerHelper
@@ -24,6 +33,7 @@ class ScheduleManager(
 
         scheduleJob = scope.launch {
             while (true) {
+                // 1. Motion detection schedule
                 if (settingsManager.motionScheduleEnabled) {
                     val isTime = isCurrentTimeInSchedule(
                         settingsManager.motionScheduleStartTime,
@@ -36,7 +46,72 @@ class ScheduleManager(
                         Log.i("ScheduleManager", "Schedule changed motion detection to: $isTime")
                     }
                 }
+
+                // 2. Scheduled Self-Healing Reboot (Problem 7)
+                if (settingsManager.scheduledRebootEnabled) {
+                    checkAndPerformScheduledReboot()
+                }
+
                 delay(60000L) // check every minute
+            }
+        }
+    }
+
+    private fun checkAndPerformScheduledReboot() {
+        val now = Calendar.getInstance()
+        val currentH = now.get(Calendar.HOUR_OF_DAY)
+        val currentM = now.get(Calendar.MINUTE)
+        val targetTime = settingsManager.scheduledRebootTime.ifBlank { "04:00" }
+        val parts = targetTime.split(":")
+        val targetH = parts.getOrNull(0)?.toIntOrNull() ?: 4
+        val targetM = parts.getOrNull(1)?.toIntOrNull() ?: 0
+
+        if (currentH == targetH && currentM == targetM) {
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            if (settingsManager.lastScheduledRebootDate == todayStr) {
+                // Already rebooted today
+                return
+            }
+
+            val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+            val isDO = dpm?.isDeviceOwnerApp(context.packageName) == true
+
+            if (!isDO) {
+                Log.w("ScheduleManager", "Scheduled reboot triggered but app is not Device Owner. Skipping.")
+                return
+            }
+
+            if (cameraHelper.isRecordingVideo) {
+                Log.w("ScheduleManager", "Scheduled reboot postponed: camera is currently recording video.")
+                return
+            }
+
+            Log.i("ScheduleManager", "⏰ Triggering scheduled self-healing reboot at $targetTime...")
+            settingsManager.lastScheduledRebootDate = todayStr
+
+            // Send Telegram alert if configured
+            if (settingsManager.telegramBotToken.isNotBlank() && settingsManager.telegramChatId.isNotBlank()) {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        TelegramNotifier.sendSystemAlert(
+                            botToken = settingsManager.telegramBotToken,
+                            chatId = settingsManager.telegramChatId,
+                            deviceName = settingsManager.cameraDeviceName,
+                            alertTitle = "⏰ [系統排程自我淨化重啟]",
+                            alertDetails = "執行每日/每週定時記憶體與硬體自癒重開機 ($todayStr $targetTime)",
+                            context = context
+                        )
+                    } catch (e: Exception) {
+                        Log.e("ScheduleManager", "Error sending reboot notification", e)
+                    }
+                }
+            }
+
+            val admin = ZeroTouchProvisionManager.getAdminComponent(context)
+            try {
+                dpm.reboot(admin)
+            } catch (e: Exception) {
+                Log.e("ScheduleManager", "Failed to execute dpm.reboot", e)
             }
         }
     }

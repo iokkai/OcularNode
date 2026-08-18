@@ -67,6 +67,9 @@ class SettingsManager(context: Context) {
         private const val KEY_HTTP_AUTH_ENABLED = "http_auth_enabled"
         private const val KEY_EVENT_VIDEO_RECORDING_ENABLED = "pref_event_video_recording_enabled"
         private const val KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING = "has_dismissed_tailscale_onboarding"
+        private const val KEY_SCHEDULED_REBOOT_ENABLED = "scheduled_reboot_enabled"
+        private const val KEY_SCHEDULED_REBOOT_TIME = "scheduled_reboot_time"
+        private const val KEY_LAST_SCHEDULED_REBOOT_DATE = "last_scheduled_reboot_date"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
@@ -346,4 +349,16 @@ class SettingsManager(context: Context) {
     var hasDismissedTailscaleOnboarding: Boolean
         get() = prefs.getBoolean(KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING, false)
         set(value) = prefs.edit().putBoolean(KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING, value).apply()
+
+    var scheduledRebootEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SCHEDULED_REBOOT_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_SCHEDULED_REBOOT_ENABLED, value).apply()
+
+    var scheduledRebootTime: String
+        get() = prefs.getString(KEY_SCHEDULED_REBOOT_TIME, "04:00") ?: "04:00"
+        set(value) = prefs.edit().putString(KEY_SCHEDULED_REBOOT_TIME, value).apply()
+
+    var lastScheduledRebootDate: String
+        get() = prefs.getString(KEY_LAST_SCHEDULED_REBOOT_DATE, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LAST_SCHEDULED_REBOOT_DATE, value).apply()
 }

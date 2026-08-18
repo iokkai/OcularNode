@@ -209,6 +209,10 @@
     <string name="settings_power_alert_title">Power Cut &amp; Low Battery Alert</string>
     <string name="settings_power_alert_desc_on">Send Telegram alert when unplugged or battery drops below 60%</string>
     <string name="settings_power_alert_desc_off">Power status alert notifications disabled</string>
+    <string name="settings_scheduled_reboot_title">⏰ Scheduled Self-Healing Reboot</string>
+    <string name="settings_scheduled_reboot_desc">Auto reboot at scheduled time (requires Device Owner) to prevent long-term memory leaks &amp; NPU fragmentation</string>
+    <string name="settings_scheduled_reboot_time_label">Reboot Execution Time</string>
+    <string name="settings_scheduled_reboot_do_required">⚠️ Requires Device Owner permission to execute scheduled system reboot</string>
 
     <!-- 9. Settings - Motion, AI & Schedule -->
     <string name="settings_motion_group">Motion Alert Sensitivity &amp; Cooldown</string>

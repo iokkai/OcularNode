@@ -153,14 +153,15 @@ fun MainAppScreen(
             val activity = context as? MainActivity
             val settingsManager = SettingsManager.getInstance(context)
             
-            // 自動賦予鏡頭與麥克風權限 (僅限 Device Owner 權限)
+            // 自動賦予鏡頭與麥克風權限並啟用 NTP 自動校時 (僅限 Device Owner 權限)
             try {
                 val adminComponent = ZeroTouchProvisionManager.getAdminComponent(context)
                 dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.CAMERA, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
                 dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
-                Log.i("MainActivity", "自動賦予相機與麥克風權限成功")
+                dpm?.setAutoTimeRequired(adminComponent, true)
+                Log.i("MainActivity", "自動賦予相機與麥克風權限並啟用 NTP 自動校時成功")
             } catch (e: Exception) {
-                Log.e("MainActivity", "自動賦予權限失敗", e)
+                Log.e("MainActivity", "自動配置 DO 權限或校時失敗", e)
             }
 
             // 自動啟動相機背景串流服務

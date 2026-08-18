@@ -41,6 +41,18 @@ class AdminReceiver : DeviceAdminReceiver() {
                 settingsManager.tailscaleAuthKey = authKey
             }
 
+            // 強制開啟系統 NTP 自動校時 (防止長期斷網離線導致時鐘漂移與 TLS 證書失效)
+            try {
+                val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+                val admin = ZeroTouchProvisionManager.getAdminComponent(context)
+                if (dpm?.isDeviceOwnerApp(context.packageName) == true) {
+                    dpm.setAutoTimeRequired(admin, true)
+                    Log.i("AdminReceiver", "已成功啟用 Device Owner 強制 NTP 自動校時 (Auto Time Required)")
+                }
+            } catch (e: Exception) {
+                Log.w("AdminReceiver", "設定 AutoTimeRequired 失敗", e)
+            }
+
             // 1. 自動喚醒並啟動 MainActivity (確保在 Provisioning 結束後自動開啟 App 畫面)
             try {
                 val launchIntent = Intent(context, io.github.iokkai.ocularnode.MainActivity::class.java).apply {

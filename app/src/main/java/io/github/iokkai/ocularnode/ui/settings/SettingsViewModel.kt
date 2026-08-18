@@ -106,6 +106,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _httpPinCode = MutableStateFlow(settingsManager.httpPinCode)
     val httpPinCode: StateFlow<String> = _httpPinCode.asStateFlow()
 
+    private val _scheduledRebootEnabled = MutableStateFlow(settingsManager.scheduledRebootEnabled)
+    val scheduledRebootEnabled: StateFlow<Boolean> = _scheduledRebootEnabled.asStateFlow()
+
+    private val _scheduledRebootTime = MutableStateFlow(settingsManager.scheduledRebootTime)
+    val scheduledRebootTime: StateFlow<String> = _scheduledRebootTime.asStateFlow()
+
+    fun updateScheduledRebootEnabled(enabled: Boolean) {
+        _scheduledRebootEnabled.value = enabled
+        settingsManager.scheduledRebootEnabled = enabled
+    }
+
+    fun updateScheduledRebootTime(time: String) {
+        val trimmed = time.trim()
+        _scheduledRebootTime.value = trimmed
+        if (trimmed.isNotBlank()) {
+            settingsManager.scheduledRebootTime = trimmed
+        }
+    }
+
     fun updateHttpAuthEnabled(enabled: Boolean) {
         _httpAuthEnabled.value = enabled
         settingsManager.httpAuthEnabled = enabled

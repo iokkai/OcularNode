@@ -134,6 +134,7 @@ class CameraStreamService : Service(), LifecycleOwner {
         )
 
         scheduleManager = ScheduleManager(
+            context = this,
             scope = serviceScope,
             settingsManager = settingsManager,
             cameraHelper = cameraHelper

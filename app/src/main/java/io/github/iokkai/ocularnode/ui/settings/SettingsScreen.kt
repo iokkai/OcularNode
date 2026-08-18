@@ -124,6 +124,10 @@ fun SettingsScreen(
         }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val dpm = remember(context) { context.getSystemService(android.content.Context.DEVICE_POLICY_SERVICE) as? android.app.admin.DevicePolicyManager }
+    val isDeviceOwner = remember(context, dpm) { dpm?.isDeviceOwnerApp(context.packageName) == true }
+
     val roleMode by viewModel.roleMode.collectAsState()
     val botToken by viewModel.botToken.collectAsState()
     val chatId by viewModel.chatId.collectAsState()
@@ -149,6 +153,8 @@ fun SettingsScreen(
     val dynamicFpsAdjustmentEnabled by viewModel.dynamicFpsAdjustmentEnabled.collectAsState()
     val httpAuthEnabled by viewModel.httpAuthEnabled.collectAsState()
     val httpPinCode by viewModel.httpPinCode.collectAsState()
+    val scheduledRebootEnabled by viewModel.scheduledRebootEnabled.collectAsState()
+    val scheduledRebootTime by viewModel.scheduledRebootTime.collectAsState()
     val storageLimitGB by viewModel.storageLimitGB.collectAsState()
     val maxEventCount by viewModel.maxEventCount.collectAsState()
     val cleanupStatus by viewModel.cleanupStatus.collectAsState()
@@ -392,6 +398,88 @@ fun SettingsScreen(
                                 checkedTrackColor = AppError
                             )
                         )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
+
+                    // Scheduled Self-Healing Reboot (Problem 7)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(R.string.settings_scheduled_reboot_title),
+                                    color = AppTextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                if (!isDeviceOwner) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        color = AppWarning.copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "DO",
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                                            color = AppWarning,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                stringResource(R.string.settings_scheduled_reboot_desc),
+                                color = AppTextSecondary,
+                                fontSize = 11.sp
+                            )
+                            if (!isDeviceOwner && scheduledRebootEnabled) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    stringResource(R.string.settings_scheduled_reboot_do_required),
+                                    color = AppWarning,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        Switch(
+                            checked = scheduledRebootEnabled,
+                            onCheckedChange = { viewModel.updateScheduledRebootEnabled(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AppPrimary,
+                                uncheckedThumbColor = AppTextSecondary,
+                                uncheckedTrackColor = AppSecondaryContainer
+                            )
+                        )
+                    }
+
+                    AnimatedVisibility(visible = scheduledRebootEnabled) {
+                        Column(modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+                            val ctx = androidx.compose.ui.platform.LocalContext.current
+                            OutlinedButton(
+                                onClick = {
+                                    val parts = scheduledRebootTime.split(":")
+                                    val h = parts.getOrNull(0)?.toIntOrNull() ?: 4
+                                    val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                                    android.app.TimePickerDialog(ctx, { _, hourOfDay, minute ->
+                                        viewModel.updateScheduledRebootTime(String.format("%02d:%02d", hourOfDay, minute))
+                                    }, h, m, true).show()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    "${stringResource(R.string.settings_scheduled_reboot_time_label)}: $scheduledRebootTime",
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
