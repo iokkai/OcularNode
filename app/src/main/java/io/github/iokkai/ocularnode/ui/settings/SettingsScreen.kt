@@ -1420,11 +1420,37 @@ fun SettingsScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
-                        Text(
-                            "v${BuildConfig.VERSION_NAME}",
-                            color = AppTextMuted,
-                            fontSize = 12.sp
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "v${BuildConfig.VERSION_NAME}",
+                                color = AppTextMuted,
+                                fontSize = 12.sp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val buildChannel = BuildConfig.BUILD_CHANNEL
+                            val badgeColor = when {
+                                BuildConfig.DEBUG -> Color(0xFFF59E0B)
+                                buildChannel.contains("Local", ignoreCase = true) -> Color(0xFF3B82F6)
+                                else -> Color(0xFF10B981)
+                            }
+                            val badgeText = when {
+                                BuildConfig.DEBUG -> "Debug"
+                                buildChannel.contains("Local", ignoreCase = true) -> "Local"
+                                else -> "Release"
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = badgeColor.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = badgeColor,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                )
+                            }
+                        }
                     }
                 }
                 Icon(

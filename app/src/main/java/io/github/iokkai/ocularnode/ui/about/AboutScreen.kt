@@ -277,19 +277,52 @@ fun AboutScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Clean version badge: directly display version number
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = AppPrimaryContainer,
+                    // Clean version badge: display version number & build channel badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.padding(vertical = 2.dp)
                     ) {
-                        Text(
-                            text = "v${BuildConfig.VERSION_NAME}",
-                            color = AppOnPrimaryContainer,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = AppPrimaryContainer,
+                        ) {
+                            Text(
+                                text = "v${BuildConfig.VERSION_NAME}",
+                                color = AppOnPrimaryContainer,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        val buildChannel = BuildConfig.BUILD_CHANNEL
+                        val badgeColor = when {
+                            BuildConfig.DEBUG -> Color(0xFFF59E0B)
+                            buildChannel.contains("Local", ignoreCase = true) -> Color(0xFF3B82F6)
+                            else -> Color(0xFF10B981)
+                        }
+                        val badgeText = when {
+                            BuildConfig.DEBUG -> "Debug"
+                            buildChannel.contains("Local", ignoreCase = true) -> "Local Release"
+                            else -> "Release"
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = badgeColor.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.5f))
+                        ) {
+                            Text(
+                                text = badgeText,
+                                color = badgeColor,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -991,7 +1024,7 @@ private fun UpdateAvailableDialog(
                                 color = AppOnPrimaryContainer
                             )
                             Text(
-                                text = "目前版本: v${BuildConfig.VERSION_NAME}",
+                                text = "目前版本: v${BuildConfig.VERSION_NAME} (${if (BuildConfig.DEBUG) "Debug" else BuildConfig.BUILD_CHANNEL})",
                                 fontSize = 11.sp,
                                 color = AppTextSecondary
                             )

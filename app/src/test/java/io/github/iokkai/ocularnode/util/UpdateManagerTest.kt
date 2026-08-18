@@ -65,6 +65,24 @@ class UpdateManagerTest {
                 currentVersionCode = 1L
             )
         )
+
+        // v0.0.7 is NEWER than local debug version 0.0.1-debug
+        assertTrue(
+            UpdateManager.isRemoteNewer(
+                remoteTagName = "v0.0.7",
+                currentVersionName = "0.0.1-debug",
+                currentVersionCode = 1L
+            )
+        )
+
+        // v0.0.7 is NEWER than local release version 0.0.1-local
+        assertTrue(
+            UpdateManager.isRemoteNewer(
+                remoteTagName = "v0.0.7",
+                currentVersionName = "0.0.1-local",
+                currentVersionCode = 1L
+            )
+        )
     }
 
     @Test

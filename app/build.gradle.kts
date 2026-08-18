@@ -9,7 +9,8 @@ plugins {
 val runNumber = project.findProperty("versionCode") as? String
 val computedVersionCode = runNumber?.toIntOrNull() ?: 1
 val runName = project.findProperty("versionName") as? String
-val computedVersionName = if (!runName.isNullOrBlank()) runName else "0.$computedVersionCode"
+val isCiBuild = !runName.isNullOrBlank()
+val computedVersionName = if (isCiBuild) runName else "0.0.$computedVersionCode"
 
 base {
   archivesName.set("OcularNode-v$computedVersionName")
@@ -63,11 +64,16 @@ android {
   }
 
   buildTypes {
+    debug {
+      versionNameSuffix = "-debug"
+      buildConfigField("String", "BUILD_CHANNEL", "\"Debug\"")
+    }
     release {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
+      buildConfigField("String", "BUILD_CHANNEL", if (isCiBuild) "\"Release\"" else "\"Local-Release\"")
     }
   }
   compileOptions {
