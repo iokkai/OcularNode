@@ -88,6 +88,7 @@ class CameraStreamService : Service(), LifecycleOwner {
 
     val isThermalThrottled: StateFlow<Boolean> get() = batteryMonitor.isThermalThrottled
     val batteryTemp: StateFlow<Float> get() = batteryMonitor.batteryTemp
+    val cpuTemp: StateFlow<Float?> get() = batteryMonitor.cpuTemp
 
     inner class LocalBinder : Binder() {
         fun getService(): CameraStreamService = this@CameraStreamService
@@ -103,6 +104,11 @@ class CameraStreamService : Service(), LifecycleOwner {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+
+        val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        if (currentYear < 2025) {
+            Log.w("CameraStreamService", "⚠️ 警告：系統時鐘異常 (年份: $currentYear)！可能為無電池手機斷電重啟後尚未完成 NTP 網路校時。")
+        }
 
         settingsManager = SettingsManager.getInstance(this)
         if (settingsManager.deviceRoleMode == "VIEWER") {

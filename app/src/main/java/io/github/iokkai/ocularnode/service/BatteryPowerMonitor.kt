@@ -36,6 +36,9 @@ class BatteryPowerMonitor(
     private val _batteryTemp = MutableStateFlow(0.0f)
     val batteryTemp: StateFlow<Float> = _batteryTemp.asStateFlow()
 
+    private val _cpuTemp = MutableStateFlow<Float?>(null)
+    val cpuTemp: StateFlow<Float?> = _cpuTemp.asStateFlow()
+
     fun register() {
         if (batteryReceiver != null) return
 
@@ -55,47 +58,65 @@ class BatteryPowerMonitor(
                 val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
                 val batteryPct = if (level >= 0 && scale > 0) (level * 100 / scale.toFloat()).toInt() else -1
 
-                // Battery Temperature Monitoring & Thermal Throttling
+                // Dual-Source Thermal Monitoring (Battery & CPU)
                 val tempTenths = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)
-                if (tempTenths > 0) {
-                    val tempCelsius = tempTenths / 10.0f
+                val tempCelsius = if (tempTenths > 0) tempTenths / 10.0f else 0.0f
+                if (tempCelsius > 0f) {
                     _batteryTemp.value = tempCelsius
+                }
 
-                    val highTempThreshold = 45.0f
-                    val recoveryTempThreshold = 42.0f
+                val currentCpuTemp = io.github.iokkai.ocularnode.util.CpuThermalHelper.getCpuTemperature(context)
+                _cpuTemp.value = currentCpuTemp
 
-                    if (tempCelsius >= highTempThreshold && !_isThermalThrottled.value) {
-                        _isThermalThrottled.value = true
-                        Log.w("BatteryPowerMonitor", "🔥 Thermal Throttling ACTIVATED! Battery Temp: ${tempCelsius}°C >= ${highTempThreshold}°C")
+                val highBatteryThreshold = 45.0f
+                val recoveryBatteryThreshold = 42.0f
+                val highCpuThreshold = 65.0f
+                val recoveryCpuThreshold = 58.0f
 
-                        onThermalThrottleStart()
+                val isBatteryHot = tempCelsius >= highBatteryThreshold
+                val isCpuHot = currentCpuTemp != null && currentCpuTemp >= highCpuThreshold
+                val isOverheated = isBatteryHot || isCpuHot
 
-                        // Send alert via Telegram
-                        scope.launch(Dispatchers.IO) {
-                            TelegramNotifier.sendSystemAlert(
-                                botToken = settingsManager.telegramBotToken,
-                                chatId = settingsManager.telegramChatId,
-                                deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = context.getString(R.string.tg_alert_thermal_start_title),
-                                alertDetails = context.getString(R.string.tg_alert_thermal_start_desc, tempCelsius, highTempThreshold),
-                                context = context
-                            )
-                        }
-                    } else if (tempCelsius <= recoveryTempThreshold && _isThermalThrottled.value) {
-                        _isThermalThrottled.value = false
-                        Log.i("BatteryPowerMonitor", "🧊 Thermal Throttling DEACTIVATED! Battery Temp: ${tempCelsius}°C <= ${recoveryTempThreshold}°C")
+                val isBatteryRecovered = tempCelsius <= recoveryBatteryThreshold || tempCelsius == 0.0f
+                val isCpuRecovered = currentCpuTemp == null || currentCpuTemp <= recoveryCpuThreshold
+                val isCooledDown = isBatteryRecovered && isCpuRecovered
 
-                        // Send recovery alert via Telegram
-                        scope.launch(Dispatchers.IO) {
-                            TelegramNotifier.sendSystemAlert(
-                                botToken = settingsManager.telegramBotToken,
-                                chatId = settingsManager.telegramChatId,
-                                deviceName = settingsManager.cameraDeviceName,
-                                alertTitle = context.getString(R.string.tg_alert_thermal_end_title),
-                                alertDetails = context.getString(R.string.tg_alert_thermal_end_desc, tempCelsius, recoveryTempThreshold),
-                                context = context
-                            )
-                        }
+                if (isOverheated && !_isThermalThrottled.value) {
+                    _isThermalThrottled.value = true
+                    val triggerDesc = if (isCpuHot) "CPU: ${currentCpuTemp}°C (>= ${highCpuThreshold}°C)" else "Battery: ${tempCelsius}°C (>= ${highBatteryThreshold}°C)"
+                    Log.w("BatteryPowerMonitor", "🔥 Thermal Throttling ACTIVATED! $triggerDesc")
+
+                    onThermalThrottleStart()
+
+                    // Send alert via Telegram
+                    scope.launch(Dispatchers.IO) {
+                        TelegramNotifier.sendSystemAlert(
+                            botToken = settingsManager.telegramBotToken,
+                            chatId = settingsManager.telegramChatId,
+                            deviceName = settingsManager.cameraDeviceName,
+                            alertTitle = context.getString(R.string.tg_alert_thermal_start_title),
+                            alertDetails = context.getString(
+                                R.string.tg_alert_thermal_start_desc,
+                                if (isCpuHot) (currentCpuTemp ?: 0f) else tempCelsius,
+                                if (isCpuHot) highCpuThreshold else highBatteryThreshold
+                            ),
+                            context = context
+                        )
+                    }
+                } else if (isCooledDown && _isThermalThrottled.value) {
+                    _isThermalThrottled.value = false
+                    Log.i("BatteryPowerMonitor", "🧊 Thermal Throttling DEACTIVATED! Battery: ${tempCelsius}°C, CPU: ${currentCpuTemp ?: "--"}°C")
+
+                    // Send recovery alert via Telegram
+                    scope.launch(Dispatchers.IO) {
+                        TelegramNotifier.sendSystemAlert(
+                            botToken = settingsManager.telegramBotToken,
+                            chatId = settingsManager.telegramChatId,
+                            deviceName = settingsManager.cameraDeviceName,
+                            alertTitle = context.getString(R.string.tg_alert_thermal_end_title),
+                            alertDetails = context.getString(R.string.tg_alert_thermal_end_desc, tempCelsius, recoveryBatteryThreshold),
+                            context = context
+                        )
                     }
                 }
 
