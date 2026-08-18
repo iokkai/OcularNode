@@ -1,11 +1,11 @@
 name: Android CI
 
-# 觸發條件：當推送到 main 分支或建立針對 main 的 Pull Request 時自動執行
+# 觸發條件：當推送到 main / feat/* 分支或建立 Pull Request 時自動執行
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feat/**", "feature/**" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "feat/**", "feature/**" ]
   workflow_dispatch:
 
 jobs:
