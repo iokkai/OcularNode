@@ -1,6 +1,12 @@
-# OcularNode 👁️
+<p align="center">
+  <img src="assets/icon.webp" width="108" height="108" alt="OcularNode App Icon" style="border-radius: 24px;" />
+</p>
 
-[English](README_en.md) | [正體中文](README.md)
+<h1 align="center">OcularNode</h1>
+
+<p align="center">
+  <a href="README_en.md">English</a> | <a href="README.md">正體中文</a>
+</p>
 
 [![Android CI](https://github.com/iokkai/OcularNode/actions/workflows/android.yml/badge.svg)](https://github.com/iokkai/OcularNode/actions)
 [![Development Status](https://img.shields.io/badge/Status-Under%20Active%20Development-orange.svg)](https://github.com/iokkai/OcularNode)

@@ -1,6 +1,12 @@
-# OcularNode
+<p align="center">
+  <img src="assets/icon.webp" width="108" height="108" alt="OcularNode App Icon" style="border-radius: 24px;" />
+</p>
 
-舊手機轉生專用・去中心化 P2P 智慧監控系統 (Zero Central Server / Decentralized Smart Camera)
+<h1 align="center">OcularNode</h1>
+
+<p align="center">
+  <b>舊手機轉生專用・去中心化 P2P 智慧監控系統 (Zero Central Server / Decentralized Smart Camera)</b>
+</p>
 
 > [!WARNING]
 > ⚠️ **專案處於開發階段宣告 (Experimental Project Notice)**  
