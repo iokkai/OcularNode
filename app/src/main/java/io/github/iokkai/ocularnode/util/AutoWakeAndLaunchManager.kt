@@ -57,35 +57,39 @@ object AutoWakeAndLaunchManager {
             Log.e(TAG, "取得 WakeLock 點亮螢幕失敗", e)
         }
 
-        // 2. 準備 MainActivity 的 Intent
-        val activityIntent = Intent(context, MainActivity::class.java).apply {
+        // 2. 準備啟動 Intent (優先使用系統原生 Launcher Intent)
+        val activityIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+            )
+            putExtra("EXTRA_AUTO_STARTED_BY", reason)
+        } ?: Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_MAIN
             addCategory(Intent.CATEGORY_LAUNCHER)
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
                 Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
             )
             putExtra("EXTRA_AUTO_STARTED_BY", reason)
         }
 
-        // 3. 準備 PendingIntent (針對 Android 14+ 啟用背景啟動授權)
-        val pendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            PendingIntent.getActivity(
-                context,
-                NOTIFICATION_ID_AUTO_START,
-                activityIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+        // 3. 準備 PendingIntent (FLAG_IMMUTABLE 僅在 Android 12/API 31+ 套用)
+        val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         } else {
-            PendingIntent.getActivity(
-                context,
-                NOTIFICATION_ID_AUTO_START,
-                activityIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT
-            )
+            PendingIntent.FLAG_UPDATE_CURRENT
         }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID_AUTO_START,
+            activityIntent,
+            pendingIntentFlags
+        )
 
         // 4. 嘗試使用 PendingIntent (含 Android 14 背景授權) 直接發送啟動
         var directLaunchSuccess = false
@@ -144,14 +148,29 @@ object AutoWakeAndLaunchManager {
             Log.e(TAG, "發送 Full-Screen Intent 通知失敗", e)
         }
 
-        // 6. 備援一般 startActivity
-        if (!directLaunchSuccess) {
+        // 6. 備援一般 startActivity (立即執行 + 延遲 800ms / 1600ms 保底，避免與 Launcher 退場動畫衝突)
+        val launchActivityDirectly = {
             try {
                 context.startActivity(activityIntent)
-                Log.i(TAG, "備援 context.startActivity 已執行")
+                Log.i(TAG, "已執行 context.startActivity(activityIntent)")
             } catch (e: Exception) {
-                Log.e(TAG, "備援 context.startActivity 失敗 (可能受限於背景限制)", e)
+                Log.w(TAG, "直接呼叫 startActivity 失敗", e)
             }
+        }
+
+        launchActivityDirectly()
+
+        // 透過 Handler 延遲 600ms 與 1500ms 再次確保拉起（防止系統剛殺掉行程回到桌面時覆蓋了啟動動畫）
+        try {
+            val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+            mainHandler.postDelayed({
+                launchActivityDirectly()
+            }, 600L)
+            mainHandler.postDelayed({
+                launchActivityDirectly()
+            }, 1500L)
+        } catch (e: Exception) {
+            Log.w(TAG, "排程延遲啟動異常", e)
         }
 
         // 7. 啟動前景服務 CameraStreamService 作為背景串流保底
