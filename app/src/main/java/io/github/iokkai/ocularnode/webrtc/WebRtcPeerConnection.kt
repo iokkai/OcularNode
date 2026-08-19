@@ -204,6 +204,18 @@ class WebRtcPeerConnection(
         return peerConnection.addIceCandidate(candidate)
     }
 
+    /**
+     * Triggers native WebRTC ICE restart.
+     */
+    fun restartIce() {
+        try {
+            peerConnection.restartIce()
+            Log.i(TAG, "PeerConnection native restartIce() invoked")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error invoking native restartIce: ${e.message}")
+        }
+    }
+
     fun close() {
         try {
             peerConnection.close()

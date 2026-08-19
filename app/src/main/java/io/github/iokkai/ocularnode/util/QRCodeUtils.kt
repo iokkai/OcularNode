@@ -13,7 +13,8 @@ data class ScannedCameraInfo(
     val port: Int,
     val deviceSecret: String? = null,
     val deviceId: String? = null,
-    val mqttTopic: String? = null
+    val mqttTopic: String? = null,
+    val ipv6Address: String? = null
 )
 
 object QRCodeUtils {
@@ -45,11 +46,15 @@ object QRCodeUtils {
         ipAddress: String,
         port: Int,
         deviceId: String,
-        deviceSecret: String
+        deviceSecret: String,
+        ipv6Address: String? = null
     ): String {
         val json = JSONObject().apply {
             put("name", name)
             put("ip", ipAddress)
+            if (!ipv6Address.isNullOrBlank()) {
+                put("ipv6", ipv6Address)
+            }
             put("port", port)
             put("deviceId", deviceId)
             put("secret", deviceSecret)
@@ -62,25 +67,27 @@ object QRCodeUtils {
         val text = raw.trim()
         if (text.isBlank()) return null
 
-        // Case 1: JSON Format {"name":"Living Room","ip":"192.168.1.100","port":8080,"secret":"...","deviceId":"..."}
+        // Case 1: JSON Format {"name":"Living Room","ip":"192.168.1.100","ipv6":"2001:...","port":8080,"secret":"...","deviceId":"..."}
         if (text.startsWith("{") && text.endsWith("}")) {
             try {
                 val json = JSONObject(text)
                 val name = json.optString("name", "Camera Device")
                 val ip = json.optString("ip", json.optString("ipAddress", "")).trim()
+                val ipv6 = json.optString("ipv6", "").ifBlank { null }
                 val port = json.optInt("port", 8080)
                 val secret = json.optString("secret", json.optString("deviceSecret", "")).ifBlank { null }
                 val deviceId = json.optString("deviceId", "").ifBlank { null }
                 val mqttTopic = json.optString("mqttTopic", "").ifBlank { null }
 
-                if (ip.isNotBlank() || !deviceId.isNullOrBlank()) {
+                if (ip.isNotBlank() || !ipv6.isNullOrBlank() || !deviceId.isNullOrBlank()) {
                     return ScannedCameraInfo(
                         name = name,
                         ipAddress = ip.ifBlank { "0.0.0.0" },
                         port = port,
                         deviceSecret = secret,
                         deviceId = deviceId,
-                        mqttTopic = mqttTopic
+                        mqttTopic = mqttTopic,
+                        ipv6Address = ipv6
                     )
                 }
             } catch (e: Exception) {
@@ -88,11 +95,12 @@ object QRCodeUtils {
             }
         }
 
-        // Case 2: URL format: http://100.64.1.2:8080?name=...&secret=... or http://100.64.1.2:8080/
+        // Case 2: URL format: http://100.64.1.2:8080?name=...&secret=... or http://[2001:...]:8080/
         var clean = text
         var queryName: String? = null
         var querySecret: String? = null
         var queryDeviceId: String? = null
+        var queryIpv6: String? = null
 
         if (clean.contains("?")) {
             val queryPart = clean.substringAfter("?")
@@ -116,6 +124,12 @@ object QRCodeUtils {
                     } catch (e: Exception) {
                         queryDeviceId = param.substringAfter("deviceId=")
                     }
+                } else if (param.startsWith("ipv6=")) {
+                    try {
+                        queryIpv6 = URLDecoder.decode(param.substringAfter("ipv6="), "UTF-8")
+                    } catch (e: Exception) {
+                        queryIpv6 = param.substringAfter("ipv6=")
+                    }
                 }
             }
         }
@@ -125,7 +139,16 @@ object QRCodeUtils {
         var ip = clean
         var port = 8080
 
-        if (clean.contains(":")) {
+        if (clean.startsWith("[")) {
+            // IPv6 address with brackets: [2001:db8::1]:8080
+            val bracketedIp = clean.substringAfter("[").substringBefore("]")
+            val afterBracket = clean.substringAfter("]", "")
+            ip = bracketedIp
+            if (afterBracket.startsWith(":")) {
+                port = afterBracket.substringAfter(":").takeWhile { it.isDigit() }.toIntOrNull() ?: 8080
+            }
+        } else if (clean.contains(":") && clean.count { it == ':' } == 1) {
+            // IPv4 address with port: 192.168.1.100:8080
             ip = clean.substringBefore(":")
             val portStr = clean.substringAfter(":").takeWhile { it.isDigit() }
             port = portStr.toIntOrNull() ?: 8080
@@ -133,12 +156,14 @@ object QRCodeUtils {
 
         if (ip.isNotBlank()) {
             val name = queryName?.ifBlank { null } ?: "Camera ($ip)"
+            val ipv6Addr = queryIpv6 ?: if (ip.contains(":")) ip else null
             return ScannedCameraInfo(
                 name = name,
                 ipAddress = ip,
                 port = port,
                 deviceSecret = querySecret?.ifBlank { null },
-                deviceId = queryDeviceId?.ifBlank { null }
+                deviceId = queryDeviceId?.ifBlank { null },
+                ipv6Address = ipv6Addr
             )
         }
 

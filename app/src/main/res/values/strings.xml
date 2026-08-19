@@ -680,4 +680,11 @@
     <string name="about_update_prompting_install">📦 Launching package installer…</string>
     <string name="about_update_complete">✅ Download and verification complete!</string>
     <string name="about_update_failed">Failed to check updates: %1$s</string>
+
+    <!-- Advanced WebRTC & TURN Relay -->
+    <string name="settings_webrtc_advanced_group">Advanced WebRTC &amp; TURN Relay (Optional)</string>
+    <string name="settings_webrtc_advanced_desc">Default IPv6 and STUN pool provide 99% pure P2P direct streaming. For strict enterprise networks or symmetric NAT, you can optionally configure a custom TURN relay server.</string>
+    <string name="settings_turn_server_url">TURN Server URL (e.g. turn:turn.cloudflare.com:3478)</string>
+    <string name="settings_turn_username">TURN Username (Optional)</string>
+    <string name="settings_turn_password">TURN Password (Optional)</string>
 </resources>

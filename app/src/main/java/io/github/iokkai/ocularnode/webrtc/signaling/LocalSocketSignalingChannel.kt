@@ -13,7 +13,7 @@ import java.net.Socket
 import java.util.concurrent.TimeUnit
 
 /**
- * Plan C: Local Area Network (LAN) Signaling Channel.
+ * Plan C: Local Area Network (LAN) Signaling Channel (supports IPv4 and IPv6 dual-stack).
  * Features ultra-fast 150ms TCP probe to immediately detect if camera is on the same Wi-Fi.
  */
 class LocalSocketSignalingChannel(
@@ -40,8 +40,9 @@ class LocalSocketSignalingChannel(
     suspend fun isReachable(): Boolean = withContext(Dispatchers.IO) {
         if (localIp.isBlank()) return@withContext false
         try {
+            val cleanHost = localIp.removePrefix("[").removeSuffix("]")
             Socket().use { socket ->
-                socket.connect(InetSocketAddress(localIp, port), LAN_PROBE_TIMEOUT_MS)
+                socket.connect(InetSocketAddress(cleanHost, port), LAN_PROBE_TIMEOUT_MS)
                 true
             }
         } catch (e: Exception) {
@@ -64,7 +65,8 @@ class LocalSocketSignalingChannel(
         message: SignalingPayload
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val url = "http://$localIp:$port/api/webrtc/signal"
+            val host = if (localIp.contains(":") && !localIp.startsWith("[")) "[$localIp]" else localIp
+            val url = "http://$host:$port/api/webrtc/signal"
             val rawJson = message.toJson()
             val encryptedPayload = AesGcmCipher.encrypt(rawJson, secret)
 

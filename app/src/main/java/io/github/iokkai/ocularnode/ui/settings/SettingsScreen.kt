@@ -162,6 +162,9 @@ fun SettingsScreen(
     val syncStatus by viewModel.syncStatus.collectAsState()
     val isTesting by viewModel.isTesting.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+    val customTurnServerUrl by viewModel.customTurnServerUrl.collectAsState()
+    val customTurnUsername by viewModel.customTurnUsername.collectAsState()
+    val customTurnPassword by viewModel.customTurnPassword.collectAsState()
 
     var localStorageGB by remember(storageLimitGB) { mutableStateOf(storageLimitGB) }
     var localMaxEvents by remember(maxEventCount) { mutableStateOf(maxEventCount.toFloat()) }
@@ -1295,6 +1298,81 @@ fun SettingsScreen(
                 }
             }
 
+        }
+
+        // ==================== 🌐 進階網路與 WebRTC TURN 中繼設定 (選填) ====================
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            border = BorderStroke(1.dp, AppBorder),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = AppPrimary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        stringResource(R.string.settings_webrtc_advanced_group),
+                        color = AppTextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.settings_webrtc_advanced_desc),
+                    color = AppTextSecondary,
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = customTurnServerUrl,
+                    onValueChange = { viewModel.updateCustomTurnServerUrl(it) },
+                    label = { Text(stringResource(R.string.settings_turn_server_url)) },
+                    placeholder = { Text("turn:turn.cloudflare.com:3478", color = AppTextMuted) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = AppTextPrimary,
+                        unfocusedTextColor = AppTextPrimary,
+                        focusedBorderColor = AppPrimary,
+                        unfocusedBorderColor = AppBorder
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = customTurnUsername,
+                    onValueChange = { viewModel.updateCustomTurnUsername(it) },
+                    label = { Text(stringResource(R.string.settings_turn_username)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = AppTextPrimary,
+                        unfocusedTextColor = AppTextPrimary,
+                        focusedBorderColor = AppPrimary,
+                        unfocusedBorderColor = AppBorder
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = customTurnPassword,
+                    onValueChange = { viewModel.updateCustomTurnPassword(it) },
+                    label = { Text(stringResource(R.string.settings_turn_password)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = AppTextPrimary,
+                        unfocusedTextColor = AppTextPrimary,
+                        focusedBorderColor = AppPrimary,
+                        unfocusedBorderColor = AppBorder
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
 
         // ==================== 🔐 專用設備 Kiosk 死鎖與維護逃生門 (Escape Hatch) ====================

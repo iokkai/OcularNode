@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.NetworkInterface
 
 data class IpInfo(
@@ -23,7 +24,8 @@ data class IpInfo(
     val allIps: List<String>,
     val isTailscaleConnected: Boolean = !tailscaleIp.isNullOrBlank(),
     val isVpnActive: Boolean = false,
-    val isTailscaleInstalled: Boolean = false
+    val isTailscaleInstalled: Boolean = false,
+    val ipv6GlobalAddress: String? = null
 )
 
 object NetworkUtils {
@@ -105,6 +107,7 @@ object NetworkUtils {
     fun getIpAddresses(context: Context? = null): IpInfo {
         var tailscaleIp: String? = null
         var localIp: String? = null
+        var ipv6GlobalAddress: String? = null
         val allIps = mutableListOf<String>()
 
         try {
@@ -140,6 +143,22 @@ object NetworkUtils {
                         } else if (localIp == null && (hostAddress.startsWith("192.168.") || hostAddress.startsWith("10.") || hostAddress.startsWith("172."))) {
                             localIp = hostAddress
                         }
+                    } else if (address is Inet6Address && !address.isLoopbackAddress) {
+                        val rawHost = address.hostAddress ?: continue
+                        val cleanHost = rawHost.substringBefore("%") // 移除介面 scope index (%wlan0 等)
+                        allIps.add(cleanHost)
+
+                        // 排除鏈路本地 (fe80::)、私有 (fc/fd::) 與 Tailscale IPv6，僅保留全球單播地址 (2001:, 2404:, 2600: 等)
+                        if (!address.isLinkLocalAddress &&
+                            !address.isSiteLocalAddress &&
+                            !cleanHost.lowercase().startsWith("fd") &&
+                            !cleanHost.lowercase().startsWith("fc") &&
+                            !cleanHost.lowercase().startsWith("fe80")
+                        ) {
+                            if (ipv6GlobalAddress == null) {
+                                ipv6GlobalAddress = cleanHost
+                            }
+                        }
                     }
                 }
             }
@@ -164,7 +183,8 @@ object NetworkUtils {
             allIps = allIps,
             isTailscaleConnected = isConnected,
             isVpnActive = vpnActive,
-            isTailscaleInstalled = installed
+            isTailscaleInstalled = installed,
+            ipv6GlobalAddress = ipv6GlobalAddress
         )
     }
 

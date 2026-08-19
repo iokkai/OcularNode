@@ -70,6 +70,8 @@ class SettingsManager(context: Context) {
         private const val KEY_SCHEDULED_REBOOT_ENABLED = "scheduled_reboot_enabled"
         private const val KEY_SCHEDULED_REBOOT_TIME = "scheduled_reboot_time"
         private const val KEY_LAST_SCHEDULED_REBOOT_DATE = "last_scheduled_reboot_date"
+        private const val KEY_CUSTOM_TURN_SERVER_URL = "custom_turn_server_url"
+        private const val KEY_CUSTOM_TURN_USERNAME = "custom_turn_username"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
@@ -77,6 +79,7 @@ class SettingsManager(context: Context) {
         private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
         private const val KEY_TAILSCALE_API_KEY = "tailscale_api_key"
         private const val KEY_HTTP_PIN_CODE = "http_pin_code"
+        private const val KEY_CUSTOM_TURN_PASSWORD = "custom_turn_password"
 
         // 遷移標記
         private const val KEY_SECRETS_MIGRATED = "secrets_migrated_to_encrypted"
@@ -201,7 +204,19 @@ class SettingsManager(context: Context) {
         get() = secretPrefs.getString(KEY_TAILSCALE_API_KEY, "") ?: ""
         set(value) = secretPrefs.edit().putString(KEY_TAILSCALE_API_KEY, value).apply()
 
+    var customTurnPassword: String
+        get() = secretPrefs.getString(KEY_CUSTOM_TURN_PASSWORD, "") ?: ""
+        set(value) = secretPrefs.edit().putString(KEY_CUSTOM_TURN_PASSWORD, value).apply()
+
     // ===== 一般設定（明文存儲）=====
+
+    var customTurnServerUrl: String
+        get() = prefs.getString(KEY_CUSTOM_TURN_SERVER_URL, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CUSTOM_TURN_SERVER_URL, value).apply()
+
+    var customTurnUsername: String
+        get() = prefs.getString(KEY_CUSTOM_TURN_USERNAME, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CUSTOM_TURN_USERNAME, value).apply()
 
     var deviceRoleMode: String // "UNSET", "CAMERA", "VIEWER"
         get() = prefs.getString(KEY_DEVICE_ROLE_MODE, "UNSET") ?: "UNSET"

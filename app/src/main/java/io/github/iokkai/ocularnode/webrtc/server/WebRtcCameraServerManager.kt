@@ -220,12 +220,19 @@ class WebRtcCameraServerManager(
         val sessionId = payload.sessionId
         val sdpStr = payload.sdp ?: return
 
-        val peerConn = WebRtcPeerConnection(sessionManager)
-        activeViewers[sessionId] = peerConn
-        _activeViewerCount.value = activeViewers.size
+        val existingConn = activeViewers[sessionId]
+        val peerConn = if (existingConn != null) {
+            Log.i(TAG, "Reusing existing PeerConnection for session $sessionId (ICE Restart / Renegotiation)")
+            existingConn
+        } else {
+            val newConn = WebRtcPeerConnection(sessionManager)
+            activeViewers[sessionId] = newConn
+            _activeViewerCount.value = activeViewers.size
 
-        cameraCapturer.videoTrack?.let { peerConn.peerConnection.addTrack(it) }
-        audioSource.audioTrack?.let { peerConn.peerConnection.addTrack(it) }
+            cameraCapturer.videoTrack?.let { newConn.peerConnection.addTrack(it) }
+            audioSource.audioTrack?.let { newConn.peerConnection.addTrack(it) }
+            newConn
+        }
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -242,6 +249,7 @@ class WebRtcCameraServerManager(
                     targetId = payload.senderId
                 )
                 signalingRouter?.dispatchMessage(answerPayload)
+                Log.i(TAG, "Sent Answer for offer/ICE restart to session $sessionId")
             } catch (e: Exception) {
                 Log.e(TAG, "Error processing remote offer for session $sessionId", e)
             }

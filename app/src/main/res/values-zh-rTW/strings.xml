@@ -680,4 +680,11 @@
     <string name="about_update_prompting_install">📦 正在啟動系統更新安裝器…</string>
     <string name="about_update_complete">✅ 下載與驗證完成！</string>
     <string name="about_update_failed">檢查更新失敗：%1$s</string>
+
+    <!-- Advanced WebRTC & TURN Relay -->
+    <string name="settings_webrtc_advanced_group">進階網路與 WebRTC TURN 中繼 (選填)</string>
+    <string name="settings_webrtc_advanced_desc">系統預設已透過 IPv6 與 STUN 池實現 99% 純 P2P 秒級直連。若身處極嚴苛企業防火牆或對稱 NAT 環境，可在此填入自架 coturn 或 Cloudflare TURN 中繼伺服器。</string>
+    <string name="settings_turn_server_url">TURN 伺服器網址 (如 turn:turn.cloudflare.com:3478)</string>
+    <string name="settings_turn_username">TURN 帳號 (選填)</string>
+    <string name="settings_turn_password">TURN 密碼 (選填)</string>
 </resources>

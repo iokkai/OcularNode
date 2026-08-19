@@ -9,9 +9,9 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 
 /**
- * Smart Signaling Router coordinating Layer 1 (LAN Socket), Layer 2 (MQTT TCP 1883),
+ * Smart Signaling Router coordinating Layer 1 (LAN IPv6/IPv4 Socket), Layer 2 (MQTT TCP 1883),
  * and Layer 3 (MQTT over WebSocket Port 443 / WSS).
- * Implements "Happy Eyeballs" parallel probing to achieve 0ms unnecessary waiting.
+ * Implements "Happy Eyeballs" parallel probing to prioritize IPv6 and achieve 0ms unnecessary waiting.
  */
 class SmartSignalingRouter(
     private val channelKey: String,
@@ -19,7 +19,8 @@ class SmartSignalingRouter(
     private val cameraLocalIp: String? = null,
     private val cameraPort: Int = 8080,
     private val telegramBotToken: String? = null,
-    private val telegramChatId: String? = null
+    private val telegramChatId: String? = null,
+    private val cameraIpv6: String? = null
 ) {
 
     companion object {
@@ -30,13 +31,24 @@ class SmartSignalingRouter(
         MqttSignalingChannel()
     }
 
-    val localChannel: LocalSocketSignalingChannel? by lazy {
+    val localChannelIpv6: LocalSocketSignalingChannel? by lazy {
+        if (!cameraIpv6.isNullOrBlank()) {
+            LocalSocketSignalingChannel(cameraIpv6, cameraPort)
+        } else {
+            null
+        }
+    }
+
+    val localChannelIpv4: LocalSocketSignalingChannel? by lazy {
         if (!cameraLocalIp.isNullOrBlank()) {
             LocalSocketSignalingChannel(cameraLocalIp, cameraPort)
         } else {
             null
         }
     }
+
+    val localChannel: LocalSocketSignalingChannel?
+        get() = localChannelIpv6 ?: localChannelIpv4
 
     @Volatile
     private var activeChannel: SignalingChannel? = null
@@ -63,7 +75,7 @@ class SmartSignalingRouter(
     }
 
     /**
-     * Sends a signaling payload using Happy Eyeballs parallel probing or active channel.
+     * Sends a signaling payload using Happy Eyeballs parallel probing (IPv6 LAN -> IPv4 LAN -> MQTT).
      */
     suspend fun dispatchMessage(message: SignalingPayload): Boolean = withContext(Dispatchers.IO) {
         val current = activeChannel
@@ -73,14 +85,24 @@ class SmartSignalingRouter(
             Log.w(TAG, "Active channel ${current.channelType} failed to deliver, falling back...")
         }
 
-        val lan = localChannel
+        val lanIpv6 = localChannelIpv6
+        val lanIpv4 = localChannelIpv4
         val mqtt = mqttChannel
 
-        // Happy Eyeballs: Probe LAN (150ms timeout) and MQTT (TCP/WSS) in parallel
-        val lanDeferred = async {
-            if (lan != null && lan.isReachable()) {
-                val sent = lan.sendMessage(channelKey, secret, message)
-                if (sent) lan else null
+        // Happy Eyeballs: Probe LAN IPv6, LAN IPv4 (150ms timeout), and MQTT (TCP/WSS) in parallel
+        val lanIpv6Deferred = async {
+            if (lanIpv6 != null && lanIpv6.isReachable()) {
+                val sent = lanIpv6.sendMessage(channelKey, secret, message)
+                if (sent) lanIpv6 else null
+            } else {
+                null
+            }
+        }
+
+        val lanIpv4Deferred = async {
+            if (lanIpv4 != null && lanIpv4.isReachable()) {
+                val sent = lanIpv4.sendMessage(channelKey, secret, message)
+                if (sent) lanIpv4 else null
             } else {
                 null
             }
@@ -93,7 +115,8 @@ class SmartSignalingRouter(
 
         // Whichever succeeds first becomes the active channel
         val winnerChannel = select<SignalingChannel?> {
-            lanDeferred.onAwait { it }
+            lanIpv6Deferred.onAwait { it }
+            lanIpv4Deferred.onAwait { it }
             mqttDeferred.onAwait { it }
         }
 
@@ -110,7 +133,8 @@ class SmartSignalingRouter(
 
     fun close() {
         mqttChannel.close()
-        localChannel?.close()
+        localChannelIpv6?.close()
+        localChannelIpv4?.close()
         activeChannel = null
         Log.i(TAG, "SmartSignalingRouter closed")
     }

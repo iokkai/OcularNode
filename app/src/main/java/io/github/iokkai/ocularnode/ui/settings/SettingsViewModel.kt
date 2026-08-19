@@ -138,6 +138,33 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private val _customTurnServerUrl = MutableStateFlow(settingsManager.customTurnServerUrl)
+    val customTurnServerUrl: StateFlow<String> = _customTurnServerUrl.asStateFlow()
+
+    private val _customTurnUsername = MutableStateFlow(settingsManager.customTurnUsername)
+    val customTurnUsername: StateFlow<String> = _customTurnUsername.asStateFlow()
+
+    private val _customTurnPassword = MutableStateFlow(settingsManager.customTurnPassword)
+    val customTurnPassword: StateFlow<String> = _customTurnPassword.asStateFlow()
+
+    fun updateCustomTurnServerUrl(url: String) {
+        val trimmed = url.trim()
+        _customTurnServerUrl.value = trimmed
+        settingsManager.customTurnServerUrl = trimmed
+    }
+
+    fun updateCustomTurnUsername(username: String) {
+        val trimmed = username.trim()
+        _customTurnUsername.value = trimmed
+        settingsManager.customTurnUsername = trimmed
+    }
+
+    fun updateCustomTurnPassword(password: String) {
+        val trimmed = password.trim()
+        _customTurnPassword.value = trimmed
+        settingsManager.customTurnPassword = trimmed
+    }
+
     private val _cleanupStatus = MutableStateFlow<String?>(null)
     val cleanupStatus: StateFlow<String?> = _cleanupStatus.asStateFlow()
 
@@ -164,6 +191,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _botToken.value = settingsManager.telegramBotToken
         _chatId.value = settingsManager.telegramChatId
         _telegramSendMediaType.value = settingsManager.telegramSendMediaType
+        _customTurnServerUrl.value = settingsManager.customTurnServerUrl
+        _customTurnUsername.value = settingsManager.customTurnUsername
+        _customTurnPassword.value = settingsManager.customTurnPassword
     }
 
     fun updateTelegramSendMediaType(type: String) {

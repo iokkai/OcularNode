@@ -2,6 +2,7 @@ package io.github.iokkai.ocularnode.webrtc
 
 import android.content.Context
 import android.util.Log
+import io.github.iokkai.ocularnode.webrtc.stun.StunPoolManager
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
@@ -111,16 +112,54 @@ class WebRtcSessionManager(private val context: Context) {
             .createPeerConnectionFactory()
     }
 
+    val stunPoolManager by lazy { StunPoolManager() }
+
+    init {
+        initializeWebRtc(context)
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                stunPoolManager.probeAndRank()
+            } catch (e: Exception) {
+                Log.w(TAG, "Initial STUN probing encountered error: ${e.message}")
+            }
+        }
+    }
+
     /**
-     * Default ICE servers including Google public STUN servers.
+     * Default ICE servers ranked by measured latency and reachability from StunPoolManager,
+     * with optional user-configured TURN Relay server appended as fallback.
      */
     fun getDefaultIceServers(): List<PeerConnection.IceServer> {
-        return listOf(
-            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer(),
-            PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer()
-        )
+        val servers = mutableListOf<PeerConnection.IceServer>()
+        servers.addAll(stunPoolManager.getRankedIceServers())
+
+        try {
+            val settings = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context)
+            val turnUrl = settings.customTurnServerUrl.trim()
+            val turnUser = settings.customTurnUsername.trim()
+            val turnPass = settings.customTurnPassword.trim()
+
+            if (turnUrl.isNotBlank()) {
+                val turnUri = if (!turnUrl.startsWith("turn:") && !turnUrl.startsWith("turns:")) {
+                    "turn:$turnUrl"
+                } else {
+                    turnUrl
+                }
+                val builder = PeerConnection.IceServer.builder(turnUri)
+                if (turnUser.isNotBlank()) {
+                    builder.setUsername(turnUser)
+                }
+                if (turnPass.isNotBlank()) {
+                    builder.setPassword(turnPass)
+                }
+                servers.add(builder.createIceServer())
+                Log.i(TAG, "Injected custom TURN IceServer: $turnUri")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error injecting custom TURN server: ${e.message}")
+        }
+
+        return servers
     }
 
     fun release() {
