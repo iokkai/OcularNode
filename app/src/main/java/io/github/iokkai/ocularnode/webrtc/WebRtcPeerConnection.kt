@@ -28,7 +28,8 @@ import kotlin.coroutines.suspendCoroutine
 class WebRtcPeerConnection(
     private val sessionManager: WebRtcSessionManager,
     private val iceServers: List<PeerConnection.IceServer> = sessionManager.getDefaultIceServers(),
-    private val onRemoteTrack: ((MediaStreamTrack) -> Unit)? = null
+    private val onRemoteTrack: ((MediaStreamTrack) -> Unit)? = null,
+    private val onRemoteDataChannel: ((DataChannel) -> Unit)? = null
 ) {
 
     companion object {
@@ -96,6 +97,7 @@ class WebRtcPeerConnection(
 
         override fun onDataChannel(dataChannel: DataChannel?) {
             Log.d(TAG, "DataChannel received: ${dataChannel?.label()}")
+            dataChannel?.let { onRemoteDataChannel?.invoke(it) }
         }
 
         override fun onRenegotiationNeeded() {

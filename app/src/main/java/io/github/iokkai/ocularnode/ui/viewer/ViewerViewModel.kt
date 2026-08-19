@@ -39,6 +39,9 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     val audioEngine = AudioEngine()
     val streamClient = CameraStreamClient(audioEngine)
 
+    val webRtcSessionManager by lazy { io.github.iokkai.ocularnode.webrtc.WebRtcSessionManager.getInstance(application) }
+    val webRtcClient by lazy { io.github.iokkai.ocularnode.webrtc.client.WebRtcViewerClient(webRtcSessionManager) }
+
     private val _adaptiveState = MutableStateFlow(AdaptiveModeState())
     val adaptiveState: StateFlow<AdaptiveModeState> = _adaptiveState.asStateFlow()
 
@@ -383,24 +386,37 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     suspend fun sendControlCommandSuspend(command: String, value: String): Boolean {
+        // Priority 1: WebRTC DataChannel (instant peer-to-peer < 10ms, 0 HTTP overhead)
+        if (webRtcClient.isDataChannelOpen) {
+            val dcSuccess = webRtcClient.sendControlCommand(command, value)
+            if (dcSuccess) return true
+        }
+
+        // Priority 2: HTTP REST API fallback
         val camera = _selectedCamera.value ?: return false
         return streamClient.sendControlCommand(camera, command, value)
     }
 
     fun sendControlCommand(command: String, value: String) {
-        val camera = _selectedCamera.value ?: return
         viewModelScope.launch {
-            streamClient.sendControlCommand(camera, command, value)
+            sendControlCommandSuspend(command, value)
         }
     }
 
     suspend fun sendControlCommandToCameraSuspend(camera: CameraDevice, command: String, value: String): Boolean {
+        // Priority 1: WebRTC DataChannel
+        if (webRtcClient.isDataChannelOpen) {
+            val dcSuccess = webRtcClient.sendControlCommand(command, value)
+            if (dcSuccess) return true
+        }
+
+        // Priority 2: HTTP REST API fallback
         return streamClient.sendControlCommand(camera, command, value)
     }
 
     fun sendControlCommandToCamera(camera: CameraDevice, command: String, value: String) {
         viewModelScope.launch {
-            streamClient.sendControlCommand(camera, command, value)
+            sendControlCommandToCameraSuspend(camera, command, value)
         }
     }
 
@@ -458,6 +474,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         adaptiveJob?.cancel()
         adaptiveJob = null
         streamClient.disconnect()
+        webRtcClient.disconnect()
         _selectedCamera.value = null
     }
 
@@ -466,6 +483,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         adaptiveJob?.cancel()
         adaptiveJob = null
         streamClient.disconnect()
+        webRtcClient.disconnect()
         audioEngine.release()
     }
 }

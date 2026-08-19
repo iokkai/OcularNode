@@ -3,14 +3,14 @@ package io.github.iokkai.ocularnode.webrtc.signaling
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
 
 /**
- * Smart Signaling Router coordinating Plan A (Telegram), Plan B (MQTT), and Plan C (LAN Socket).
+ * Smart Signaling Router coordinating Layer 1 (LAN Socket), Layer 2 (MQTT TCP 1883),
+ * and Layer 3 (MQTT over WebSocket Port 443 / WSS).
  * Implements "Happy Eyeballs" parallel probing to achieve 0ms unnecessary waiting.
  */
 class SmartSignalingRouter(
@@ -38,26 +38,18 @@ class SmartSignalingRouter(
         }
     }
 
-    val telegramChannel: TelegramSignalingChannel? by lazy {
-        if (!telegramBotToken.isNullOrBlank() && !telegramChatId.isNullOrBlank()) {
-            TelegramSignalingChannel(telegramBotToken, telegramChatId)
-        } else {
-            null
-        }
-    }
-
     @Volatile
     private var activeChannel: SignalingChannel? = null
 
     /**
-     * Starts listening on all configured channels (MQTT primary, LAN secondary).
+     * Starts listening on all configured channels (MQTT primary with TCP/WSS fallback, LAN secondary).
      */
     suspend fun startListening(
         scope: CoroutineScope,
         onMessage: (SignalingPayload, SignalingChannelType) -> Unit
     ) {
         withContext(Dispatchers.IO) {
-            // Start MQTT listening
+            // Start MQTT listening (automatically handles TCP -> WSS fallback)
             scope.launch {
                 try {
                     mqttChannel.startListening(channelKey, secret) { payload ->
@@ -83,9 +75,8 @@ class SmartSignalingRouter(
 
         val lan = localChannel
         val mqtt = mqttChannel
-        val tg = telegramChannel
 
-        // Happy Eyeballs: Probe LAN (150ms timeout) and MQTT in parallel
+        // Happy Eyeballs: Probe LAN (150ms timeout) and MQTT (TCP/WSS) in parallel
         val lanDeferred = async {
             if (lan != null && lan.isReachable()) {
                 val sent = lan.sendMessage(channelKey, secret, message)
@@ -108,18 +99,9 @@ class SmartSignalingRouter(
 
         if (winnerChannel != null) {
             activeChannel = winnerChannel
-            Log.i(TAG, "Happy Eyeballs selected channel: ${winnerChannel.channelType}")
+            val wssInfo = if (winnerChannel is MqttSignalingChannel && winnerChannel.isUsingWss) " (WSS Mode)" else ""
+            Log.i(TAG, "Happy Eyeballs selected channel: ${winnerChannel.channelType}$wssInfo")
             return@withContext true
-        }
-
-        // If both LAN and MQTT failed, fallback to Telegram (Plan A)
-        if (tg != null) {
-            Log.i(TAG, "Falling back to Telegram signaling...")
-            val tgSent = tg.sendMessage(channelKey, secret, message)
-            if (tgSent) {
-                activeChannel = tg
-                return@withContext true
-            }
         }
 
         Log.e(TAG, "All signaling channels failed to deliver message: ${message.type}")
@@ -129,7 +111,6 @@ class SmartSignalingRouter(
     fun close() {
         mqttChannel.close()
         localChannel?.close()
-        telegramChannel?.close()
         activeChannel = null
         Log.i(TAG, "SmartSignalingRouter closed")
     }

@@ -56,6 +56,9 @@ class WebRtcViewerClient(
     private val _incomingDataCommands = MutableStateFlow<DataChannelCommand?>(null)
     val incomingDataCommands: StateFlow<DataChannelCommand?> = _incomingDataCommands.asStateFlow()
 
+    val isDataChannelOpen: Boolean
+        get() = dataChannel?.isOpen == true
+
     fun connect(
         scope: CoroutineScope,
         channelKey: String,
@@ -87,6 +90,19 @@ class WebRtcViewerClient(
                 if (track.kind() == MediaStreamTrack.VIDEO_TRACK_KIND && track is VideoTrack) {
                     Log.i(TAG, "Received remote VideoTrack")
                     _remoteVideoTrack.value = track
+                }
+            },
+            onRemoteDataChannel = { remoteChan ->
+                Log.i(TAG, "Received remote DataChannel in Viewer: ${remoteChan.label()}")
+                val peer = peerConnection?.peerConnection ?: return@WebRtcPeerConnection
+                val dc = WebRtcDataChannel(peer, isInitiator = false, label = remoteChan.label())
+                dc.attachRemoteDataChannel(remoteChan)
+                this.dataChannel = dc
+                scope.launch {
+                    dc.incomingCommands.collect { cmd ->
+                        Log.d(TAG, "Viewer received DataChannel command/telemetry: ${cmd.action}")
+                        _incomingDataCommands.value = cmd
+                    }
                 }
             }
         )
@@ -134,7 +150,7 @@ class WebRtcViewerClient(
 
         // Start listening to incoming signaling messages
         scope.launch(Dispatchers.IO) {
-            router.startListening(scope) { payload, channelType ->
+            router.startListening(scope) { payload, _ ->
                 // Filter out messages not targeted to this viewer session
                 if (payload.sessionId == viewerSessionId || payload.targetId == viewerSessionId) {
                     handleIncomingSignal(payload)
@@ -211,16 +227,60 @@ class WebRtcViewerClient(
         }
     }
 
+    /**
+     * Sends a control command via WebRTC DataChannel.
+     */
     fun sendControlCommand(command: DataChannelCommand): Boolean {
         return dataChannel?.sendCommand(command) ?: false
     }
 
-    fun toggleTorch(): Boolean {
-        return sendControlCommand(DataChannelCommand(DataChannelCommand.ACTION_TORCH_TOGGLE))
+    /**
+     * Sends a legacy (command, value) pair via WebRTC DataChannel.
+     */
+    fun sendControlCommand(command: String, value: String): Boolean {
+        val dcCmd = DataChannelCommand.fromLegacy(command, value)
+        return sendControlCommand(dcCmd)
+    }
+
+    fun toggleTorch(enable: Boolean? = null): Boolean {
+        val value = if (enable != null) (if (enable) "on" else "off") else "toggle"
+        return sendControlCommand(DataChannelCommand.ACTION_TORCH_TOGGLE, value)
     }
 
     fun switchCamera(): Boolean {
-        return sendControlCommand(DataChannelCommand(DataChannelCommand.ACTION_SWITCH_CAMERA))
+        return sendControlCommand(DataChannelCommand.ACTION_SWITCH_CAMERA, "")
+    }
+
+    fun setNightVision(mode: String): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_NIGHT_VISION, mode)
+    }
+
+    fun setResolution(resolution: String): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_RESOLUTION, resolution)
+    }
+
+    fun setQuality(quality: Int): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_QUALITY, quality.toString())
+    }
+
+    fun setFps(fps: Int): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_FPS, fps.toString())
+    }
+
+    fun setRotation(rotation: String): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_ROTATION, rotation)
+    }
+
+    fun setMotionDetection(enabled: Boolean): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_MOTION_TOGGLE, enabled.toString())
+    }
+
+    fun playAlarm(): Boolean {
+        return sendControlCommand(DataChannelCommand.ACTION_PLAY_ALARM, "")
+    }
+
+    fun setZoom(zoomRatio: Float): Boolean {
+        return sendControlCommand(DataChannelCommand(DataChannelCommand.ACTION_PTZ_ZOOM, mapOf("zoom" to zoomRatio)))
     }
 
     fun disconnect() {
