@@ -1,30 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0F172A"/>
-      <stop offset="100%" stop-color="#1E293B"/>
+    <linearGradient id="obsidian-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2C2D35" />
+      <stop offset="100%" stop-color="#0F0F13" />
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.5"/>
+
+    <filter id="led-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
   </defs>
-  <!-- Background with rounded squircles -->
-  <rect width="108" height="108" rx="24" fill="url(#bgGrad)"/>
-  <rect width="106" height="106" x="1" y="1" rx="23" fill="none" stroke="#334155" stroke-width="1.5"/>
-  
-  <!-- Camera Icon Elements -->
-  <g filter="url(#shadow)">
-    <!-- Main Camera Housing -->
-    <path fill="#38BDF8" d="M34,38 L74,38 C77.3,38 80,40.7 80,44 L80,64 C80,67.3 77.3,70 74,70 L34,70 C30.7,70 28,67.3 28,64 L28,44 C28,40.7 30.7,38 34,38 Z"/>
+
+  <rect x="32" y="32" width="448" height="448" rx="100" fill="url(#obsidian-bg)" />
+
+  <g transform="rotate(-45 256 256)">
     
-    <!-- Camera Lens Outer & Inner -->
-    <circle cx="54" cy="54" r="10" fill="#0284C7"/>
-    <circle cx="54" cy="54" r="5" fill="#0369A1"/>
+    <path d="M 360 196 A 120 120 0 1 0 360 316" 
+          fill="none" stroke="#ffffff" stroke-width="36" stroke-linecap="round" />
+
+    <circle cx="376" cy="256" r="24" fill="#FF8C00" filter="url(#led-glow)" />
     
-    <!-- Video Projector Cone -->
-    <polygon points="78,48 88,41 88,67 78,60" fill="#38BDF8"/>
-    
-    <!-- Status LED -->
-    <circle cx="34" cy="44" r="2.5" fill="#22C55E"/>
   </g>
 </svg>

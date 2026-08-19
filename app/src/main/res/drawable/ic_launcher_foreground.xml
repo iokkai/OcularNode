@@ -1,18 +1,24 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#38BDF8"
-        android:pathData="M34,38 L74,38 C77.3,38 80,40.7 80,44 L80,64 C80,67.3 77.3,70 74,70 L34,70 C30.7,70 28,67.3 28,64 L28,44 C28,40.7 30.7,38 34,38 Z" />
-    <path
-        android:fillColor="#0284C7"
-        android:pathData="M54,54 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
-    <path
-        android:fillColor="#38BDF8"
-        android:pathData="M78,48 L88,41 L88,67 L78,60 Z" />
-    <path
-        android:fillColor="#22C55E"
-        android:pathData="M34,44 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:rotation="-45">
+
+        <!-- Aperture Arc -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="36"
+            android:strokeLineCap="round"
+            android:pathData="M 360,196 A 120,120 0 1,0 360,316" />
+
+        <!-- Glowing Orange LED -->
+        <path
+            android:fillColor="#FF8C00"
+            android:pathData="M 376,256 m -24,0 a 24,24 0 1,0 48,0 a 24,24 0 1,0 -48,0" />
+    </group>
 </vector>
