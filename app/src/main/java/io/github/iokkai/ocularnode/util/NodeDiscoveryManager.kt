@@ -97,16 +97,6 @@ object NodeDiscoveryManager {
                     val broadcastAddress = InetAddress.getByName("255.255.255.255")
                     val packet = DatagramPacket(data, data.size, broadcastAddress, UDP_PORT)
                     socket.send(packet)
-
-                    // Broadcast to Tailscale network broadcast if Tailscale IP exists
-                    val ipInfo = NetworkUtils.getIpAddresses(context)
-                    if (ipInfo.isTailscaleConnected && ipInfo.tailscaleIp != null) {
-                        try {
-                            val tsBroadcast = InetAddress.getByName("100.127.255.255")
-                            val tsPacket = DatagramPacket(data, data.size, tsBroadcast, UDP_PORT)
-                            socket.send(tsPacket)
-                        } catch (_: Exception) {}
-                    }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "UDP broadcast send error: ${e.message}")

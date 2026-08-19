@@ -105,7 +105,7 @@ class MotionPipelineManager(
             val event = MotionEvent(
                 timestamp = timestamp,
                 cameraName = settingsManager.cameraDeviceName,
-                cameraIp = ipAddresses.tailscaleIp ?: ipAddresses.localIp ?: "Unknown",
+                cameraIp = ipAddresses.localIp ?: "Unknown",
                 motionPercentage = percentage,
                 thumbnailBase64 = thumbBase64,
                 isRead = false,

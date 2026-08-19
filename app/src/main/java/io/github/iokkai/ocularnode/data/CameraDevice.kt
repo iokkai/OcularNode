@@ -8,7 +8,7 @@ data class CameraDevice(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
-    val ipAddress: String, // e.g., "100.110.120.130" (Tailscale IP)
+    val ipAddress: String, // e.g., "192.168.1.100" (LAN IP)
     val port: Int = 8080,
     val isDefault: Boolean = false,
     val lastOnlineTimestamp: Long = 0L,

@@ -184,7 +184,7 @@ class WebRtcViewerClient(
 
                     // Network interface changed or IP changed
                     if (_isConnected.value || _isConnecting.value) {
-                        Log.i(TAG, "Network change / roaming detected (IPv4: ${ipInfo.localIp}, IPv6: ${ipInfo.ipv6GlobalAddress}, Tailscale: ${ipInfo.tailscaleIp}). Initiating ICE Restart...")
+                        Log.i(TAG, "Network change / roaming detected (IPv4: ${ipInfo.localIp}, IPv6: ${ipInfo.ipv6GlobalAddress}). Initiating ICE Restart...")
                         triggerIceRestart()
                     }
                 }

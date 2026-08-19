@@ -166,7 +166,6 @@ fun SettingsScreen(
     val customTurnServerUrl by viewModel.customTurnServerUrl.collectAsState()
     val customTurnUsername by viewModel.customTurnUsername.collectAsState()
     val customTurnPassword by viewModel.customTurnPassword.collectAsState()
-    val connectionMode by viewModel.connectionMode.collectAsState()
 
     var localStorageGB by remember(storageLimitGB) { mutableStateOf(storageLimitGB) }
     var localMaxEvents by remember(maxEventCount) { mutableStateOf(maxEventCount.toFloat()) }
@@ -1302,73 +1301,7 @@ fun SettingsScreen(
 
         }
 
-        // ==================== ⚡ 進階連線模式 (WebRTC P2P vs Tailscale VPN) ====================
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = AppSurface),
-            border = BorderStroke(1.dp, AppBorder),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Settings, contentDescription = null, tint = AppPrimary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        stringResource(R.string.settings_connection_mode_group),
-                        color = AppTextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    stringResource(R.string.settings_connection_mode_desc),
-                    color = AppTextSecondary,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(14.dp))
 
-                // WebRTC P2P (Default)
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (connectionMode == "WEBRTC") AppPrimaryContainer else AppBackground,
-                    border = BorderStroke(1.dp, if (connectionMode == "WEBRTC") AppPrimary else AppBorder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { viewModel.updateConnectionMode("WEBRTC") }
-                ) {
-                    Text(
-                        stringResource(R.string.settings_connection_mode_webrtc),
-                        color = if (connectionMode == "WEBRTC") AppOnPrimaryContainer else AppTextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(14.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Tailscale VPN (Advanced)
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (connectionMode == "TAILSCALE") AppPrimaryContainer else AppBackground,
-                    border = BorderStroke(1.dp, if (connectionMode == "TAILSCALE") AppPrimary else AppBorder),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { viewModel.updateConnectionMode("TAILSCALE") }
-                ) {
-                    Text(
-                        stringResource(R.string.settings_connection_mode_tailscale),
-                        color = if (connectionMode == "TAILSCALE") AppOnPrimaryContainer else AppTextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(14.dp)
-                    )
-                }
-            }
-        }
 
         // ==================== 🌐 進階網路與 WebRTC TURN 中繼設定 (選填) ====================
         Card(

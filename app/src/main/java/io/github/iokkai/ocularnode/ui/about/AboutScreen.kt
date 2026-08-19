@@ -129,11 +129,11 @@ fun AboutScreen(onBack: () -> Unit) {
                 url = "https://developers.google.com/ml-kit"
             ),
             OpenSourceLibrary(
-                name = "Tailscale Integration",
-                author = "Tailscale Inc.",
+                name = "Google WebRTC (Android SDK)",
+                author = "WebRTC Open Source Project",
                 license = "BSD-3-Clause",
-                description = "Zero-config Mesh VPN for secure point-to-point cross-network traversal.",
-                url = "https://tailscale.com"
+                description = "Real-time communication engine enabling ultra-low-latency peer-to-peer audio and video streaming.",
+                url = "https://webrtc.org"
             ),
             OpenSourceLibrary(
                 name = "ZXing (\"Zebra Crossing\")",
@@ -552,9 +552,9 @@ fun AboutScreen(onBack: () -> Unit) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     HighlightItem(
-                        icon = Icons.Default.VpnKey,
-                        title = stringResource(R.string.about_hl_tailscale_title),
-                        description = stringResource(R.string.about_hl_tailscale_desc)
+                        icon = Icons.Default.Bolt,
+                        title = "WebRTC P2P 極速直連",
+                        description = "RFC 8445 ICE 打洞與全球雙棧 IPv6，免 VPN 實現毫秒級超低延遲端對端即時影音傳輸。"
                     )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)

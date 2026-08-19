@@ -49,29 +49,7 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
 
     private var adaptiveJob: Job? = null
 
-    private val _isTailscaleConnected = MutableStateFlow(false)
-    val isTailscaleConnected: StateFlow<Boolean> = _isTailscaleConnected.asStateFlow()
-
-    private val _isVpnActive = MutableStateFlow(false)
-    val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
-
-    private val _tailscaleIp = MutableStateFlow<String?>(null)
-    val tailscaleIp: StateFlow<String?> = _tailscaleIp.asStateFlow()
-
-    private val _devicesExpiryMap = MutableStateFlow<Map<String, io.github.iokkai.ocularnode.util.TailscaleDeviceExpiryInfo>>(emptyMap())
-    val devicesExpiryMap: StateFlow<Map<String, io.github.iokkai.ocularnode.util.TailscaleDeviceExpiryInfo>> = _devicesExpiryMap.asStateFlow()
-
-    private val _isDisablingKeyExpiry = MutableStateFlow(false)
-    val isDisablingKeyExpiry: StateFlow<Boolean> = _isDisablingKeyExpiry.asStateFlow()
-
     init {
-        viewModelScope.launch {
-            io.github.iokkai.ocularnode.util.NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
-                _isTailscaleConnected.value = ipInfo.isTailscaleConnected
-                _isVpnActive.value = ipInfo.isVpnActive
-                _tailscaleIp.value = ipInfo.tailscaleIp
-            }
-        }
         viewModelScope.launch {
             streamClient.cameraStatusJson.collect { json ->
                 if (!_adaptiveState.value.isEnabled && json != null) {
@@ -85,53 +63,10 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
-        fetchTailscaleDevicesStatus()
-    }
-
-    fun fetchTailscaleDevicesStatus() {
-        val apiKey = settingsManager.tailscaleApiKey
-        if (apiKey.isBlank() || apiKey.startsWith("tskey-auth")) return
-
-        viewModelScope.launch {
-            val result = io.github.iokkai.ocularnode.util.TailscaleApiHelper.fetchDevicesExpiryInfo(apiKey)
-            result.onSuccess { devices ->
-                val map = mutableMapOf<String, io.github.iokkai.ocularnode.util.TailscaleDeviceExpiryInfo>()
-                for (device in devices) {
-                    for (ip in device.ipAddresses) {
-                        map[ip] = device
-                    }
-                }
-                _devicesExpiryMap.value = map
-            }
-        }
-    }
-
-    fun disableKeyExpiry(deviceId: String, onComplete: (Boolean, String?) -> Unit) {
-        val apiKey = settingsManager.tailscaleApiKey
-        if (apiKey.isBlank() || apiKey.startsWith("tskey-auth")) {
-            onComplete(false, "API Key required")
-            return
-        }
-
-        viewModelScope.launch {
-            _isDisablingKeyExpiry.value = true
-            val result = io.github.iokkai.ocularnode.util.TailscaleApiHelper.disableDeviceKeyExpiry(apiKey, deviceId)
-            _isDisablingKeyExpiry.value = false
-            result.onSuccess {
-                fetchTailscaleDevicesStatus()
-                onComplete(true, null)
-            }.onFailure { e ->
-                onComplete(false, e.localizedMessage)
-            }
-        }
     }
 
     fun refreshNetworkInfo() {
-        val ipInfo = io.github.iokkai.ocularnode.util.NetworkUtils.getIpAddresses(getApplication())
-        _isTailscaleConnected.value = ipInfo.isTailscaleConnected
-        _isVpnActive.value = ipInfo.isVpnActive
-        _tailscaleIp.value = ipInfo.tailscaleIp
-        fetchTailscaleDevicesStatus()
+        // No-op or reserved for local network refresh
     }
 
     val cameraList: StateFlow<List<CameraDevice>> = cameraDao.getAllCameras()

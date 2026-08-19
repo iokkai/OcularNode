@@ -13,13 +13,13 @@ import org.robolectric.annotation.Config
  * 測試免碰觸部署 QR Code Payload 解析與驗證 (Zero-Touch Provisioning QR Payload & Role Validation)。
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [35])
 class ZeroTouchProvisionTest {
 
     data class ProvisionConfig(
         val ssid: String,
         val wifiPass: String,
-        val tailscaleKey: String,
+        val mqttDeviceSecret: String,
         val nodeName: String,
         val role: String
     ) {
@@ -27,7 +27,7 @@ class ZeroTouchProvisionTest {
             return JSONObject().apply {
                 put("ssid", ssid)
                 put("password", wifiPass)
-                put("tailscale_key", tailscaleKey)
+                put("mqtt_device_secret", mqttDeviceSecret)
                 put("node_name", nodeName)
                 put("role", role)
             }.toString()
@@ -39,12 +39,12 @@ class ZeroTouchProvisionTest {
                     val json = JSONObject(jsonStr)
                     val ssid = json.optString("ssid", "").trim()
                     val pass = json.optString("password", "").trim()
-                    val tsKey = json.optString("tailscale_key", "").trim()
+                    val secret = json.optString("mqtt_device_secret", "").trim()
                     val name = json.optString("node_name", "OcularNode").trim()
                     val role = json.optString("role", "camera").trim()
 
                     if (ssid.isBlank()) null
-                    else ProvisionConfig(ssid, pass, tsKey, name, role)
+                    else ProvisionConfig(ssid, pass, secret, name, role)
                 } catch (e: Exception) {
                     null
                 }
@@ -57,7 +57,7 @@ class ZeroTouchProvisionTest {
         val config = ProvisionConfig(
             ssid = "MyHomeWiFi",
             wifiPass = "SecurePass123",
-            tailscaleKey = "tskey-auth-k9876543210-ephemeral",
+            mqttDeviceSecret = "e2ee_secret_abcdef123456",
             nodeName = "Balcony-Cam",
             role = "camera"
         )
@@ -67,7 +67,7 @@ class ZeroTouchProvisionTest {
         assertTrue(parsed != null)
         assertEquals("MyHomeWiFi", parsed?.ssid)
         assertEquals("SecurePass123", parsed?.wifiPass)
-        assertEquals("tskey-auth-k9876543210-ephemeral", parsed?.tailscaleKey)
+        assertEquals("e2ee_secret_abcdef123456", parsed?.mqttDeviceSecret)
         assertEquals("Balcony-Cam", parsed?.nodeName)
         assertEquals("camera", parsed?.role)
     }

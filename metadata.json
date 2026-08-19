@@ -1,6 +1,6 @@
 {
   "name": "OcularNode",
-  "description": "Tailscale 內網 Android 遠端監控與雙向對講 App",
+  "description": "Android 舊手機轉生之 WebRTC P2P / LAN 遠端監控與雙向對講 App",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

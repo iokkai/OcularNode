@@ -97,26 +97,14 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val currentResolution by viewModel.currentResolution.collectAsState()
     val currentQuality by viewModel.currentQuality.collectAsState()
     val isMotionEnabled by viewModel.isMotionEnabled.collectAsState()
-    val isMlKitFilterEnabled by viewModel.isMlKitFilterEnabled.collectAsState()
-    val tailscaleIp by viewModel.tailscaleIp.collectAsState()
     val localIp by viewModel.localIp.collectAsState()
     val ipv6Address by viewModel.ipv6GlobalAddress.collectAsState()
-
-    val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
-    val isVpnActive by viewModel.isVpnActive.collectAsState()
 
     val isThermalThrottled by viewModel.isThermalThrottled.collectAsState()
     val batteryTemp by viewModel.batteryTemp.collectAsState()
 
     var showResolutionDialog by remember { mutableStateOf(false) }
-    var showTailscaleOnboardingDialog by remember { mutableStateOf(false) }
     var isAddressSectionExpanded by remember { mutableStateOf(true) }
-
-    if (showTailscaleOnboardingDialog) {
-        io.github.iokkai.ocularnode.ui.common.TailscaleOnboardingDialog(
-            onDismiss = { showTailscaleOnboardingDialog = false }
-        )
-    }
 
     if (showResolutionDialog) {
         ResolutionSelectionDialog(
@@ -321,171 +309,85 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
                         AnimatedVisibility(visible = isAddressSectionExpanded) {
                             Column {
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                // Tailscale IP Banner
-                                val activeTailscale = tailscaleIp
+                                Spacer(modifier = Modifier.height(16.dp))                                // LAN & IPv6 Address Banner
                                 val activeLocal = localIp ?: "127.0.0.1"
-                                val camName = viewModel.settingsManager.cameraDeviceName.ifBlank { context.getString(R.string.role_camera_title) }
-                                val encodedCamName = try { java.net.URLEncoder.encode(camName, "UTF-8") } catch (e: Exception) { camName }
-                                val streamUrl = if (!activeTailscale.isNullOrBlank()) {
-                                    "http://$activeTailscale:${viewModel.settingsManager.serverPort}?name=$encodedCamName"
-                                } else {
-                                    "http://$activeLocal:${viewModel.settingsManager.serverPort}?name=$encodedCamName"
-                                }
 
-                                if (isTailscaleConnected) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(AppSuccessContainer)
-                                            .border(1.dp, AppSuccessBorder, RoundedCornerShape(16.dp))
-                                            .padding(14.dp)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(AppSurfaceSubtle)
+                                        .border(1.dp, AppBorder, RoundedCornerShape(16.dp))
+                                        .padding(14.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(10.dp)
-                                                        .clip(CircleShape)
-                                                        .background(AppSuccess)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(stringResource(R.string.camera_tailscale_connected), color = AppSuccessDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                            }
-
-                                            TextButton(
-                                                onClick = { viewModel.refreshNetworkInfo() },
-                                                colors = ButtonDefaults.textButtonColors(contentColor = AppSuccessDark)
-                                            ) {
-                                                Text(stringResource(R.string.btn_refresh), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(4.dp))
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Wifi,
-                                                contentDescription = null,
-                                                tint = AppSuccessDark
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (localIp != null) AppSuccess else AppWarning)
                                             )
-                                            Spacer(modifier = Modifier.width(10.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(stringResource(R.string.camera_tailscale_ip), color = AppSuccess, fontSize = 11.sp)
-                                                Text("http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}", color = AppSuccessDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                            }
-                                            IconButton(onClick = {
-                                                copyToClipboard(context, "http://${activeTailscale ?: activeLocal}:${viewModel.settingsManager.serverPort}")
-                                            }) {
-                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppSuccessDark)
-                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                if (localIp != null) stringResource(R.string.camera_local_ip) else "等待網路連線...",
+                                                color = AppTextPrimary,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp
+                                            )
                                         }
 
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = stringResource(R.string.tailscale_key_expiry_hint),
-                                            color = AppSuccessDark.copy(alpha = 0.85f),
-                                            fontSize = 10.sp,
-                                            lineHeight = 14.sp,
-                                            modifier = Modifier.clickable {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://login.tailscale.com/admin/machines"))
-                                                context.startActivity(intent)
-                                            }
-                                        )
+                                        TextButton(
+                                            onClick = { viewModel.refreshNetworkInfo() },
+                                            colors = ButtonDefaults.textButtonColors(contentColor = AppPrimary)
+                                        ) {
+                                            Text(stringResource(R.string.btn_refresh), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
-                                } else {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(AppErrorContainerLight)
-                                            .border(1.dp, AppErrorBorder, RoundedCornerShape(16.dp))
-                                            .padding(14.dp)
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(10.dp)
-                                                        .clip(CircleShape)
-                                                        .background(AppErrorBright)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(stringResource(R.string.camera_tailscale_disconnected), color = AppErrorDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                            }
-
-                                            val isTailscaleInstalled = remember(context) { io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) }
-                                            OutlinedButton(
-                                                onClick = {
-                                                    if (isTailscaleInstalled) {
-                                                        io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context)
-                                                    } else {
-                                                        showTailscaleOnboardingDialog = true
-                                                    }
-                                                },
-                                                shape = RoundedCornerShape(12.dp),
-                                                border = BorderStroke(1.dp, AppErrorBorder),
-                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = AppErrorDark),
-                                                modifier = Modifier.height(32.dp)
-                                            ) {
-                                                Text(if (isTailscaleInstalled) "🚀" else "📥", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            }
+                                        Icon(Icons.Default.Wifi, contentDescription = null, tint = AppPrimary)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("區域網路 (LAN IPv4)", color = AppTextSecondary, fontSize = 11.sp)
+                                            Text("http://$activeLocal:${viewModel.settingsManager.serverPort}", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                         }
+                                        IconButton(onClick = {
+                                            copyToClipboard(context, "http://$activeLocal:${viewModel.settingsManager.serverPort}")
+                                        }) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppTextSecondary)
+                                        }
+                                    }
 
+                                    if (!ipv6Address.isNullOrBlank()) {
                                         Spacer(modifier = Modifier.height(6.dp))
-
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(Icons.Default.Wifi, contentDescription = null, tint = AppWarning)
+                                            Icon(Icons.Default.Language, contentDescription = null, tint = AppPrimary)
                                             Spacer(modifier = Modifier.width(10.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(stringResource(R.string.camera_local_ip), color = AppTextSecondary, fontSize = 11.sp)
-                                                Text("http://$activeLocal:${viewModel.settingsManager.serverPort}", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                                Text("全球單播 IPv6 (公網直連)", color = AppTextSecondary, fontSize = 11.sp)
+                                                Text("http://[$ipv6Address]:${viewModel.settingsManager.serverPort}", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                             }
                                             IconButton(onClick = {
-                                                copyToClipboard(context, "http://$activeLocal:${viewModel.settingsManager.serverPort}")
+                                                copyToClipboard(context, "http://[$ipv6Address]:${viewModel.settingsManager.serverPort}")
                                             }) {
-                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppTextSecondary)
+                                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy IPv6", tint = AppTextSecondary)
                                             }
-                                        }
-
-                                        if (!ipv6Address.isNullOrBlank()) {
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Icon(Icons.Default.Language, contentDescription = null, tint = AppPrimary)
-                                                Spacer(modifier = Modifier.width(10.dp))
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text("IPv6 (公網直連)", color = AppTextSecondary, fontSize = 11.sp)
-                                                    Text("http://[$ipv6Address]:${viewModel.settingsManager.serverPort}", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                                }
-                                                IconButton(onClick = {
-                                                    copyToClipboard(context, "http://[$ipv6Address]:${viewModel.settingsManager.serverPort}")
-                                                }) {
-                                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy IPv6", tint = AppTextSecondary)
-                                                }
-                                            }
-                                        }
                                     }
                                 }
-
+                                
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 // QR Code Card for WebRTC P2P Pairing & Streaming

@@ -24,7 +24,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * 負責 OcularNode 區域網路/Tailscale HTTP 伺服器主核心。
+ * 負責 OcularNode 區域網路 HTTP 伺服器主核心。
  * 協調 HttpAuthHandler (認證授權)、MjpegStreamHandler (串流推播)、
  * CameraApiHandler (REST API) 與 WebDashboardProvider (控制台 UI)。
  */
@@ -151,7 +151,7 @@ class MjpegHttpServer(
                     reuseAddress = true
                     bind(InetSocketAddress(InetAddress.getByName("0.0.0.0"), port))
                 }
-                Log.i("MjpegHttpServer", "Server bound to 0.0.0.0:$port (Tailscale / Local Network)")
+                Log.i("MjpegHttpServer", "Server bound to 0.0.0.0:$port (Local Network)")
 
                 while (isRunning && serverSocket?.isClosed == false) {
                     val socket = serverSocket?.accept() ?: break
@@ -195,19 +195,12 @@ class MjpegHttpServer(
                     while (isRunning && isActive) {
                         try {
                             val ipInfo = NetworkUtils.getIpAddresses(context)
-                            val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+                            val activeIp = ipInfo.localIp ?: "127.0.0.1"
                             val announceMsg = "${NodeDiscoveryManager.ANNOUNCE_PREFIX}$deviceName|$port|$activeIp"
                             val data = announceMsg.toByteArray()
 
                             val p1 = DatagramPacket(data, data.size, InetAddress.getByName("255.255.255.255"), NodeDiscoveryManager.UDP_PORT)
                             broadcastSocket.send(p1)
-
-                            if (ipInfo.isTailscaleConnected && ipInfo.tailscaleIp != null) {
-                                try {
-                                    val p2 = DatagramPacket(data, data.size, InetAddress.getByName("100.127.255.255"), NodeDiscoveryManager.UDP_PORT)
-                                    broadcastSocket.send(p2)
-                                } catch (_: Exception) {}
-                            }
                         } catch (_: Exception) {}
                         delay(3000)
                     }
@@ -223,7 +216,7 @@ class MjpegHttpServer(
 
                         if (msg == NodeDiscoveryManager.DISCOVERY_REQUEST) {
                             val ipInfo = NetworkUtils.getIpAddresses(context)
-                            val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+                            val activeIp = ipInfo.localIp ?: "127.0.0.1"
                             val responseMsg = "${NodeDiscoveryManager.RESPONSE_PREFIX}$deviceName|$port|$activeIp"
                             val respData = responseMsg.toByteArray()
 

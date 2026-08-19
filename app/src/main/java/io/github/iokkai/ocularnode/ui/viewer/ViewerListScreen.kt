@@ -98,17 +98,10 @@ fun ViewerListScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val cameraList by viewModel.cameraList.collectAsState()
-    val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
-    val isVpnActive by viewModel.isVpnActive.collectAsState()
-    val tailscaleIp by viewModel.tailscaleIp.collectAsState()
-    val isTailscaleActive = isTailscaleConnected
-    val devicesExpiryMap by viewModel.devicesExpiryMap.collectAsState()
-    val isDisablingKeyExpiry by viewModel.isDisablingKeyExpiry.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
     var showQrScannerDialog by remember { mutableStateOf(false) }
     var showDedicatedDeviceWizard by remember { mutableStateOf(false) }
-    var showTailscaleOnboardingDialog by remember { mutableStateOf(false) }
     var isSpeedDialExpanded by remember { mutableStateOf(false) }
 
     val fabRotationAngle by animateFloatAsState(
@@ -305,115 +298,6 @@ fun ViewerListScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Tailscale Status Bar for Viewer (Green when connected, Red when disconnected)
-            if (isTailscaleActive) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AppSuccessContainer)
-                        .border(1.dp, AppSuccessBorder, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .clip(CircleShape)
-                                .background(AppSuccess)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = stringResource(R.string.viewer_tailscale_connected),
-                                color = AppSuccessDark,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = stringResource(R.string.viewer_tailscale_connected_desc),
-                                color = AppSuccess,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-
-                    TextButton(
-                        onClick = { io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Text("🚀", color = AppSuccessDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            } else {
-                val isTailscaleInstalled = remember(context) { io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(AppErrorContainerLight)
-                        .border(1.dp, AppErrorBorder, RoundedCornerShape(16.dp))
-                        .clickable {
-                            if (isTailscaleInstalled) {
-                                io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context)
-                            } else {
-                                showTailscaleOnboardingDialog = true
-                            }
-                        }
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                        Box(
-                            modifier = Modifier
-                                .size(12.dp)
-                                .clip(CircleShape)
-                                .background(AppErrorBright)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = stringResource(R.string.viewer_tailscale_disconnected),
-                                color = AppErrorDark,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                text = stringResource(R.string.viewer_tailscale_disconnected_desc),
-                                color = AppErrorDark,
-                                fontSize = 10.sp
-                            )
-                        }
-                    }
-
-                    TextButton(
-                        onClick = {
-                            if (isTailscaleInstalled) {
-                                io.github.iokkai.ocularnode.util.NetworkUtils.openTailscaleApp(context)
-                            } else {
-                                showTailscaleOnboardingDialog = true
-                            }
-                        },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        modifier = Modifier.height(30.dp)
-                    ) {
-                        Text(if (isTailscaleInstalled) stringResource(R.string.viewer_tailscale_open) else stringResource(R.string.viewer_tailscale_install), color = AppErrorDark, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            if (showTailscaleOnboardingDialog) {
-                io.github.iokkai.ocularnode.ui.common.TailscaleOnboardingDialog(
-                    onDismiss = { showTailscaleOnboardingDialog = false }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             if (cameraList.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -463,17 +347,6 @@ fun ViewerListScreen(
                         CameraDeviceCard(
                             camera = camera,
                             isLivePreviewAll = isLivePreviewAllEnabled,
-                            expiryInfo = devicesExpiryMap[camera.ipAddress],
-                            isDisablingExpiry = isDisablingKeyExpiry,
-                            onDisableKeyExpiry = { deviceId ->
-                                viewModel.disableKeyExpiry(deviceId) { success, err ->
-                                    if (success) {
-                                        Toast.makeText(context, context.getString(R.string.msg_key_expiry_disabled_success), Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, err ?: "Failed to disable key expiry", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
                             onConnect = {
                                 viewModel.selectAndConnect(camera)
                                 onSelectCamera(camera)
@@ -578,9 +451,6 @@ fun ViewerListScreen(
 fun CameraDeviceCard(
     camera: CameraDevice,
     isLivePreviewAll: Boolean,
-    expiryInfo: io.github.iokkai.ocularnode.util.TailscaleDeviceExpiryInfo? = null,
-    isDisablingExpiry: Boolean = false,
-    onDisableKeyExpiry: (String) -> Unit = {},
     onConnect: () -> Unit,
     onRemoteSettings: () -> Unit,
     onEdit: () -> Unit,
@@ -858,58 +728,7 @@ fun CameraDeviceCard(
                         }
                     }
 
-                    if (expiryInfo != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            if (expiryInfo.keyExpiryDisabled) {
-                                Surface(
-                                    color = AppSuccessContainerLight,
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, AppSuccess.copy(alpha = 0.3f))
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.msg_key_expiry_permanent),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = AppSuccessDark,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            } else {
-                                val remainingDays = expiryInfo.getRemainingDays() ?: 0
-                                Surface(
-                                    color = AppWarningContainerLight,
-                                    shape = RoundedCornerShape(6.dp),
-                                    border = BorderStroke(1.dp, AppWarning.copy(alpha = 0.3f))
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.msg_key_expiry_days_left, remainingDays),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = AppWarningDark,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
 
-                                TextButton(
-                                    onClick = { onDisableKeyExpiry(expiryInfo.deviceId) },
-                                    enabled = !isDisablingExpiry,
-                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                                    modifier = Modifier.height(22.dp)
-                                ) {
-                                    Text(
-                                        text = if (isDisablingExpiry) stringResource(R.string.btn_disabling_key_expiry) else stringResource(R.string.btn_disable_key_expiry),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = AppPrimary
-                                    )
-                                }
-                            }
-                        }
-                    }
 
                     if (camera.deviceSecret != null || !camera.ipv6Address.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))

@@ -33,21 +33,9 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 
-data class TailscaleDownloadProgress(
-    val isDownloading: Boolean = false,
-    val progressPercent: Int = 0,
-    val downloadedBytes: Long = 0L,
-    val totalBytes: Long = 0L,
-    val status: String = ""
-)
-
 object ZeroTouchProvisionManager {
 
     private const val TAG = "ZeroTouchProvision"
-    private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
-    private val DEFAULT_TAILSCALE_APK_URL = io.github.iokkai.ocularnode.BuildConfig.TAILSCALE_APK_URL.ifBlank { "https://pkgs.tailscale.com/stable/tailscale-android-universal-1.102.2.apk" }
-
-    val tailscaleDownloadProgress = TailscaleLegacyManager.tailscaleDownloadProgress
 
     fun getAdminComponent(context: Context): ComponentName {
         return ComponentName(context, AdminReceiver::class.java)
@@ -196,29 +184,6 @@ object ZeroTouchProvisionManager {
         } catch (e: Exception) {
             Log.e(TAG, "處理自身電池最佳化豁免時發生例外狀況: ${e.message}", e)
         }
-    }
-
-    /**
-     * 啟動 Tailscale 零接觸部署管道 (已移至 TailscaleLegacyManager)
-     */
-    @Deprecated("Use TailscaleLegacyManager.startZeroTouchPipeline directly", ReplaceWith("TailscaleLegacyManager.startZeroTouchPipeline(context, authKey, apkUrl)"))
-    fun startZeroTouchPipeline(context: Context, authKey: String, apkUrl: String = DEFAULT_TAILSCALE_APK_URL) {
-        TailscaleLegacyManager.startZeroTouchPipeline(context, authKey, apkUrl)
-    }
-
-    @Deprecated("Use TailscaleLegacyManager.downloadTailscaleApk directly", ReplaceWith("TailscaleLegacyManager.downloadTailscaleApk(context, downloadUrl)"))
-    suspend fun downloadTailscaleApk(context: Context, downloadUrl: String): File? {
-        return TailscaleLegacyManager.downloadTailscaleApk(context, downloadUrl)
-    }
-
-    @Deprecated("Use TailscaleLegacyManager.installTailscaleApkSilently directly", ReplaceWith("TailscaleLegacyManager.installTailscaleApkSilently(context, apkFile)"))
-    fun installTailscaleApkSilently(context: Context, apkFile: File) {
-        TailscaleLegacyManager.installTailscaleApkSilently(context, apkFile)
-    }
-
-    @Deprecated("Use TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn directly", ReplaceWith("TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)"))
-    fun injectTailscaleRestrictionsAndEnableVpn(context: Context, authKey: String) {
-        TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
     }
 
     /**

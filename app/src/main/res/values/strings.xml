@@ -32,9 +32,6 @@
     <string name="camera_btn_start">Start</string>
     <string name="camera_btn_stop">Stop</string>
     <string name="camera_local_ip">Local IP (Same Wi-Fi)</string>
-    <string name="camera_tailscale_ip">Tailscale IP (Remote Access)</string>
-    <string name="camera_tailscale_connected">Tailscale VPN Connected</string>
-    <string name="camera_tailscale_disconnected">Tailscale VPN Disconnected</string>
     <string name="camera_black_screen">Enter Power Saving Mode (Background Active)</string>
     <string name="power_saving_active">Power Saving Mode Active</string>
     <string name="power_saving_double_tap">Double tap to exit power saving mode</string>
@@ -136,26 +133,6 @@
     <string name="wizard_wifi_permission_dialog_msg">According to Android privacy and security policies, apps must be granted location permission to detect and read the currently connected Wi-Fi SSID.\n\nThis permission will strictly be used to auto-fill the Wi-Fi name and will NOT track or store your location data.</string>
     <string name="wizard_wifi_permission_btn_grant">Grant &amp; Continue</string>
     <string name="wizard_wifi_permission_btn_cancel">Enter Manually</string>
-    <string name="wizard_s3_ts_title">Tailscale Connection Key</string>
-    <string name="wizard_s3_ts_prompt">2 easy steps to get your free key:</string>
-    <string name="wizard_s3_ts_newuser_step1">① Tap the button below to log in (supports Google/Apple, select \"Personal\" for free use).</string>
-    <string name="wizard_s3_ts_newuser_step2">② Click \"Generate access token\" and paste the key (tskey-...) into the box below.</string>
-    <string name="wizard_s3_ts_btn_web">🔑 Open Webpage to Get Key</string>
-    <string name="wizard_s3_ts_faq_toggle">💡 Key FAQ &amp; Expiry Info (Tap to Expand)</string>
-    <string name="wizard_s3_ts_faq_content">• Supports both API Key (recommended) or Auth Key.\n• The 90-day key lifetime is only for initial pairing; connected cameras stay connected permanently!</string>
-    <string name="btn_disable_key_expiry">⚡ Disable 180-Day Key Expiry</string>
-    <string name="btn_disabling_key_expiry">Disabling…</string>
-    <string name="msg_key_expiry_disabled_success">180-day key expiry has been permanently disabled for this camera!</string>
-    <string name="msg_key_expiry_permanent">✅ Permanent Connection (Key Expiry Disabled)</string>
-    <string name="msg_key_expiry_days_left">⏳ Expires in %1$d days</string>
-    <string name="wizard_s3_ts_key_label">Paste Key (tskey-...)</string>
-    <string name="wizard_s3_ts_key_placeholder">tskey-api-... or tskey-auth-...</string>
-    <string name="wizard_s3_ts_key_hide">Hide Key</string>
-    <string name="wizard_s3_ts_key_show">Show Key</string>
-    <string name="wizard_s3_ts_btn_verifying">Verifying…</string>
-    <string name="wizard_s3_ts_btn_verify">Verify &amp; Save Key</string>
-    <string name="wizard_s3_ts_success_icon">Verification Successful</string>
-    <string name="wizard_s3_ts_success_text">Key verified successfully!</string>
     <string name="wizard_s2_config_btn_next">Next: Spare Phone Reset Instructions</string>
     <string name="wizard_s3_reset_header">Step 2: Reset Your Spare Phone</string>
     <string name="wizard_s2_step1">Pick up the spare phone to be used as a camera.</string>
@@ -169,8 +146,7 @@
     <string name="wizard_s4_step2">【Step 2: Connect Wi-Fi】If the spare phone prompts \"Wi-Fi connection needed to download barcode reader\", connect to Wi-Fi on the spare phone (official Android scanner download).</string>
     <string name="wizard_s4_step3">【Step 3: Scan QR Code】Once downloaded, the camera will open automatically. Aim it at the QR code below to scan.</string>
     <string name="wizard_s4_status_ready_title">📷 QR Code Ready: Aim Spare Phone to Scan</string>
-    <string name="wizard_s4_status_ready_desc">Once scanned, the spare phone will automatically download OcularNode &amp; Tailscale, connect to your tailnet, and launch monitoring!</string>
-    <string name="wizard_s4_req_ts_key">Requesting Auth Key from Tailscale…</string>
+    <string name="wizard_s4_status_ready_desc">Once scanned, the spare phone will automatically download OcularNode, connect to Wi-Fi, and launch monitoring!</string>
     <string name="wizard_s4_qr_desc">Deployment QR Code</string>
     <string name="wizard_s4_qr_error">Generation Failed: %1$s</string>
     <string name="wizard_s4_btn_retry">Retry</string>
@@ -449,12 +425,6 @@
     <string name="viewer_menu_close">Close Menu</string>
     <string name="viewer_menu_add">Add Camera Menu</string>
     <string name="viewer_header_subtitle">Scan camera QR Code or enter IP to add</string>
-    <string name="viewer_tailscale_connected">Tailscale VPN Connected</string>
-    <string name="viewer_tailscale_connected_desc">VPN service active • Remote cross-network monitoring ready</string>
-    <string name="viewer_tailscale_disconnected">Tailscale VPN Disconnected</string>
-    <string name="viewer_tailscale_disconnected_desc">VPN service offline • Local Wi-Fi viewing only</string>
-    <string name="viewer_tailscale_open">🚀 Open Tailscale</string>
-    <string name="viewer_tailscale_install">📥 Install Tailscale</string>
     <string name="viewer_toast_fetching_status">Connecting to fetch %1$s status…</string>
     <string name="viewer_dialog_confirm_qr">Confirm Scanned QR Information</string>
     <string name="viewer_card_loading_snapshot">Loading snapshot / Click to enter live view</string>
@@ -481,15 +451,10 @@
     <string name="tg_alert_power_restore_desc">Device external power reconnected and charging. Current battery: %1$d%%</string>
     <string name="tg_alert_low_battery_title">🪫 *[Low Battery Alert]*</string>
     <string name="tg_alert_low_battery_desc">Device battery dropped to %1$d%% (below %2$d%%)! Device may shut down soon without power.</string>
-    <string name="tg_alert_tailscale_disconnected_title">⚠️ *[Tailscale VPN Connection Lost / Key Expired]*</string>
-    <string name="tg_alert_tailscale_disconnected_desc">Camera node lost its Tailscale VPN connection while Wi-Fi is still active.\nIf this node has been running for ~180 days, its Tailscale Key may have expired.\nPlease visit Tailscale Admin Console (Machines) and click \"Disable Key Expiry\" or re-authenticate.</string>
-    <string name="btn_open_tailscale_machines">Open Tailscale Machines</string>
-    <string name="tailscale_key_expiry_hint">💡 Tailscale nodes expire after 180 days by default. Click to open Console and select \"Disable Key Expiry\".</string>
     <string name="camera_stream_service_title">OcularNode Monitoring Active</string>
     <string name="camera_stream_service_desc">MJPEG streaming &amp; motion detection active</string>
     <string name="tg_alert_reboot_title">⚡ *[Boot / Update Auto-Restart Alert]*</string>
     <string name="tg_alert_reboot_desc">System received broadcast (%1$s), Camera Monitoring Service and Kiosk Screen have been automatically started!</string>
-    <string name="toast_tailscale_not_found">Tailscale App not found, opening app store…</string>
     <string name="ml_detected_prefix">Detected: %1$s</string>
     <string name="ml_unclassified">Motion (Unclassified)</string>
     <string name="ml_filtered_with_cat">Filtered [%1$s: %2$s] (Category disabled)</string>
@@ -508,21 +473,7 @@
     <string name="toast_kiosk_enabled">🔒 Kiosk Lock Task mode activated</string>
     <string name="toast_kiosk_disabled">🔓 Kiosk Lock Task mode deactivated!</string>
 
-    <!-- Tailscale First-Time Onboarding -->
-    <string name="ts_onboarding_title">Enable Tailscale Enterprise-Grade VPN</string>
-    <string name="ts_onboarding_subtitle">Enterprise WireGuard® zero-trust encryption, 100% free for personal use</string>
-    <string name="ts_onboarding_badge">🏢 Enterprise-Grade WireGuard® Zero-Trust</string>
-    <string name="ts_onboarding_why_title">🛡️ Enterprise-Grade Security・100% Privacy Guarantee</string>
-    <string name="ts_onboarding_why_desc">Tailscale is an industry-leading enterprise mesh VPN powered by WireGuard®. It creates a direct, peer-to-peer (P2P) end-to-end encrypted tunnel between your own devices with zero third-party cloud relays—even Tailscale cannot view your video feeds. Stream securely from outside over cellular (4G/5G) without opening ports or public IPs!</string>
-    <string name="ts_onboarding_step1_title">1. Download Official Tailscale App</string>
-    <string name="ts_onboarding_step1_desc">Tap the button below to download the official Tailscale app for free from Google Play.</string>
-    <string name="ts_onboarding_step2_title">2. Free Sign In / Sign Up (Select Personal)</string>
-    <string name="ts_onboarding_step2_desc">Sign in with Google, Apple, or Microsoft (select \"Personal\" for permanent free use).</string>
-    <string name="ts_onboarding_step3_title">3. Toggle Connect Switch &amp; Monitor Anywhere</string>
-    <string name="ts_onboarding_step3_desc">Toggle the connect switch in Tailscale and return to OcularNode to enjoy enterprise-grade encrypted live video streaming!</string>
-    <string name="ts_onboarding_btn_install">📥 Install from Google Play</string>
-    <string name="ts_onboarding_btn_web">🌐 Tailscale Portal Login (Web)</string>
-    <string name="ts_onboarding_btn_later">Maybe Later (Use Local Wi-Fi Only)</string>
+
 
     <!-- 13. Web Dashboard (MjpegHttpServer) -->
     <string name="web_page_title">OcularNode Web Monitor</string>
@@ -641,15 +592,14 @@
     <string name="about_section_highlights">Key Capabilities</string>
     <string name="about_hl_kiosk_title">24/7 Dedicated Device</string>
     <string name="about_hl_kiosk_desc">Android Device Owner kiosk mode ensuring continuous monitoring without sleeping.</string>
-    <string name="about_hl_tailscale_title">Tailscale Zero-Config Mesh VPN</string>
-    <string name="about_hl_tailscale_desc">P2P encrypted remote access anywhere without port forwarding.</string>
+
     <string name="about_hl_ai_title">On-Device Edge AI</string>
     <string name="about_hl_ai_desc">Google ML Kit offline object and pet detection to filter false alarms.</string>
     <string name="about_section_oss">Open Source Libraries</string>
     <string name="about_oss_desc">OcularNode is built with the following open source software:</string>
     <string name="about_section_disclaimer">Disclaimers &amp; Trademarks</string>
     <string name="about_trademark_title">Third-Party Trademarks</string>
-    <string name="about_trademark_content">Tailscale is a registered trademark of Tailscale Inc. Telegram is a trademark of Telegram FZ-LLC. Android, Google Play, and Google ML Kit are trademarks of Google LLC. OcularNode is an independent open-source project and is not affiliated with, sponsored by, or endorsed by Tailscale Inc., Telegram FZ-LLC, or Google LLC.</string>
+    <string name="about_trademark_content">Telegram is a trademark of Telegram FZ-LLC. Android, Google Play, and Google ML Kit are trademarks of Google LLC. OcularNode is an independent open-source project and is not affiliated with, sponsored by, or endorsed by Telegram FZ-LLC or Google LLC.</string>
     <string name="about_liability_title">Warranty &amp; Surveillance Disclaimer</string>
     <string name="about_liability_content">This software is provided \"as is\", without warranty of any kind. OcularNode is an open-source upcycling utility and is not a certified professional security system. Users are solely responsible for ensuring compliance with all applicable local privacy and audio/video surveillance laws.</string>
     <string name="about_battery_safety_title">Battery, Thermal &amp; Hardware Safety</string>
@@ -661,7 +611,7 @@
     <string name="onboarding_terms_consent_prefix">By selecting a mode to continue, you agree to our</string>
     <string name="onboarding_terms_link">Privacy Policy &amp; Terms of Use ↗</string>
     <string name="onboarding_terms_footnote">100% Local Processing • No Cloud Tracking • Non-Certified Security Tool</string>
-    <string name="wizard_ts_privacy_hint">🔒 Your API key is encrypted locally using Android KeyStore. All requests connect directly to Tailscale official API without intermediate proxies.</string>
+
     <string name="tg_setup_privacy_hint">🔒 Your Bot Token is stored locally and used exclusively to call Telegram official API directly. No credentials are ever sent to third-party servers.</string>
     <string name="about_footer_copyright">Copyright © 2026 iokkai. Released under GNU GPL v3.0.</string>
     <string name="about_btn_view">ℹ️ About OcularNode</string>
@@ -688,9 +638,4 @@
     <string name="settings_turn_username">TURN Username (Optional)</string>
     <string name="settings_turn_password">TURN Password (Optional)</string>
 
-    <!-- Advanced Connection Mode Selection -->
-    <string name="settings_connection_mode_group">Advanced Connection Mode</string>
-    <string name="settings_connection_mode_desc">Select preferred streaming connection technology</string>
-    <string name="settings_connection_mode_webrtc">⚡ WebRTC P2P (Default / Direct Stream &amp; Low Latency)</string>
-    <string name="settings_connection_mode_tailscale">🔒 Tailscale VPN (Advanced / Legacy Overlay Network)</string>
 </resources>

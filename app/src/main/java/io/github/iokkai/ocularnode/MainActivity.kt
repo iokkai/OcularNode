@@ -158,7 +158,6 @@ fun MainAppScreen(
     }
     var viewingMonitorDevice by remember { mutableStateOf<CameraDevice?>(null) }
     val unreadCount by eventLogsViewModel.unreadCount.collectAsState()
-    val tailscaleProgress by io.github.iokkai.ocularnode.util.TailscaleLegacyManager.tailscaleDownloadProgress.collectAsState()
 
     // Force CAMERA role & sync if Device Owner
     LaunchedEffect(isDeviceOwner) {
@@ -192,16 +191,6 @@ fun MainAppScreen(
             if (!cameraServerViewModel.isServiceRunning.value) {
                 cameraServerViewModel.startStreamService()
                 Log.i("MainActivity", "自動啟動相機串流服務")
-            }
-
-            // 僅在明確設定為 Tailscale 模式時執行 Tailscale 連線
-            val authKey = settingsManager.tailscaleAuthKey
-            if (settingsManager.connectionMode == "TAILSCALE" && authKey.isNotBlank()) {
-                if (NetworkUtils.isTailscaleInstalled(context)) {
-                    io.github.iokkai.ocularnode.util.TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
-                } else {
-                    io.github.iokkai.ocularnode.util.TailscaleLegacyManager.startZeroTouchPipeline(context, authKey)
-                }
             }
 
             if (settingsManager.isKioskModeActive && activity != null) {
@@ -264,112 +253,6 @@ fun MainAppScreen(
     }
 
     val settingsManager = remember { io.github.iokkai.ocularnode.data.SettingsManager.getInstance(context) }
-    var showTailscaleOnboardingDialog by remember {
-        mutableStateOf(
-            !isDeviceOwner &&
-            roleMode != "UNSET" &&
-            !io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) &&
-            !settingsManager.hasDismissedTailscaleOnboarding
-        )
-    }
-
-    androidx.compose.runtime.LaunchedEffect(roleMode) {
-        if (!isDeviceOwner && roleMode != "UNSET" && !io.github.iokkai.ocularnode.util.NetworkUtils.isTailscaleInstalled(context) && !settingsManager.hasDismissedTailscaleOnboarding) {
-            showTailscaleOnboardingDialog = true
-        }
-    }
-
-    if (showTailscaleOnboardingDialog) {
-        io.github.iokkai.ocularnode.ui.common.TailscaleOnboardingDialog(
-            onDismiss = {
-                settingsManager.hasDismissedTailscaleOnboarding = true
-                showTailscaleOnboardingDialog = false
-            }
-        )
-    }
-
-    // 零接觸部署 / Tailscale APK 下載進度對話框
-    if (tailscaleProgress.isDownloading) {
-        Dialog(
-            onDismissRequest = { /* 下載核心套件時不允許點擊外部退出 */ },
-            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-        ) {
-            Card(
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                border = BorderStroke(1.dp, AppPrimary),
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(AppSecondaryContainer, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PhoneAndroid,
-                            contentDescription = null,
-                            tint = AppPrimary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = stringResource(R.string.provisioning_in_progress),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = AppTextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = tailscaleProgress.status,
-                        fontSize = 13.sp,
-                        color = AppTextSecondary,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    if (tailscaleProgress.progressPercent >= 0) {
-                        LinearProgressIndicator(
-                            progress = { tailscaleProgress.progressPercent / 100f },
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = AppPrimary,
-                            trackColor = AppSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "${tailscaleProgress.progressPercent}%",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppPrimary
-                            )
-                            if (tailscaleProgress.totalBytes > 0) {
-                                Text(
-                                    text = "${tailscaleProgress.downloadedBytes / (1024 * 1024)} MB / ${tailscaleProgress.totalBytes / (1024 * 1024)} MB",
-                                    fontSize = 11.sp,
-                                    color = AppTextMuted
-                                )
-                            }
-                        }
-                    } else {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
-                            color = AppPrimary,
-                            trackColor = AppSecondaryContainer
-                        )
-                    }
-                }
-            }
-        }
-    }
 
     Scaffold(
         bottomBar = {

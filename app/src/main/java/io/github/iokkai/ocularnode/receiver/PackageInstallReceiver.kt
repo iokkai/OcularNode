@@ -46,9 +46,6 @@ class PackageInstallReceiver : BroadcastReceiver() {
                     } catch (e: Exception) {
                         Log.e("PackageInstallReceiver", "無法啟動 CameraStreamService", e)
                     }
-                } else {
-                    val authKey = settingsManager.tailscaleAuthKey
-                    ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
                 }
             } else if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
                 val confirmationIntent = androidx.core.content.IntentCompat.getParcelableExtra(intent, Intent.EXTRA_INTENT, Intent::class.java)

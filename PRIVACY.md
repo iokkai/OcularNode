@@ -30,13 +30,13 @@ OcularNode requests only the permissions necessary to provide video monitoring c
 
 ### 3. Local Storage & Hardware-Backed Security
 * **Media & Event Recordings**: All snapshots and recorded video clips are saved strictly within the device's internal storage or scoped app storage. No files are uploaded to any developer-operated servers.
-* **Sensitive Credentials**: Authentication tokens (including Telegram Bot Tokens, Chat IDs, and Tailscale API Keys) are encrypted using Jetpack Security's `EncryptedSharedPreferences` backed by the **Android KeyStore (AES256-GCM / AES256-SIV)**.
+* **Sensitive Credentials**: Authentication tokens (including Telegram Bot Tokens, Chat IDs, and TURN Passwords) are encrypted using Jetpack Security's `EncryptedSharedPreferences` backed by the **Android KeyStore (AES256-GCM / AES256-SIV)**.
 * **Data Extraction Prevention**: Physical ADB backups are globally disabled (`android:allowBackup="false"`).
 
 ---
 
-### 4. Third-Party Integrations (Bring Your Own Key)
-* **Tailscale (Mesh VPN)**: For cross-network P2P streaming. Video streams travel directly between your authorized devices over WireGuard-encrypted tunnels.
+### 4. Third-Party Integrations & P2P Protocols
+* **WebRTC P2P & LAN Direct Streaming**: For ultra-low-latency video streaming. Video feeds travel directly between your own devices over peer-to-peer WebRTC connections (using STUN/ICE or optional TURN relays) without any intermediary cloud recording.
 * **Telegram Bot API**: For sending push alerts and snapshot photos to your private chat. All requests are sent directly from your device to `api.telegram.org` over HTTPS.
 * **Google ML Kit**: All image classification and object detection models run **offline on your device**. No images or biometric information are ever sent to Google.
 
@@ -82,14 +82,13 @@ OcularNode 僅要求執行監控功能所必需的權限：
 
 ### 3. 本地儲存與硬體加密安全
 * **監控影像與檔案**：所有警報照片與事件錄影皆存放在裝置本機內部儲存空間，絕不上傳至任何開發者伺服器。
-* **機密憑證防護**：使用者設定之 Telegram Bot Token、Tailscale API Key 及 HTTP PIN 碼，均採用 Android KeyStore 結合 `EncryptedSharedPreferences` 進行 **AES256 硬體級加密儲存**。
+* **機密憑證防護**：使用者設定之 Telegram Bot Token、TURN 密碼及 HTTP PIN 碼，均採用 Android KeyStore 結合 `EncryptedSharedPreferences` 進行 **AES256 硬體級加密儲存**。
 * **防止實體提取**：全域停用 `android:allowBackup="false"`，杜絕未經授權的 ADB 實體備份提取。
 
 ---
 
-### 4. 第三方服務直連規範 (BYOK)
-OcularNode 支援使用者自主設定（Bring Your Own Key）第三方服務：
-* **Tailscale**：用於跨網點對點 (P2P) 安全穿透。所有影像串流皆直接在您的受信任節點間傳輸，不經由第三方伺服器中轉。
+### 4. 通訊協定與第三方服務規範
+* **WebRTC P2P 與區網直連**：用於超低延遲點對點即時影像串流。所有視訊畫面皆直接在您的設備間透過 WebRTC P2P / 區域網路直連傳輸，不經由任何第三方雲端錄影伺服器中轉。
 * **Telegram Bot API**：用於發送警報推播與照片至您的私人頻道。所有請求均由本機直接以 HTTPS 連向 Telegram 官方伺服器。
 * **Google ML Kit**：所有物體與寵物過濾辨識模型均在 **裝置端離線運算**，絕無任何影像資料上傳至 Google 雲端。
 

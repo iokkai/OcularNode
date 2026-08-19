@@ -165,14 +165,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         settingsManager.customTurnPassword = trimmed
     }
 
-    private val _connectionMode = MutableStateFlow(settingsManager.connectionMode)
-    val connectionMode: StateFlow<String> = _connectionMode.asStateFlow()
-
-    fun updateConnectionMode(mode: String) {
-        settingsManager.connectionMode = mode
-        _connectionMode.value = mode
-    }
-
     private val _cleanupStatus = MutableStateFlow<String?>(null)
     val cleanupStatus: StateFlow<String?> = _cleanupStatus.asStateFlow()
 

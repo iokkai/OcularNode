@@ -32,9 +32,6 @@
     <string name="camera_btn_start">啟用</string>
     <string name="camera_btn_stop">停用</string>
     <string name="camera_local_ip">區網 IP (僅限相同 Wi-Fi 下連線)</string>
-    <string name="camera_tailscale_ip">Tailscale IP (可遠端穿透)</string>
-    <string name="camera_tailscale_connected">Tailscale VPN 已連線</string>
-    <string name="camera_tailscale_disconnected">Tailscale VPN 未連線</string>
     <string name="camera_black_screen">進入省電模式 (持續背景運作)</string>
     <string name="power_saving_active">省電模式運作中</string>
     <string name="power_saving_double_tap">連按兩下 (Double Tap) 解除省電模式</string>
@@ -136,26 +133,6 @@
     <string name="wizard_wifi_permission_dialog_msg">依據 Android 系統安全性與隱私政策規範，應用程式必須獲得定位權限才能偵測並讀取目前已連線的 Wi-Fi 名稱 (SSID)。\n\n此權限僅用於自動填入名稱以加速設定，OcularNode 絕不會記錄或上傳您的任何地理位置資料。</string>
     <string name="wizard_wifi_permission_btn_grant">允許並繼續</string>
     <string name="wizard_wifi_permission_btn_cancel">手動輸入</string>
-    <string name="wizard_s3_ts_title">Tailscale 連線金鑰 (遠端看家)</string>
-    <string name="wizard_s3_ts_prompt">簡單 2 步取得免費金鑰：</string>
-    <string name="wizard_s3_ts_newuser_step1">① 點擊下方按鈕登入 Tailscale（支援 Google/Apple 登入，問卷選「Personal 個人用途」免費）。</string>
-    <string name="wizard_s3_ts_newuser_step2">② 點擊「Generate access token」複製金鑰 (tskey-...)，貼回下方輸入框。</string>
-    <string name="wizard_s3_ts_btn_web">🔑 開啟網頁取得金鑰</string>
-    <string name="wizard_s3_ts_faq_toggle">💡 金鑰常見說明 (點擊展開)</string>
-    <string name="wizard_s3_ts_faq_content">• 支援 API Key (推薦) 或 Auth Key，貼上任一種皆可。\n• 官方金鑰 90 天有效僅用於本次掃碼配網，相機成功連線後可永久常駐運作，不受影響！</string>
-    <string name="btn_disable_key_expiry">⚡ 一鍵停用 180 天過期 (永久連線)</string>
-    <string name="btn_disabling_key_expiry">正在停用中…</string>
-    <string name="msg_key_expiry_disabled_success">已成功為此相機永久停用金鑰過期！</string>
-    <string name="msg_key_expiry_permanent">✅ 永久連線 (已停用金鑰過期)</string>
-    <string name="msg_key_expiry_days_left">⏳ 將於 %1$d 天後過期</string>
-    <string name="wizard_s3_ts_key_label">貼上金鑰 (tskey-...)</string>
-    <string name="wizard_s3_ts_key_placeholder">tskey-api-... 或 tskey-auth-...</string>
-    <string name="wizard_s3_ts_key_hide">隱藏金鑰</string>
-    <string name="wizard_s3_ts_key_show">顯示金鑰</string>
-    <string name="wizard_s3_ts_btn_verifying">驗證中...</string>
-    <string name="wizard_s3_ts_btn_verify">驗證並儲存金鑰</string>
-    <string name="wizard_s3_ts_success_icon">驗證成功</string>
-    <string name="wizard_s3_ts_success_text">金鑰驗證成功！</string>
     <string name="wizard_s2_config_btn_next">下一步：重置舊手機教學</string>
     <string name="wizard_s3_reset_header">第二步：重置您的另一台舊手機</string>
     <string name="wizard_s2_step1">拿起您要當作監視鏡頭的「另一台舊手機」。</string>
@@ -169,8 +146,7 @@
     <string name="wizard_s4_step2">【步驟 2：連線 Wi-Fi】若舊手機提示「需要連線 Wi-Fi 以下載條碼讀取器」，請直接在舊手機上點選 Wi-Fi 連線（Android 官方下載掃描模組所需）。</string>
     <string name="wizard_s4_step3">【步驟 3：對準掃描】下載完成後舊手機相機會自動開啟，請對準下方 QR Code 進行掃描。</string>
     <string name="wizard_s4_status_ready_title">📷 條碼已就緒，請拿舊手機對準掃描</string>
-    <string name="wizard_s4_status_ready_desc">掃描後舊手機將自動下載安裝 OcularNode 與 Tailscale，並自動連線與開啟監控畫面！</string>
-    <string name="wizard_s4_req_ts_key">向 Tailscale 申請 Auth Key 中...</string>
+    <string name="wizard_s4_status_ready_desc">掃描後舊手機將自動連線 Wi-Fi 並下載安裝 OcularNode，並開啟監控畫面！</string>
     <string name="wizard_s4_qr_desc">部署專用 QR Code</string>
     <string name="wizard_s4_qr_error">生成失敗：%1$s</string>
     <string name="wizard_s4_btn_retry">重新嘗試</string>
@@ -449,12 +425,6 @@
     <string name="viewer_menu_close">關閉選單</string>
     <string name="viewer_menu_add">新增鏡頭選單</string>
     <string name="viewer_header_subtitle">掃描鏡頭端 QR Code 或輸入 IP 加入</string>
-    <string name="viewer_tailscale_connected">Tailscale VPN 已連線</string>
-    <string name="viewer_tailscale_connected_desc">VPN 服務連線中 • 可跨網段遠端監控</string>
-    <string name="viewer_tailscale_disconnected">Tailscale VPN 未連線</string>
-    <string name="viewer_tailscale_disconnected_desc">VPN 服務未開啟 • 僅限同 Wi-Fi 觀看</string>
-    <string name="viewer_tailscale_open">🚀 開啟 Tailscale</string>
-    <string name="viewer_tailscale_install">📥 安裝 Tailscale</string>
     <string name="viewer_toast_fetching_status">正在連線取得 %1$s 狀態...</string>
     <string name="viewer_dialog_confirm_qr">確認 QR Code 掃描資訊</string>
     <string name="viewer_card_loading_snapshot">快照載入中 / 點擊進入即時畫面</string>
@@ -481,15 +451,10 @@
     <string name="tg_alert_power_restore_desc">設備已重新恢復外接電源供電，正在進行充電。當前電量: %1$d%%</string>
     <string name="tg_alert_low_battery_title">🪫 *【低電量預警通知】*</string>
     <string name="tg_alert_low_battery_desc">設備電量已降至 %1$d%% (低於 %2$d%%)！若持續未供電，設備可能即將關機。</string>
-    <string name="tg_alert_tailscale_disconnected_title">⚠️ *【Tailscale VPN 連線中斷 / 金鑰可能過期】*</string>
-    <string name="tg_alert_tailscale_disconnected_desc">相機節點偵測到 Tailscale VPN 連線已中斷（但本地 Wi-Fi 仍正常連線）。\n若相機已持續運作一段時間，可能是 Tailscale 預設的 180 天金鑰過期機制已觸發。\n請前往 Tailscale 控制台 (Machines) 檢查，或點選「Disable Key Expiry」(停用金鑰過期) 重新授權。</string>
-    <string name="btn_open_tailscale_machines">開啟 Tailscale 控制台裝置列表</string>
-    <string name="tailscale_key_expiry_hint">💡 Tailscale 預設 180 天金鑰會過期。建議前往控制台點選「Disable Key Expiry」停用過期。</string>
     <string name="camera_stream_service_title">OcularNode 監控服務中</string>
     <string name="camera_stream_service_desc">MJPEG 伺服器與動態偵測運作中</string>
     <string name="tg_alert_reboot_title">⚡ *【開機/更新自動重啟通知】*</string>
     <string name="tg_alert_reboot_desc">系統收到廣播 (%1$s)，已自動喚醒「相機監控節點」服務與 Kiosk 監控畫面！</string>
-    <string name="toast_tailscale_not_found">未偵測到 Tailscale App，即將開啟商店頁面下載</string>
     <string name="ml_detected_prefix">偵測到: %1$s</string>
     <string name="ml_unclassified">動態異動 (未分類)</string>
     <string name="ml_filtered_with_cat">已過濾 [%1$s: %2$s] (類別已停用)</string>
@@ -508,21 +473,7 @@
     <string name="toast_kiosk_enabled">🔒 已啟動 Kiosk 模式</string>
     <string name="toast_kiosk_disabled">🔓 已順利解除 Kiosk 模式！</string>
 
-    <!-- Tailscale 首次安裝新手引導 -->
-    <string name="ts_onboarding_title">啟用 Tailscale 企業級安全連線</string>
-    <string name="ts_onboarding_subtitle">全球企業信賴的 WireGuard® 零信任加密，個人免費使用</string>
-    <string name="ts_onboarding_badge">🏢 企業級 WireGuard® 零信任加密</string>
-    <string name="ts_onboarding_why_title">🛡️ 企業級安全穿透・100% 隱私零洩漏</string>
-    <string name="ts_onboarding_why_desc">Tailscale 是全球廣泛採用的「企業級 WireGuard® 網狀 VPN」。它能在您的手機之間建立最高等級的 P2P 點對點端對端加密通道，完全不經過任何第三方雲端伺服器轉發，連 Tailscale 官方也無法偷看您的即時影像。出門在外使用 4G/5G 或外部網路，免開 Port、免固定 IP，安全直連家中監視畫面！</string>
-    <string name="ts_onboarding_step1_title">1. 下載並安裝 Tailscale 官方 App</string>
-    <string name="ts_onboarding_step1_desc">點擊下方按鈕前往 Google Play 免費下載官方 App。</string>
-    <string name="ts_onboarding_step2_title">2. 免費登入 / 註冊帳號 (選 Personal)</string>
-    <string name="ts_onboarding_step2_desc">支援 Google / Apple / Microsoft 帳號一秒登入（問卷選「Personal 個人用途」即享永久免費）。</string>
-    <string name="ts_onboarding_step3_title">3. 打開連線開關，隨時隨地安全監看</string>
-    <string name="ts_onboarding_step3_desc">在 Tailscale 打開連線開關，回到 OcularNode 即可享受企業級加密的高清即時串流！</string>
-    <string name="ts_onboarding_btn_install">📥 前往 Google Play 下載安裝</string>
-    <string name="ts_onboarding_btn_web">🌐 前往 Tailscale 官網登入 (開啟網頁)</string>
-    <string name="ts_onboarding_btn_later">稍後再說 (先使用本地 Wi-Fi 監控)</string>
+
 
     <!-- 13. 網頁監看儀表板 (MjpegHttpServer) -->
     <string name="web_page_title">OcularNode 網頁監控端</string>
@@ -641,15 +592,14 @@
     <string name="about_section_highlights">核心特色</string>
     <string name="about_hl_kiosk_title">24/7 專用設備模式</string>
     <string name="about_hl_kiosk_desc">Android Device Owner 權限，確保常駐運作不休眠、開機自動復原。</string>
-    <string name="about_hl_tailscale_title">Tailscale 極速私網穿透</string>
-    <string name="about_hl_tailscale_desc">免公網 IP 與 Port Forwarding，隨時隨地安全點對點連線。</string>
+
     <string name="about_hl_ai_title">On-Device 邊緣 AI 辨識</string>
     <string name="about_hl_ai_desc">Google ML Kit 本地端即時過濾人、車、寵物，智慧防誤報。</string>
     <string name="about_section_oss">開源函式庫致謝</string>
     <string name="about_oss_desc">OcularNode 感謝並使用以下開源專案與函式庫：</string>
     <string name="about_section_disclaimer">免責與商標聲明</string>
     <string name="about_trademark_title">第三方商標聲明</string>
-    <string name="about_trademark_content">Tailscale 為 Tailscale Inc. 之註冊商標。Telegram 為 Telegram FZ-LLC 之商標。Android、Google Play 及 Google ML Kit 為 Google LLC 之商標。OcularNode 為獨立開源專案，與 Tailscale Inc.、Telegram FZ-LLC 或 Google LLC 無官方隸屬、贊助或背書關係。</string>
+    <string name="about_trademark_content">Telegram 為 Telegram FZ-LLC 之商標。Android、Google Play 及 Google ML Kit 為 Google LLC 之商標。OcularNode 為獨立開源專案，與 Telegram FZ-LLC 或 Google LLC 無官方隸屬、贊助或背書關係。</string>
     <string name="about_liability_title">服務保固與監控法規免責</string>
     <string name="about_liability_content">本軟體依「現狀 (AS-IS)」提供，不包含任何形式之保證。OcularNode 為舊機轉生之開源輔助工具，非專業認證之保全防盜系統。使用者須自行遵守當地個人隱私與防妨害秘密錄影錄音法規，作者不對任何監控中斷或損害負責。</string>
     <string name="about_battery_safety_title">電池健康與硬體安全免責</string>
@@ -661,7 +611,7 @@
     <string name="onboarding_terms_consent_prefix">選擇模式並繼續即表示您已閱讀並同意 OcularNode 的</string>
     <string name="onboarding_terms_link">隱私權政策與使用條款</string>
     <string name="onboarding_terms_footnote">・100% 本地端運算・\n・無雲端伺服器收集・\n・極致隱私保護・</string>
-    <string name="wizard_ts_privacy_hint">🔒 金鑰僅儲存於本機硬體加密區，所有連線直接呼叫 Tailscale 官方端點，無中間伺服器轉發。</string>
+
     <string name="tg_setup_privacy_hint">🔒 Token 僅儲存於本機，所有警報請求直接發往 Telegram 官方伺服器，絕不上傳至任何第三方。</string>
     <string name="about_footer_copyright">Copyright © 2026 iokkai. 本專案採用 GNU GPL v3.0 開源協議。</string>
     <string name="about_btn_view">ℹ️ 關於 OcularNode</string>
@@ -688,9 +638,4 @@
     <string name="settings_turn_username">TURN 帳號 (選填)</string>
     <string name="settings_turn_password">TURN 密碼 (選填)</string>
 
-    <!-- Advanced Connection Mode Selection -->
-    <string name="settings_connection_mode_group">進階連線模式</string>
-    <string name="settings_connection_mode_desc">選擇預設的影音串流與打洞通道</string>
-    <string name="settings_connection_mode_webrtc">⚡ WebRTC P2P（預設、極速直連與抗發熱）</string>
-    <string name="settings_connection_mode_tailscale">🔒 Tailscale VPN（進階、相容特定虛擬網段）</string>
 </resources>

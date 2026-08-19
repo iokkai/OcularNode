@@ -32,20 +32,11 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val _serverUrl = MutableStateFlow("Not Started")
     val serverUrl: StateFlow<String> = _serverUrl.asStateFlow()
 
-    private val _tailscaleIp = MutableStateFlow<String?>(null)
-    val tailscaleIp: StateFlow<String?> = _tailscaleIp.asStateFlow()
-
     private val _localIp = MutableStateFlow<String?>(null)
     val localIp: StateFlow<String?> = _localIp.asStateFlow()
 
     private val _ipv6GlobalAddress = MutableStateFlow<String?>(null)
     val ipv6GlobalAddress: StateFlow<String?> = _ipv6GlobalAddress.asStateFlow()
-
-    private val _isTailscaleConnected = MutableStateFlow(false)
-    val isTailscaleConnected: StateFlow<Boolean> = _isTailscaleConnected.asStateFlow()
-
-    private val _isVpnActive = MutableStateFlow(false)
-    val isVpnActive: StateFlow<Boolean> = _isVpnActive.asStateFlow()
 
     private val _isThermalThrottled = MutableStateFlow(false)
     val isThermalThrottled: StateFlow<Boolean> = _isThermalThrottled.asStateFlow()
@@ -56,13 +47,10 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     init {
         viewModelScope.launch {
             NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
-                _tailscaleIp.value = ipInfo.tailscaleIp
                 _localIp.value = ipInfo.localIp
                 _ipv6GlobalAddress.value = ipInfo.ipv6GlobalAddress
-                _isTailscaleConnected.value = ipInfo.isTailscaleConnected
-                _isVpnActive.value = ipInfo.isVpnActive
 
-                val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+                val activeIp = ipInfo.localIp ?: "127.0.0.1"
                 _serverUrl.value = "http://$activeIp:${settingsManager.serverPort}"
             }
         }
@@ -122,13 +110,10 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
 
     fun refreshNetworkInfo() {
         val ipInfo = NetworkUtils.getIpAddresses(getApplication())
-        _tailscaleIp.value = ipInfo.tailscaleIp
         _localIp.value = ipInfo.localIp
         _ipv6GlobalAddress.value = ipInfo.ipv6GlobalAddress
-        _isTailscaleConnected.value = ipInfo.isTailscaleConnected
-        _isVpnActive.value = ipInfo.isVpnActive
 
-        val activeIp = ipInfo.tailscaleIp ?: ipInfo.localIp ?: "127.0.0.1"
+        val activeIp = ipInfo.localIp ?: "127.0.0.1"
         _serverUrl.value = "http://$activeIp:${settingsManager.serverPort}"
     }
 

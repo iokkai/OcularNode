@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.PersistableBundle
 import android.util.Log
 import io.github.iokkai.ocularnode.data.SettingsManager
-import io.github.iokkai.ocularnode.util.TailscaleLegacyManager
 import io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager
 import io.github.iokkai.ocularnode.webrtc.crypto.PairingSecretManager
 
@@ -29,21 +28,15 @@ class AdminReceiver : DeviceAdminReceiver() {
 
         try {
             val extras = androidx.core.content.IntentCompat.getParcelableExtra(intent, DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE, PersistableBundle::class.java)
-            val authKey = extras?.getString("tailscale_auth_key") ?: ""
             val mqttSecret = extras?.getString("mqtt_device_secret") ?: ""
             val role = extras?.getString("device_role") ?: "CAMERA"
             val wifiSsid = extras?.getString("wifi_ssid") ?: ""
-            val connectionMode = extras?.getString("connection_mode") ?: (if (authKey.isNotBlank()) "TAILSCALE" else "WEBRTC")
 
-            Log.i("AdminReceiver", "Provisioning extras intercepted: Role=$role, Mode=$connectionMode, SecretLength=${mqttSecret.length}, WifiSSID=$wifiSsid")
+            Log.i("AdminReceiver", "Provisioning extras intercepted: Role=$role, SecretLength=${mqttSecret.length}, WifiSSID=$wifiSsid")
 
             val settingsManager = SettingsManager.getInstance(context)
             settingsManager.deviceRoleMode = role
-            settingsManager.connectionMode = connectionMode
             settingsManager.isKioskModeActive = true
-            if (authKey.isNotBlank()) {
-                settingsManager.tailscaleAuthKey = authKey
-            }
             if (mqttSecret.isNotBlank()) {
                 PairingSecretManager.getInstance(context).setDeviceSecret(mqttSecret)
             }
@@ -68,7 +61,7 @@ class AdminReceiver : DeviceAdminReceiver() {
                 Log.w("AdminReceiver", "設定 AutoTimeRequired 失敗", e)
             }
 
-            // 1. 自動喚醒並啟動 MainActivity (確保在 Provisioning 結束後自動開啟 App 畫面)
+            // 自動喚醒並啟動 MainActivity (確保在 Provisioning 結束後自動開啟 App 畫面)
             try {
                 val launchIntent = Intent(context, io.github.iokkai.ocularnode.MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -78,14 +71,8 @@ class AdminReceiver : DeviceAdminReceiver() {
             } catch (e: Exception) {
                 Log.e("AdminReceiver", "啟動 MainActivity 失敗", e)
             }
-
-            // 2. 僅在明確配置 Tailscale 模式時觸發 Tailscale 下載與 VPN 安裝 (WebRTC P2P 預設秒級完成)
-            if (connectionMode == "TAILSCALE" && authKey.isNotBlank()) {
-                TailscaleLegacyManager.startZeroTouchPipeline(context, authKey)
-            }
         } catch (e: Exception) {
             Log.e("AdminReceiver", "Error in onProfileProvisioningComplete", e)
         }
     }
 }
-

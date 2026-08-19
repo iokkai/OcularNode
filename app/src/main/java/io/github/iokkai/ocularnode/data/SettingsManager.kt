@@ -11,7 +11,7 @@ import androidx.security.crypto.MasterKey
  * 應用程式設定管理器 (SettingsManager)
  *
  * - 一般設定：使用普通 SharedPreferences（效能優先）
- * - 敏感憑證 (Telegram Bot Token, Chat ID, Tailscale Auth Key)：
+ * - 敏感憑證 (Telegram Bot Token, Chat ID, TURN Password)：
  *   使用 EncryptedSharedPreferences（AES256-SIV + AES256-GCM 加密）
  *
  * 首次建立時會自動執行一次性遷移：將舊版明文 SharedPreferences 中的
@@ -66,19 +66,15 @@ class SettingsManager(context: Context) {
         private const val KEY_KIOSK_MODE_ACTIVE = "kiosk_mode_active"
         private const val KEY_HTTP_AUTH_ENABLED = "http_auth_enabled"
         private const val KEY_EVENT_VIDEO_RECORDING_ENABLED = "pref_event_video_recording_enabled"
-        private const val KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING = "has_dismissed_tailscale_onboarding"
         private const val KEY_SCHEDULED_REBOOT_ENABLED = "scheduled_reboot_enabled"
         private const val KEY_SCHEDULED_REBOOT_TIME = "scheduled_reboot_time"
         private const val KEY_LAST_SCHEDULED_REBOOT_DATE = "last_scheduled_reboot_date"
         private const val KEY_CUSTOM_TURN_SERVER_URL = "custom_turn_server_url"
         private const val KEY_CUSTOM_TURN_USERNAME = "custom_turn_username"
-        private const val KEY_CONNECTION_MODE = "connection_mode"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
         private const val KEY_TG_CHAT_ID = "tg_chat_id"
-        private const val KEY_TAILSCALE_AUTH_KEY = "tailscale_auth_key"
-        private const val KEY_TAILSCALE_API_KEY = "tailscale_api_key"
         private const val KEY_HTTP_PIN_CODE = "http_pin_code"
         private const val KEY_CUSTOM_TURN_PASSWORD = "custom_turn_password"
 
@@ -164,7 +160,6 @@ class SettingsManager(context: Context) {
 
         val oldToken = prefs.getString(KEY_TG_BOT_TOKEN, null)
         val oldChatId = prefs.getString(KEY_TG_CHAT_ID, null)
-        val oldAuthKey = prefs.getString(KEY_TAILSCALE_AUTH_KEY, null)
 
         val secretEditor = secretPrefs.edit()
         val plainEditor = prefs.edit()
@@ -176,10 +171,6 @@ class SettingsManager(context: Context) {
         if (!oldChatId.isNullOrBlank()) {
             secretEditor.putString(KEY_TG_CHAT_ID, oldChatId)
             plainEditor.remove(KEY_TG_CHAT_ID)
-        }
-        if (!oldAuthKey.isNullOrBlank()) {
-            secretEditor.putString(KEY_TAILSCALE_AUTH_KEY, oldAuthKey)
-            plainEditor.remove(KEY_TAILSCALE_AUTH_KEY)
         }
 
         secretEditor.apply()
@@ -196,14 +187,6 @@ class SettingsManager(context: Context) {
     var telegramChatId: String
         get() = secretPrefs.getString(KEY_TG_CHAT_ID, "") ?: ""
         set(value) = secretPrefs.edit().putString(KEY_TG_CHAT_ID, value).apply()
-
-    var tailscaleAuthKey: String
-        get() = secretPrefs.getString(KEY_TAILSCALE_AUTH_KEY, "") ?: ""
-        set(value) = secretPrefs.edit().putString(KEY_TAILSCALE_AUTH_KEY, value).apply()
-
-    var tailscaleApiKey: String
-        get() = secretPrefs.getString(KEY_TAILSCALE_API_KEY, "") ?: ""
-        set(value) = secretPrefs.edit().putString(KEY_TAILSCALE_API_KEY, value).apply()
 
     var customTurnPassword: String
         get() = secretPrefs.getString(KEY_CUSTOM_TURN_PASSWORD, "") ?: ""
@@ -362,10 +345,6 @@ class SettingsManager(context: Context) {
         get() = secretPrefs.getString(KEY_HTTP_PIN_CODE, "1234") ?: "1234"
         set(value) = secretPrefs.edit().putString(KEY_HTTP_PIN_CODE, value).apply()
 
-    var hasDismissedTailscaleOnboarding: Boolean
-        get() = prefs.getBoolean(KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING, false)
-        set(value) = prefs.edit().putBoolean(KEY_HAS_DISMISSED_TAILSCALE_ONBOARDING, value).apply()
-
     var scheduledRebootEnabled: Boolean
         get() = prefs.getBoolean(KEY_SCHEDULED_REBOOT_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_SCHEDULED_REBOOT_ENABLED, value).apply()
@@ -377,8 +356,4 @@ class SettingsManager(context: Context) {
     var lastScheduledRebootDate: String
         get() = prefs.getString(KEY_LAST_SCHEDULED_REBOOT_DATE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_LAST_SCHEDULED_REBOOT_DATE, value).apply()
-
-    var connectionMode: String
-        get() = prefs.getString(KEY_CONNECTION_MODE, "WEBRTC") ?: "WEBRTC"
-        set(value) = prefs.edit().putString(KEY_CONNECTION_MODE, value).apply()
 }

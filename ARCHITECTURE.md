@@ -1,6 +1,6 @@
 # OcularNode 系統架構規格書 (Architecture Specification Whitepaper)
 
-> **版本**：v1.0.0 (Production-Ready)  
+> **版本**：v2.0.0 (WebRTC P2P & LAN Direct)  
 > **定位**：無人值守 P2P 去中心化智慧安防監控節點系統 (100% Zero-Central-Server & Zero-Touch)  
 > **授權**：GNU General Public License v3.0 (GPL-3.0)
 
@@ -9,8 +9,8 @@
 ## 📑 目錄 (Table of Contents)
 1. [系統總覽與設計哲學](#1-系統總覽與設計哲學)
 2. [第一階段：基礎架構與權限分流 (Unified APK & Device Owner)](#2-第一階段基礎架構與權限分流-unified-apk--device-owner)
-3. [第二階段：網路與 Tailscale 連線層 (P2P Mesh & Zero-Touch VPN)](#3-第二階段網路與-tailscale-連線層-p2p-mesh--zero-touch-vpn)
-4. [第三階段：影音擷取與 WebRTC P2P 串流層 (MediaCodec & Signaling)](#4-第三階段影音擷取與-webrtc-p2p-串流層-mediacodec--signaling)
+3. [第二階段：網路與 WebRTC P2P 信令層 (WebRTC NAT Traversal & E2EE)](#3-第二階段網路與-webrtc-p2p-信令層-webrtc-nat-traversal--e2ee)
+4. [第三階段：影音擷取與 WebRTC P2P 串流層 (MediaCodec & Hardware Acceleration)](#4-第三階段影音擷取與-webrtc-p2p-串流層-mediacodec--hardware-acceleration)
 5. [第四階段：邊緣 AI 運算、事件偵測與在地存儲層 (Edge AI & Storage)](#5-第四階段邊緣-ai-運算事件偵測與在地存儲層-edge-ai--storage)
 6. [全系統架構資料流圖 (System Data Flow Diagram)](#6-全系統架構資料流圖-system-data-flow-diagram)
 7. [安全防護、容錯與自癒機制 (Resilience & Watchdogs)](#7-安全防護容錯與自癒機制-resilience--watchdogs)
@@ -22,7 +22,8 @@
 OcularNode 旨在將閒置的舊 Android 智慧型手機轉化為工業級、高度自主且無人值守的 P2P 智慧監控攝影機節點（Camera Node），並相容一般手機作為監控端（Viewer Node）。
 
 ### 核心設計原則：
-* **100% 零中央伺服器 (Zero Central Server)**：不依賴任何外部雲端中繼主機，保障 100% 數位主權與隱私。
+* **100% 零中央伺服器 (Zero Central Server)**：不依賴任何外部雲端中繼錄影主機，保障 100% 數位主權與隱私。
+* **純粹 WebRTC P2P 與 LAN 直連**：支援區域網路極速直連（含 IPv6）與 Google WebRTC P2P (STUN/ICE 打洞)，無需安裝任何第三方 VPN 軟體。
 * **零接觸部署 (Zero-Touch Provisioning)**：利用 Android Device Owner (DO) MDM 機制，掃描 QR Code 後全程自動化配置。
 * **資源受限防護 (Hardware-Conscious / Anti-Thermal)**：針對舊手機散熱不良、電池老化等痛點，建立多層次溫控與動態降頻保護。
 * **無人值守自我修復 (Self-Healing Watchdogs)**：斷網、斷電重啟、程序被殺皆能自癒復原。
@@ -59,47 +60,36 @@ OcularNode 旨在將閒置的舊 Android 智慧型手機轉化為工業級、高
 
 ---
 
-## 3. 第二階段：網路與 Tailscale 連線層 (P2P Mesh & Zero-Touch VPN)
+## 3. 第二階段：網路與 WebRTC P2P 信令層 (WebRTC NAT Traversal & E2EE)
 
 ### 3.1 QR Code 部署參數傳遞 (Provisioning Bundle)
 * 出廠重置掃碼時，透過 `EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE` 傳遞 JSON 參數：
-  * `tailscale_auth_key`：Tailscale 預先授權之 Reusable + Ephemeral AuthKey。
+  * `mqtt_device_secret`：AES-128-GCM 端對端加密密鑰。
+  * `device_role`：固定為 `"CAMERA"`。
   * `wifi_ssid` / `wifi_password`：Wi-Fi 自動連網參數。
   * `github_owner` / `github_repo`：靜默 OTA 更新來源儲存庫。
 * **雙通道接收相容性**：
   * 傳統/廣播：`AdminReceiver.onProfileProvisioningComplete`。
   * Android 10+ 前景轉接：`AdminPolicyComplianceActivity`。
 
-### 3.2 Tailscale MDM 政策注入與漸進式 Always-On VPN
-* **靜默安裝**：透過 Android `PackageInstaller` API 背景靜默安裝 Tailscale APK。
-* **MDM 政策注入**：
-  ```kotlin
-  val restrictions = Bundle().apply {
-      putString("AuthKey", authKey)
-  }
-  dpm.setApplicationRestrictions(adminComponent, "com.tailscale.ipn", restrictions)
-  ```
-* **漸進式 Always-On VPN (Progressive Lockdown)**：
-  * **Phase A (常態/初始化)**：`dpm.setAlwaysOnVpnPackage(admin, "com.tailscale.ipn", false)`。避免未握手前全面阻斷公網導致死鎖（Bootstrapping Trap）。
-  * **Phase B (嚴格安全/可配置)**：當本機成功取得 `100.64.0.0/10` 虛擬 IP 且隧道就緒後，可動態升級啟用 `lockdown = true`。
-
-### 3.3 前景保活服務與網路看門狗 (Keep-Alive & Network Watchdog)
-* **NAT 穿透保活 (Heartbeat Pinger)**：
-  * 前景服務以 15~25 秒為週期，向 Tailnet 網段或觀看端發送輕量 UDP/ICMP 心跳，防止路由器 NAT 映射表逾時過期。
-* **看門狗自癒 (Watchdog)**：
-  * 實時監測 VPN 虛擬介面狀態，若 VPN 崩潰或 Wi-Fi 斷線重連，自動觸發重啟與政策重注入。
+### 3.2 WebRTC P2P 打洞與信令架構 (Smart Routing & Signaling)
+* **SmartSignalingRouter 智慧雙軌探測**：
+  * **區域網路 (LAN) 探測**：採用 RFC 8305 Happy Eyeballs 並行發起 IPv4 與 IPv6 直連，若在同 Wi-Fi 則以 < 2ms 極速直連。
+  * **外網 WebRTC P2P 穿透**：透過去中心化公用 MQTT Broker 交換 SDP Offer/Answer 與 ICE Candidates，信令內容經 AES-128-GCM 加密保護。
+* **STUN 池自動打洞 (RFC 8445 ICE)**：
+  * 內建全球分佈之 Google 與 Cloudflare STUN 伺服器池，支援 95% 以上家用與行動網路 NAT 穿透。
+  * 選填自架 TURN 中繼伺服器（用於嚴苛對稱型 Symmetric NAT 環境）。
 
 ---
 
-## 4. 第三階段：影音擷取與 WebRTC P2P 串流層 (MediaCodec & Signaling)
+## 4. 第三階段：影音擷取與 WebRTC P2P 串流層 (MediaCodec & Hardware Acceleration)
 
-### 4.1 內嵌去中心化信令伺服器 (Embedded Ktor WebSocket Server)
-* **100% Zero-Server 架構**：捨棄外部 STUN/TURN/信令伺服器，鏡頭端內嵌輕量 Ktor WebSocket 服務。
-* **直連交換**：觀看端透過 Tailscale IP (`100.x.y.z:port`) 直連鏡頭端交換 SDP 與 ICE Candidates。
-* **存取安全**：信令握手採用 Token/金鑰驗證；設定最大並行連線數（2~3 Clients），防止硬體超載。
+### 4.1 影音串流架構
+* **WebRTC 直連串流**：採用 Google WebRTC Android SDK，支援 H.264 / VP8 硬體加速解碼與即時雙向音訊。
+* **MJPEG HTTP 備援伺服器**：內建輕量 HTTP 伺服器，方便在電腦或任何瀏覽器上直接監看即時畫面與調整設定。
 
 ### 4.2 H.264 硬體編碼與溫控動態降級 (Thermal & Bandwidth Throttling)
-* **強制 MediaCodec 硬體壓碼**：全面禁止軟體編碼（VP8/VP9），將 CPU 佔用控制於極低水平。
+* **強制 MediaCodec 硬體壓碼**：優先使用硬體編碼器，將 CPU 佔用控制於極低水平。
 * **雙維度自適應降級**：
   * **溫度監控 (`BatteryManager.EXTRA_TEMPERATURE` / Thermal API)**：
     * `<40°C`：1080p @ 30fps (高畫質全速)。
@@ -136,10 +126,10 @@ graph TD
   * 設定硬體配額上限（如 5GB），空間不足時自動先進先出清理最舊的錄影與快照。
 
 ### 5.3 零雲端推播與離線喚醒策略 (Zero-Server Push Notifications)
-* **核心層 (方案 A：Tailnet 內網直連廣播)**：
-  * 鏡頭端透過 WebSocket 直連發送 JSON Alert，毫秒級抵達處於前景或 Keep-Alive 狀態的觀看端。
+* **核心層 (WebRTC DataChannel 即時警報)**：
+  * 鏡頭端透過 WebRTC DataChannel 直連發送 JSON Alert，毫秒級抵達處於連線狀態的觀看端。
 * **擴展層 (離線 Webhook 喚醒)**：
-  * 支援 Telegram Bot / Discord / ntfy 等外部 Webhook 通道，在觀看端處於深度凍結休眠時傳遞零個資警報與截圖。
+  * 支援 Telegram Bot API，在觀看端處於深度凍結休眠時傳遞零個資警報與截圖。
 
 ---
 
@@ -151,26 +141,27 @@ sequenceDiagram
     actor Admin as 部署人員 / 使用者
     participant Setup as Android SetupWizard / QR
     participant App as OcularNode (Camera Node)
-    participant TS as Tailscale VPN (com.tailscale.ipn)
+    participant MQTT as MQTT Broker (Signaling)
     participant Viewer as OcularNode (Viewer Node)
     participant TG as Telegram / Webhook (Optional)
 
-    Note over Admin, Setup: 階段一與二：零接觸部署與網路組網
-    Admin->>Setup: 掃描部署 QR Code (含 AuthKey & Wi-Fi)
+    Note over Admin, Setup: 階段一與二：零接觸部署與配對
+    Admin->>Setup: 掃描部署 QR Code (含 Secret & Wi-Fi)
     Setup->>App: 賦予 Device Owner 權限 (AdminPolicyCompliance)
     App->>App: 靜默核准相機/錄音權限 + 進入 Kiosk Lock Task
-    App->>TS: 靜默安裝 APK + 注入 AuthKey + 啟用 Always-On VPN
-    TS-->>App: 建立 WireGuard 虛擬網卡 (100.64.0.0/10)
+    App->>App: 啟動 CameraStreamService & WebRTC 監聽
 
-    Note over App, Viewer: 階段三：影音串流與直連信令
-    App->>App: 啟動 Ktor WebSocket 信令伺服器 & H.264 硬體編碼
-    Viewer->>App: 透過 100.x.y.z 直連 WebSocket (交換 SDP / ICE)
-    App-->>Viewer: WebRTC P2P 加密視訊與雙向語音串流 (AEC/NS)
+    Note over App, Viewer: 階段三：影音串流與 WebRTC P2P 信令
+    Viewer->>MQTT: 發送經 E2EE 加密之 SDP Offer (via MQTT)
+    MQTT->>App: 轉發 SDP Offer
+    App->>MQTT: 回覆經 E2EE 加密之 SDP Answer + ICE Candidates
+    MQTT->>Viewer: 轉發 SDP Answer + ICE Candidates
+    App-->>Viewer: WebRTC P2P (STUN/ICE 打洞直連) 影音與雙向語音串流
 
     Note over App, TG: 階段四：邊緣 AI 偵測與警報
     App->>App: Tier 1 像素差分偵測到動態 -> 喚醒 Tier 2 ML Kit 人物辨識
     App->>App: 觸發錄影 (合併前置 5 秒 Ring Buffer 存檔 MP4)
-    App->>Viewer: Tailnet 內網廣播即時警報 (JSON Alert)
+    App->>Viewer: WebRTC DataChannel 直送即時警報 (JSON Alert)
     opt 啟用外網通知
         App->>TG: 發送事件快照與警報訊息
     end
@@ -184,9 +175,9 @@ sequenceDiagram
 | :--- | :--- | :--- |
 | **市電斷電 / 異常重開機** | `BootAndPowerReceiver` 監聽開機與電源廣播 | 開機自動拉起前景服務，重設 `setLockTaskPackages` 並自動恢復 Kiosk 鎖定與相機串流。 |
 | **機身過熱 (>45°C)** | `BatteryManager` 溫度廣播與 Thermal API | 動態降低幀率至 10fps、解析度降至 480p，暫停 AI 推論，透過 Webhook 發送過熱預警。 |
-| **Tailscale VPN 異常中斷** | `Keep-Alive Pinger` 連續探測失敗 | Network Watchdog 自動呼叫重啟指令並重新注入 MDM Restrictions。 |
+| **網路切換 / 漫遊中斷** | `NetworkUtils` 網路狀態監聽 | WebRTC ICE Restart 自動觸發，毫秒級重新打洞連線。 |
 | **儲存空間耗盡** | `StorageCleanupManager` 磁碟餘量監測 | 依照 FIFO 原則自動批次刪除最舊的事件影片，保留系統安全運作空間。 |
 | **程式崩潰 / 記憶體被殺** | 前景常駐通知服務 (`ForegroundService`) | 系統自動以 `START_STICKY` 重新調度拉起服務並重置狀態機。 |
 
 ---
-*文件產出時間：2026-08-18 | OcularNode 核心架構白皮書*
+*文件產出時間：2026-08-19 | OcularNode 核心架構白皮書*

@@ -219,9 +219,7 @@ fun DedicatedDeviceWizardScreen(
         )
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadSavedApiKey(context)
-    }
+
 
     Scaffold(
         topBar = {
@@ -296,8 +294,6 @@ fun DedicatedDeviceWizardScreen(
                             onSsidChange = { viewModel.setWifiSsid(it) },
                             onPasswordChange = { viewModel.setWifiPassword(it) },
                             onAutoFillWifi = onAutoFillWifiRequested,
-                            onApiKeyChange = { viewModel.setApiKey(it) },
-                            onVerifyApiKey = { viewModel.verifyApiKey(context) },
                             onNext = {
                                 viewModel.goToStep(3)
                                 viewModel.generateProvisioningQrCode(context)
@@ -605,7 +601,7 @@ fun StepWarningScreen(
 }
 
 /**
- * 畫面二：網路設定與 Tailscale 授權 (Step 2: Network & Key Config)
+ * 畫面二：Wi-Fi 網路設定 (Step 2: Wi-Fi Network Config)
  */
 @Composable
 fun StepNetworkAndApiKeyScreen(
@@ -613,15 +609,12 @@ fun StepNetworkAndApiKeyScreen(
     onSsidChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onAutoFillWifi: () -> Unit,
-    onApiKeyChange: (String) -> Unit,
-    onVerifyApiKey: () -> Unit,
     onNext: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    var isApiKeyVisible by rememberSaveable { mutableStateOf(false) }
 
-    val canProceed = uiState.wifiSsid.isNotBlank() && uiState.isApiKeyVerified
+    val canProceed = uiState.wifiSsid.isNotBlank() && uiState.wifiPassword.isNotBlank()
 
     Column(
         modifier = Modifier
@@ -751,244 +744,7 @@ fun StepNetworkAndApiKeyScreen(
             }
         }
 
-        // UI 區塊 2：Tailscale 金鑰設定卡片
-        var isFaqExpanded by rememberSaveable { mutableStateOf(false) }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = WizardSurfaceCardColor),
-            border = BorderStroke(1.dp, WizardBorderColor),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Key,
-                        contentDescription = null,
-                        tint = WizardPrimaryColor
-                    )
-                    Text(
-                        text = stringResource(R.string.wizard_s3_ts_title),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = WizardTextPrimaryColor
-                    )
-                }
-
-                // 2 步取得金鑰簡明引導
-                Surface(
-                    color = WizardPrimaryContainerColor.copy(alpha = 0.4f),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, WizardPrimaryContainerColor),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.wizard_s3_ts_prompt),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WizardPrimaryColor
-                        )
-                        Text(
-                            text = stringResource(R.string.wizard_s3_ts_newuser_step1),
-                            fontSize = 12.sp,
-                            color = WizardTextPrimaryColor,
-                            lineHeight = 17.sp
-                        )
-                        Text(
-                            text = stringResource(R.string.wizard_s3_ts_newuser_step2),
-                            fontSize = 12.sp,
-                            color = WizardTextPrimaryColor,
-                            lineHeight = 17.sp
-                        )
-                    }
-                }
-
-                // 前往網頁按鈕
-                OutlinedButton(
-                    onClick = {
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://login.tailscale.com/admin/settings/keys")
-                        )
-                        context.startActivity(intent)
-                    },
-                    border = BorderStroke(1.dp, WizardPrimaryColor),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = WizardPrimaryColor),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = WizardPrimaryColor
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.wizard_s3_ts_btn_web),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // 摺疊常見疑問 (FAQ)
-                Surface(
-                    color = AppSurfaceSubtle,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, AppBorderSubtle),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { isFaqExpanded = !isFaqExpanded }
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.wizard_s3_ts_faq_toggle),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = WizardPrimaryColor
-                            )
-                            Icon(
-                                imageVector = if (isFaqExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
-                                tint = WizardPrimaryColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        AnimatedVisibility(visible = isFaqExpanded) {
-                            Column(
-                                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.wizard_s3_ts_faq_content),
-                                    fontSize = 11.sp,
-                                    color = WizardTextSecondaryColor,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // 2.5 金鑰輸入欄位
-                OutlinedTextField(
-                    value = uiState.apiKey,
-                    onValueChange = onApiKeyChange,
-                    label = { Text(stringResource(R.string.wizard_s3_ts_key_label)) },
-                    placeholder = { Text(stringResource(R.string.wizard_s3_ts_key_placeholder)) },
-                    singleLine = true,
-                    visualTransformation = if (isApiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    textStyle = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = WizardTextPrimaryColor
-                    ),
-                    trailingIcon = {
-                        IconButton(onClick = { isApiKeyVisible = !isApiKeyVisible }) {
-                            Icon(
-                                imageVector = if (isApiKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (isApiKeyVisible) stringResource(R.string.wizard_s3_ts_key_hide) else stringResource(R.string.wizard_s3_ts_key_show),
-                                tint = WizardTextSecondaryColor
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = WizardTextPrimaryColor,
-                        unfocusedTextColor = WizardTextPrimaryColor,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        focusedBorderColor = WizardPrimaryColor,
-                        unfocusedBorderColor = WizardBorderColor,
-                        focusedLabelColor = WizardPrimaryColor
-                    )
-                )
-
-                // 驗證按鈕
-                Button(
-                    onClick = onVerifyApiKey,
-                    enabled = uiState.apiKey.isNotBlank() && !uiState.isVerifyingApiKey,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = WizardPrimaryColor,
-                        contentColor = Color.White,
-                        disabledContainerColor = AppBorderSubtle,
-                        disabledContentColor = AppTextDisabled
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (uiState.isVerifyingApiKey) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.wizard_s3_ts_btn_verifying), fontSize = 13.sp)
-                    } else {
-                        Text(
-                            text = stringResource(R.string.wizard_s3_ts_btn_verify),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                // 驗證狀態
-                if (uiState.isApiKeyVerified) {
-                    Surface(
-                        color = WizardSuccessContainerColor,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = stringResource(R.string.wizard_s3_ts_success_icon),
-                                tint = WizardSuccessColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = stringResource(R.string.wizard_s3_ts_success_text),
-                                fontSize = 13.sp,
-                                color = WizardSuccessColor,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                } else if (!uiState.apiKeyVerifyError.isNullOrBlank()) {
-                    Text(
-                        text = uiState.apiKeyVerifyError,
-                        fontSize = 12.sp,
-                        color = WizardErrorColor,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
 
         Spacer(modifier = Modifier.weight(1f, fill = false))
 
@@ -1316,30 +1072,7 @@ fun StepScanScreen(
             }
         }
 
-        // Tailscale Machines 後台停用過期跳轉按鈕
-        OutlinedButton(
-            onClick = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://login.tailscale.com/admin/machines"))
-                context.startActivity(intent)
-            },
-            border = BorderStroke(1.dp, WizardPrimaryColor),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = WizardPrimaryColor
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = stringResource(R.string.btn_open_tailscale_machines),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = WizardPrimaryColor
-            )
-        }
+
 
         // 完成並返回按鈕
         Button(

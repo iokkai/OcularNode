@@ -31,10 +31,9 @@ android {
 
     // 剔除第三方套件中未使用的多國語言資源，只保留正體中文與英文
 
-    // Default configuration for OTA updates and Tailscale download (can be overridden by .env)
+    // Default configuration for OTA updates (can be overridden by .env)
     buildConfigField("String", "GITHUB_OWNER", "\"iokkai\"")
     buildConfigField("String", "GITHUB_REPO", "\"OcularNode\"")
-    buildConfigField("String", "TAILSCALE_APK_URL", "\"https://pkgs.tailscale.com/stable/tailscale-android-universal-1.102.2.apk\"")
   }
 
   flavorDimensions += "abi"
