@@ -3,6 +3,9 @@ package io.github.iokkai.ocularnode.webrtc
 import android.content.Context
 import android.util.Log
 import io.github.iokkai.ocularnode.webrtc.stun.StunPoolManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
@@ -116,7 +119,7 @@ class WebRtcSessionManager(private val context: Context) {
 
     init {
         initializeWebRtc(context)
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 stunPoolManager.probeAndRank()
             } catch (e: Exception) {
