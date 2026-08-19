@@ -7,6 +7,8 @@ import io.github.iokkai.ocularnode.audio.AudioEngine
 import io.github.iokkai.ocularnode.client.CameraStreamClient
 import io.github.iokkai.ocularnode.data.AppDatabase
 import io.github.iokkai.ocularnode.data.CameraDevice
+import io.github.iokkai.ocularnode.webrtc.WebRtcSessionManager
+import io.github.iokkai.ocularnode.webrtc.client.WebRtcViewerClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -39,8 +41,8 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
     val audioEngine = AudioEngine()
     val streamClient = CameraStreamClient(audioEngine)
 
-    val webRtcSessionManager by lazy { io.github.iokkai.ocularnode.webrtc.WebRtcSessionManager.getInstance(application) }
-    val webRtcClient by lazy { io.github.iokkai.ocularnode.webrtc.client.WebRtcViewerClient(webRtcSessionManager) }
+    val webRtcSessionManager: WebRtcSessionManager by lazy { WebRtcSessionManager.getInstance(application) }
+    val webRtcClient: WebRtcViewerClient by lazy { WebRtcViewerClient(webRtcSessionManager) }
 
     private val _adaptiveState = MutableStateFlow(AdaptiveModeState())
     val adaptiveState: StateFlow<AdaptiveModeState> = _adaptiveState.asStateFlow()

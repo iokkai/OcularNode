@@ -22,7 +22,16 @@ class WebRtcSessionManager(private val context: Context) {
         private const val TAG = "WebRtcSessionManager"
 
         @Volatile
+        private var instance: WebRtcSessionManager? = null
+
+        @Volatile
         private var isInitialized = false
+
+        fun getInstance(context: Context): WebRtcSessionManager {
+            return instance ?: synchronized(this) {
+                instance ?: WebRtcSessionManager(context.applicationContext).also { instance = it }
+            }
+        }
 
         fun initializeWebRtc(context: Context) {
             if (!isInitialized) {

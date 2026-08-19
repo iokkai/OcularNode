@@ -35,4 +35,14 @@ class WebRtcSessionManagerTest {
 
         assertNotNull(appContainer.webRtcSessionManager)
     }
+
+    @Test
+    fun testGetInstanceSingleton() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val instance1 = WebRtcSessionManager.getInstance(context)
+        val instance2 = WebRtcSessionManager.getInstance(context)
+
+        assertNotNull(instance1)
+        assertEquals(instance1, instance2)
+    }
 }
