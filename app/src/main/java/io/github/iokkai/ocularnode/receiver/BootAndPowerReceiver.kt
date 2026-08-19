@@ -43,40 +43,11 @@ class BootAndPowerReceiver : BroadcastReceiver() {
 
                 // 當具備 Device Owner 特權 (代表為專用鏡頭端/Kiosk 模式) 或設定了開機自啟且非僅觀看端模式
                 if (isDeviceOwner || (settingsManager.autoStartOnBoot && settingsManager.deviceRoleMode != "VIEWER")) {
-                    // 1. 啟動 MainActivity (UI 會在前景啟動服務，避免在背景直接啟動帶有 camera 權限的 FGS 被拒)
-                    try {
-                        val activityIntent = Intent(context, MainActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            val options = android.app.ActivityOptions.makeBasic()
-                            @Suppress("DEPRECATION")
-                            options.setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
-                            val pi = android.app.PendingIntent.getActivity(
-                                context, 0, activityIntent,
-                                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                            )
-                            pi.send(context, 0, null, null, null, null, options.toBundle())
-                        } else {
-                            context.startActivity(activityIntent)
-                        }
-                        Log.i("BootAndPowerReceiver", "已成功喚醒並啟動 MainActivity (Kiosk 監控畫面)")
-                    } catch (e: Exception) {
-                        Log.e("BootAndPowerReceiver", "Failed to start activity on boot", e)
-                    }
-
-                    // 2. 啟動前景服務 CameraStreamService (若上面的 Activity 啟動失敗，這裡作為備援)
-                    try {
-                        val serviceIntent = Intent(context, CameraStreamService::class.java)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            ContextCompat.startForegroundService(context, serviceIntent)
-                        } else {
-                            context.startService(serviceIntent)
-                        }
-                        Log.i("BootAndPowerReceiver", "已成功啟動 CameraStreamService 前景服務")
-                    } catch (e: Exception) {
-                        Log.e("BootAndPowerReceiver", "Failed to start service on boot (可能因 Android 14+ 背景啟動限制)", e)
-                    }
+                    // 呼叫 AutoWakeAndLaunchManager 進行點亮螢幕、穿透鎖屏與喚醒啟動
+                    io.github.iokkai.ocularnode.util.AutoWakeAndLaunchManager.wakeAndLaunchApp(
+                        context = context,
+                        reason = "Boot/Update Event ($action)"
+                    )
 
                     try {
 

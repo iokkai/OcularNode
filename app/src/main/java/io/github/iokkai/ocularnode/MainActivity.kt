@@ -99,24 +99,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(this)
-        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-        val isDeviceOwner = dpm?.isDeviceOwnerApp(packageName) == true
-
-        if (isDeviceOwner || settingsManager.deviceRoleMode == "CAMERA") {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
-                setShowWhenLocked(true)
-                setTurnScreenOn(true)
-            } else {
-                @Suppress("DEPRECATION")
-                window.addFlags(
-                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
-                )
-            }
-            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
+        ensureScreenAndLockBypass()
 
         enableEdgeToEdge()
 
@@ -132,9 +115,44 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        ensureScreenAndLockBypass()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        ensureScreenAndLockBypass()
+    }
+
+    private fun ensureScreenAndLockBypass() {
+        val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(this)
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+        val isDeviceOwner = dpm?.isDeviceOwnerApp(packageName) == true
+
+        if (isDeviceOwner || settingsManager.deviceRoleMode == "CAMERA" || settingsManager.autoStartOnBoot) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                // Android 8.1+ (API 27+): 使用新版 API
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } else {
+                // Android 8.0 及以下: 使用 WindowManager Flags
+                @Suppress("DEPRECATION")
+                window.addFlags(
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD // Android 8.0 鎖屏解鎖
+                )
+            }
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+            // Android 8.0+ (API 26+): 嘗試程式化解鎖鎖定畫面 (無密碼保護時生效)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                keyguardManager?.requestDismissKeyguard(this, null)
+            }
+        }
     }
 }
 

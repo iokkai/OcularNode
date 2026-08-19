@@ -627,11 +627,16 @@ object ZeroTouchProvisionManager {
             val intent = Intent(context, PackageInstallReceiver::class.java).apply {
                 action = "io.github.iokkai.ocularnode.ACTION_INSTALL_COMPLETE"
             }
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
                 sessionId,
                 intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                flags
             )
 
             // 安裝完成後系統會自動觸發 MY_PACKAGE_REPLACED 廣播，將由 BootAndPowerReceiver 接管並無縫重啟進入 Kiosk 模式。

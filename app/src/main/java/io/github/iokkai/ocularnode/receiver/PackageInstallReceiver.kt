@@ -24,28 +24,11 @@ class PackageInstallReceiver : BroadcastReceiver() {
                 val settingsManager = SettingsManager.getInstance(context)
 
                 if (packageName == context.packageName || packageName.isBlank() || packageName.contains("ocularnode", ignoreCase = true)) {
-                    Log.i("PackageInstallReceiver", "偵測到 OcularNode 自身更新完成，立即拉起 MainActivity 與服務...")
-                    try {
-                        val activityIntent = Intent(context, io.github.iokkai.ocularnode.MainActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        }
-                        context.startActivity(activityIntent)
-                        Log.i("PackageInstallReceiver", "已成功透過 PackageInstallReceiver 喚醒並啟動 MainActivity")
-                    } catch (e: Exception) {
-                        Log.e("PackageInstallReceiver", "無法啟動 MainActivity", e)
-                    }
-
-                    try {
-                        val serviceIntent = Intent(context, io.github.iokkai.ocularnode.service.CameraStreamService::class.java)
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                            androidx.core.content.ContextCompat.startForegroundService(context, serviceIntent)
-                        } else {
-                            context.startService(serviceIntent)
-                        }
-                        Log.i("PackageInstallReceiver", "已成功透過 PackageInstallReceiver 啟動 CameraStreamService")
-                    } catch (e: Exception) {
-                        Log.e("PackageInstallReceiver", "無法啟動 CameraStreamService", e)
-                    }
+                    Log.i("PackageInstallReceiver", "偵測到 OcularNode 自身更新完成，呼叫 AutoWakeAndLaunchManager 喚醒並重啟...")
+                    io.github.iokkai.ocularnode.util.AutoWakeAndLaunchManager.wakeAndLaunchApp(
+                        context = context,
+                        reason = "PackageInstaller Silent Update"
+                    )
                 } else {
                     val authKey = settingsManager.tailscaleAuthKey
                     ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
