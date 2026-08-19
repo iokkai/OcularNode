@@ -6,8 +6,34 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class WebRtcViewerIntegrationTest {
+
+    private fun computeStatusBadge(
+        isRoaming: Boolean,
+        isConnecting: Boolean,
+        isWebRtcConnected: Boolean,
+        camera: CameraDevice,
+        customTurnUrl: String = ""
+    ): String {
+        return when {
+            isRoaming -> "⏳ 漫遊重連中"
+            isConnecting -> "🔄 ICE 連線中"
+            isWebRtcConnected -> {
+                when {
+                    !camera.ipv6Address.isNullOrBlank() -> "⚡ P2P (IPv6)"
+                    customTurnUrl.isNotBlank() -> "🛡️ TURN 中繼"
+                    else -> "⚡ P2P (STUN)"
+                }
+            }
+            else -> "❌ 斷線重連中"
+        }
+    }
 
     @Test
     fun testDataChannelCommandCreation() {
@@ -25,58 +51,44 @@ class WebRtcViewerIntegrationTest {
 
     @Test
     fun testWebRtcStatusBadgeLogic() {
+        val defaultCam = CameraDevice(name = "Test", ipAddress = "192.168.1.5", port = 8080)
+        val ipv6Cam = CameraDevice(name = "Test IPv6", ipAddress = "192.168.1.5", port = 8080, ipv6Address = "2001:b400::1")
+
         // Case 1: Roaming
-        val isRoaming = true
-        val statusText1 = if (isRoaming) "⏳ 漫遊重連中" else "Other"
-        assertEquals("⏳ 漫遊重連中", statusText1)
-
-        // Case 2: WebRTC Connected with IPv6
-        val cameraIpv6 = CameraDevice(
-            name = "Test Cam",
-            ipAddress = "192.168.1.5",
-            port = 8080,
-            ipv6Address = "2001:b400::1"
+        assertEquals(
+            "⏳ 漫遊重連中",
+            computeStatusBadge(isRoaming = true, isConnecting = false, isWebRtcConnected = true, camera = defaultCam)
         )
-        val isWebRtcConnected = true
-        val isConnecting = false
-        val customTurnUrl = ""
 
-        val badgeText = when {
-            isRoaming -> "⏳ 漫遊重連中"
-            isConnecting -> "🔄 ICE 連線中"
-            isWebRtcConnected -> {
-                when {
-                    !cameraIpv6.ipv6Address.isNullOrBlank() -> "⚡ P2P (IPv6)"
-                    customTurnUrl.isNotBlank() -> "🛡️ TURN 中繼"
-                    else -> "⚡ P2P (STUN)"
-                }
-            }
-            else -> "❌ 斷線重連中"
-        }
-        assertEquals("⚡ P2P (IPv6)", badgeText)
-
-        // Case 3: WebRTC Connected with STUN
-        val cameraIpv4 = CameraDevice(
-            name = "Test Cam",
-            ipAddress = "192.168.1.5",
-            port = 8080,
-            ipv6Address = null
+        // Case 2: ICE Connecting
+        assertEquals(
+            "🔄 ICE 連線中",
+            computeStatusBadge(isRoaming = false, isConnecting = true, isWebRtcConnected = false, camera = defaultCam)
         )
-        val badgeTextStun = when {
-            !cameraIpv4.ipv6Address.isNullOrBlank() -> "⚡ P2P (IPv6)"
-            customTurnUrl.isNotBlank() -> "🛡️ TURN 中繼"
-            else -> "⚡ P2P (STUN)"
-        }
-        assertEquals("⚡ P2P (STUN)", badgeTextStun)
 
-        // Case 4: WebRTC Connected with Custom TURN
-        val customTurn = "turn:coturn.example.com:3478"
-        val badgeTextTurn = when {
-            !cameraIpv4.ipv6Address.isNullOrBlank() -> "⚡ P2P (IPv6)"
-            customTurn.isNotBlank() -> "🛡️ TURN 中繼"
-            else -> "⚡ P2P (STUN)"
-        }
-        assertEquals("🛡️ TURN 中繼", badgeTextTurn)
+        // Case 3: WebRTC Connected with IPv6
+        assertEquals(
+            "⚡ P2P (IPv6)",
+            computeStatusBadge(isRoaming = false, isConnecting = false, isWebRtcConnected = true, camera = ipv6Cam)
+        )
+
+        // Case 4: WebRTC Connected with STUN (IPv4)
+        assertEquals(
+            "⚡ P2P (STUN)",
+            computeStatusBadge(isRoaming = false, isConnecting = false, isWebRtcConnected = true, camera = defaultCam)
+        )
+
+        // Case 5: WebRTC Connected with Custom TURN
+        assertEquals(
+            "🛡️ TURN 中繼",
+            computeStatusBadge(isRoaming = false, isConnecting = false, isWebRtcConnected = true, camera = defaultCam, customTurnUrl = "turn:coturn.example.com:3478")
+        )
+
+        // Case 6: Disconnected
+        assertEquals(
+            "❌ 斷線重連中",
+            computeStatusBadge(isRoaming = false, isConnecting = false, isWebRtcConnected = false, camera = defaultCam)
+        )
     }
 
     @Test
