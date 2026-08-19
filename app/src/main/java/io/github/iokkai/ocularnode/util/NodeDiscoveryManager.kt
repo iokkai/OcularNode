@@ -25,11 +25,21 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.HttpURLConnection
 import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.MulticastSocket
+import java.net.NetworkInterface
 import java.net.URL
 
 object NodeDiscoveryManager {
     private const val TAG = "NodeDiscoveryManager"
     const val UDP_PORT = 8888
+
+    /** IPv6 multicast port uses a distinct port to avoid conflicts with the IPv4 DatagramSocket */
+    private const val UDP_PORT_IPV6_MULTICAST = 8889
+
+    /** Syncthing-inspired link-local IPv6 multicast group for OcularNode local discovery */
+    private const val IPV6_MULTICAST_GROUP = "ff02::8384"
+
     const val DISCOVERY_REQUEST = "DISCOVER_OCULAR_NODE_REQUEST"
     const val ANNOUNCE_PREFIX = "OCULAR_NODE_ANNOUNCE|"
     const val RESPONSE_PREFIX = "OCULAR_NODE_RESPONSE|"
@@ -57,15 +67,24 @@ object NodeDiscoveryManager {
                 try { acquire() } catch (e: Exception) { Log.e(TAG, "MulticastLock error", e) }
             }
 
-            // 1. Listen for UDP Broadcasts
+            // 1. Listen for IPv4 UDP Broadcasts
             launch {
                 listenForUdpPackets(dao)
             }
 
-            // 2. Periodic broadcast & HTTP status scan loop
+            // 2. Listen for IPv6 Multicast Announcements (fills Mesh Wi-Fi / Client Isolation blind spot)
+            launch {
+                listenForIpv6Multicast(dao)
+            }
+
+            // 3. Periodic dual-stack broadcast & HTTP status scan loop
             while (isActive) {
                 try {
-                    sendUdpBroadcast(context)
+                    // Fire both transports concurrently
+                    val broadcastJob = launch { sendUdpBroadcast(context) }
+                    val multicastJob = launch { sendIpv6Multicast() }
+                    broadcastJob.join()
+                    multicastJob.join()
                     checkKnownAndSubnetCameras(context, dao)
                 } catch (e: Exception) {
                     Log.e(TAG, "Discovery cycle error", e)
@@ -85,6 +104,10 @@ object NodeDiscoveryManager {
         discoveryJob = null
         _isScanning.value = false
     }
+
+    // -------------------------------------------------------------------------
+    // IPv4 Broadcast (existing)
+    // -------------------------------------------------------------------------
 
     private suspend fun sendUdpBroadcast(context: Context) {
         withContext(Dispatchers.IO) {
@@ -110,7 +133,7 @@ object NodeDiscoveryManager {
             try {
                 socket = DatagramSocket(null).apply {
                     reuseAddress = true
-                    bind(java.net.InetSocketAddress(UDP_PORT))
+                    bind(InetSocketAddress(UDP_PORT))
                     soTimeout = 2500
                 }
                 val buffer = ByteArray(2048)
@@ -122,24 +145,7 @@ object NodeDiscoveryManager {
                         val message = String(packet.data, 0, packet.length).trim()
                         val senderIp = packet.address.hostAddress ?: continue
 
-                        if (message.startsWith(ANNOUNCE_PREFIX) || message.startsWith(RESPONSE_PREFIX)) {
-                            val parts = message.split("|")
-                            if (parts.size >= 3) {
-                                val nodeName = parts[1]
-                                val port = parts[2].toIntOrNull() ?: 8080
-                                registerOrUpdateNode(dao, nodeName, senderIp, port)
-                            }
-                        } else if (message.startsWith("{")) {
-                            try {
-                                val json = JSONObject(message)
-                                if (json.optString("type") == "ocular_node") {
-                                    val name = json.optString("name", "OcularNode")
-                                    val port = json.optInt("port", 8080)
-                                    val ip = json.optString("ip", senderIp)
-                                    registerOrUpdateNode(dao, name, ip, port)
-                                }
-                            } catch (_: Exception) {}
-                        }
+                        handleDiscoveryMessage(message, senderIp, dao)
                     } catch (e: java.net.SocketTimeoutException) {
                         // Regular timeout for coroutine loop check
                     } catch (e: Exception) {
@@ -153,6 +159,112 @@ object NodeDiscoveryManager {
             }
         }
     }
+
+    // -------------------------------------------------------------------------
+    // IPv6 Link-Local Multicast (new — Syncthing-inspired ff02::8384)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Sends a discovery announcement to the IPv6 link-local multicast group [ff02::8384].
+     * This reaches peers on the same network segment even when IPv4 UDP Broadcast is
+     * blocked by Mesh Wi-Fi Client Isolation or enterprise APs.
+     */
+    private suspend fun sendIpv6Multicast() {
+        withContext(Dispatchers.IO) {
+            try {
+                val group = InetAddress.getByName(IPV6_MULTICAST_GROUP)
+                MulticastSocket().use { socket ->
+                    socket.timeToLive = 1 // Link-local scope only — never leaves the subnet
+                    val data = DISCOVERY_REQUEST.toByteArray()
+                    val packet = DatagramPacket(data, data.size, group, UDP_PORT_IPV6_MULTICAST)
+                    socket.send(packet)
+                    Log.v(TAG, "Sent IPv6 multicast discovery to $IPV6_MULTICAST_GROUP")
+                }
+            } catch (e: Exception) {
+                // IPv6 may not be available on all networks — fail silently
+                Log.v(TAG, "IPv6 multicast send skipped: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Listens for IPv6 multicast discovery packets on [ff02::8384]:8889.
+     * Joins the group on every available network interface to maximize reach.
+     */
+    private suspend fun listenForIpv6Multicast(dao: CameraDeviceDao) {
+        withContext(Dispatchers.IO) {
+            var socket: MulticastSocket? = null
+            try {
+                val group = InetAddress.getByName(IPV6_MULTICAST_GROUP)
+                socket = MulticastSocket(UDP_PORT_IPV6_MULTICAST).apply {
+                    reuseAddress = true
+                    soTimeout = 2500
+                    // Join multicast group on every network interface that supports multicast
+                    try {
+                        NetworkInterface.getNetworkInterfaces()?.toList()?.forEach { iface ->
+                            if (iface.supportsMulticast() && !iface.isLoopback) {
+                                try {
+                                    joinGroup(InetSocketAddress(group, UDP_PORT_IPV6_MULTICAST), iface)
+                                    Log.v(TAG, "Joined IPv6 multicast group on ${iface.name}")
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+
+                val buffer = ByteArray(2048)
+                Log.i(TAG, "IPv6 multicast listener started on [$IPV6_MULTICAST_GROUP]:$UDP_PORT_IPV6_MULTICAST")
+
+                while (scope.isActive) {
+                    try {
+                        val packet = DatagramPacket(buffer, buffer.size)
+                        socket.receive(packet)
+                        val message = String(packet.data, 0, packet.length).trim()
+                        val senderIp = packet.address.hostAddress ?: continue
+
+                        handleDiscoveryMessage(message, senderIp, dao)
+                    } catch (e: java.net.SocketTimeoutException) {
+                        // Regular timeout for coroutine loop check
+                    } catch (e: Exception) {
+                        delay(1000)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "IPv6 multicast listener error (IPv6 may not be available): ${e.message}")
+            } finally {
+                try { socket?.close() } catch (_: Exception) {}
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared message parsing
+    // -------------------------------------------------------------------------
+
+    private suspend fun handleDiscoveryMessage(message: String, senderIp: String, dao: CameraDeviceDao) {
+        if (message.startsWith(ANNOUNCE_PREFIX) || message.startsWith(RESPONSE_PREFIX)) {
+            val parts = message.split("|")
+            if (parts.size >= 3) {
+                val nodeName = parts[1]
+                val port = parts[2].toIntOrNull() ?: 8080
+                registerOrUpdateNode(dao, nodeName, senderIp, port)
+            }
+        } else if (message.startsWith("{")) {
+            try {
+                val json = JSONObject(message)
+                if (json.optString("type") == "ocular_node") {
+                    val name = json.optString("name", "OcularNode")
+                    val port = json.optInt("port", 8080)
+                    val ip = json.optString("ip", senderIp)
+                    registerOrUpdateNode(dao, name, ip, port)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // HTTP status probing (existing)
+    // -------------------------------------------------------------------------
 
     private suspend fun checkKnownAndSubnetCameras(context: Context, dao: CameraDeviceDao) = coroutineScope {
         val cameras = dao.getCamerasListOnce()
