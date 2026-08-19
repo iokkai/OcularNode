@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.webp" width="108" height="108" alt="OcularNode App Icon" style="border-radius: 24px;" />
+  <img src="docs/assets/icon.svg" width="108" height="108" alt="OcularNode App Icon" />
 </p>
 
 <h1 align="center">OcularNode</h1>
