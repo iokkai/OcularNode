@@ -72,44 +72,46 @@ class MqttSignalingChannel(
         channelKey: String,
         secret: String,
         onMessage: (SignalingPayload) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        try {
-            close() // release any previous client
+    ) {
+        withContext(Dispatchers.IO) {
+            try {
+                close() // release any previous client
 
-            val client = connectToBestBroker()
-            val topic = getFullTopic(channelKey)
-            currentTopic = topic
-            currentSecret = secret
-            messageListener = onMessage
+                val client = connectToBestBroker()
+                val topic = getFullTopic(channelKey)
+                currentTopic = topic
+                currentSecret = secret
+                messageListener = onMessage
 
-            client.setCallback(object : MqttCallback {
-                override fun connectionLost(cause: Throwable?) {
-                    Log.w(TAG, "MQTT connection lost: ${cause?.message}")
-                }
+                client.setCallback(object : MqttCallback {
+                    override fun connectionLost(cause: Throwable?) {
+                        Log.w(TAG, "MQTT connection lost: ${cause?.message}")
+                    }
 
-                override fun messageArrived(incomingTopic: String?, message: MqttMessage?) {
-                    if (incomingTopic == topic && message != null) {
-                        try {
-                            val encryptedPayload = String(message.payload, Charsets.UTF_8)
-                            val decryptedJson = AesGcmCipher.decrypt(encryptedPayload, secret)
-                            val payload = SignalingPayload.fromJson(decryptedJson)
-                            Log.d(TAG, "Decrypted signaling message: ${payload.type} from ${payload.senderId} (session: ${payload.sessionId})")
-                            messageListener?.invoke(payload)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error decrypting/parsing incoming MQTT message", e)
+                    override fun messageArrived(incomingTopic: String?, message: MqttMessage?) {
+                        if (incomingTopic == topic && message != null) {
+                            try {
+                                val encryptedPayload = String(message.payload, Charsets.UTF_8)
+                                val decryptedJson = AesGcmCipher.decrypt(encryptedPayload, secret)
+                                val payload = SignalingPayload.fromJson(decryptedJson)
+                                Log.d(TAG, "Decrypted signaling message: ${payload.type} from ${payload.senderId} (session: ${payload.sessionId})")
+                                messageListener?.invoke(payload)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error decrypting/parsing incoming MQTT message", e)
+                            }
                         }
                     }
-                }
 
-                override fun deliveryComplete(token: IMqttDeliveryToken?) {}
-            })
+                    override fun deliveryComplete(token: IMqttDeliveryToken?) {}
+                })
 
-            client.subscribe(topic, 1) // QoS 1 for reliable delivery
-            mqttClient = client
-            Log.i(TAG, "Subscribed to MQTT topic: $topic")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start MQTT listening", e)
-            throw e
+                client.subscribe(topic, 1) // QoS 1 for reliable delivery
+                mqttClient = client
+                Log.i(TAG, "Subscribed to MQTT topic: $topic")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start MQTT listening", e)
+                throw e
+            }
         }
     }
 

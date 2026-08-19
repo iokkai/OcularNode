@@ -55,15 +55,17 @@ class SmartSignalingRouter(
     suspend fun startListening(
         scope: CoroutineScope,
         onMessage: (SignalingPayload, SignalingChannelType) -> Unit
-    ) = withContext(Dispatchers.IO) {
-        // Start MQTT listening
-        scope.launch {
-            try {
-                mqttChannel.startListening(channelKey, secret) { payload ->
-                    onMessage(payload, SignalingChannelType.MQTT)
+    ) {
+        withContext(Dispatchers.IO) {
+            // Start MQTT listening
+            scope.launch {
+                try {
+                    mqttChannel.startListening(channelKey, secret) { payload ->
+                        onMessage(payload, SignalingChannelType.MQTT)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to start MQTT listener: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to start MQTT listener: ${e.message}")
             }
         }
     }
