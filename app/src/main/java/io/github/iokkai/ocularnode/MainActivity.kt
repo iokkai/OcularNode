@@ -195,6 +195,9 @@ fun MainAppScreen(
                 val adminComponent = ZeroTouchProvisionManager.getAdminComponent(context)
                 dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.CAMERA, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
                 dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.RECORD_AUDIO, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
+                try {
+                    dpm?.setPermissionGrantState(adminComponent, context.packageName, android.Manifest.permission.SYSTEM_ALERT_WINDOW, DevicePolicyManager.PERMISSION_GRANT_STATE_GRANTED)
+                } catch (e: Exception) {}
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
                     dpm?.setAutoTimeEnabled(adminComponent, true)
                 } else {

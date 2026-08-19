@@ -45,12 +45,15 @@ android {
         abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
       }
     }
+    // 暫時停用 x86 架構編譯
+    /*
     create("x86") {
       dimension = "abi"
       ndk {
         abiFilters.addAll(listOf("x86_64", "x86"))
       }
     }
+    */
   }
 
   signingConfigs {

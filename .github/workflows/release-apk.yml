@@ -77,7 +77,7 @@ jobs:
           KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease -PversionCode=${{ steps.parse_version.outputs.version_code }} -PversionName=${{ steps.parse_version.outputs.version_name }}
+        run: ./gradlew assembleArmRelease -PversionCode=${{ steps.parse_version.outputs.version_code }} -PversionName=${{ steps.parse_version.outputs.version_name }}
 
       - name: 📝 自動產生 Release 變更說明與校驗碼 (Changelog & Checksums)
         id: generate_release_notes
