@@ -25,8 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * 負責 OcularNode 區域網路 HTTP 伺服器主核心。
- * 協調 HttpAuthHandler (認證授權)、MjpegStreamHandler (串流推播)、
- * CameraApiHandler (REST API) 與 WebDashboardProvider (控制台 UI)。
+ * 協調 HttpAuthHandler (認證授權)、MjpegStreamHandler (串流推播) 與 CameraApiHandler (REST API)。
  */
 class MjpegHttpServer(
     private val context: Context,
@@ -64,7 +63,6 @@ class MjpegHttpServer(
     // 模組化職責處理器
     val authHandler = HttpAuthHandler()
     val streamHandler = MjpegStreamHandler()
-    val dashboardProvider = WebDashboardProvider(context)
 
     var deviceName: String = "OcularNode Camera"
     @Volatile var latestFrameBytes: ByteArray? = null
@@ -131,10 +129,6 @@ class MjpegHttpServer(
 
     fun getConfigJson(): String {
         return apiHandler.getConfigJson(port)
-    }
-
-    fun getWebDashboardHtml(): String {
-        return dashboardProvider.getWebDashboardHtml()
     }
 
     fun start(scope: CoroutineScope) {
@@ -485,9 +479,9 @@ class MjpegHttpServer(
                     return
                 }
 
-                // 10. Web Dashboard (公開介面，內部 API 自行鑑權)
-                path == "/" || path == "/index.html" || path == "/dashboard" -> {
-                    sendHtmlResponse(output, 200, getWebDashboardHtml())
+                // 10. Web Viewer Redirect (導向至全新 WebRTC Web Viewer)
+                path == "/" || path == "/index.html" || path == "/dashboard" || path == "/viewer" -> {
+                    sendRedirectResponse(output, "https://iokkai.github.io/OcularNode/viewer/")
                     socket.close()
                     return
                 }
@@ -515,13 +509,12 @@ class MjpegHttpServer(
         return if (sb.isEmpty() && c == -1) null else sb.toString()
     }
 
-    private fun sendHtmlResponse(output: OutputStream, statusCode: Int, html: String) {
-        val statusText = if (statusCode == 200) "OK" else "Error"
+    private fun sendRedirectResponse(output: OutputStream, targetUrl: String) {
+        val html = "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='0;url=$targetUrl'></head><body>Redirecting to <a href='$targetUrl'>OcularNode Web Viewer</a>...</body></html>"
         val bytes = html.toByteArray(Charsets.UTF_8)
-        val response = "HTTP/1.1 $statusCode $statusText\r\n" +
+        val response = "HTTP/1.1 302 Found\r\n" +
+                "Location: $targetUrl\r\n" +
                 "Access-Control-Allow-Origin: *\r\n" +
-                "Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS\r\n" +
-                "Access-Control-Allow-Headers: *\r\n" +
                 "Content-Type: text/html; charset=utf-8\r\n" +
                 "Content-Length: ${bytes.size}\r\n" +
                 "Connection: close\r\n\r\n"
