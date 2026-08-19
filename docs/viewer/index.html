@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OcularNode - 去中心化 WebRTC 遠端即時監控</title>
+    
+    <!-- Meta tags for SEO & PWA -->
+    <meta name="description" content="OcularNode 零伺服器、端對端加密 (E2EE) 去中心化 WebRTC P2P 網頁監控端。支援任何現代瀏覽器免安裝直連觀看。">
+    <meta name="theme-color" content="#0B0F19">
+
+    <!-- Fonts & Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- CDN Dependencies -->
+    <!-- 1. MQTT over WebSocket Client -->
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+    <!-- 2. QR Code WebCam Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+
+    <!-- Header / Navbar -->
+    <header>
+        <a href="../" class="brand-container">
+            <div class="brand-icon">👁️</div>
+            <div class="brand-title">
+                <span>OcularNode</span>
+                <span class="badge" style="background: var(--primary-container); color: var(--primary); font-size: 0.7rem;">Web Viewer</span>
+            </div>
+        </a>
+
+        <div class="header-actions">
+            <!-- Camera Selector Dropdown -->
+            <select id="cameraSelect" class="form-input" style="padding: 6px 12px; font-size: 0.85rem; max-width: 180px;">
+                <option value="">-- 選擇已配對鏡頭 --</option>
+            </select>
+
+            <button id="btnOpenPairModal" class="btn btn-primary" title="新增 / 配對鏡頭">
+                <span>➕ 配對鏡頭</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+        <!-- Left Column: Video Feed & Media Controls -->
+        <section class="video-section">
+            <div class="video-container" id="videoWrapper">
+                <!-- Video Element (Hardware Accelerated) -->
+                <video id="remoteVideo" autoplay playsinline></video>
+
+                <!-- Overlay Top Badges -->
+                <div class="video-overlay-top">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="badge badge-live" id="liveBadge" style="display: none;">
+                            <span class="pulse-dot"></span> LIVE
+                        </span>
+                        <span class="badge" id="cameraNameBadge">未連線</span>
+                        <span class="badge" id="cipherBadge" style="display: none; background: rgba(139, 92, 246, 0.2); border-color: var(--primary); color: #C4B5FD;">🔒 E2EE</span>
+                    </div>
+
+                    <div style="display: flex; gap: 6px;">
+                        <button class="btn btn-icon-only" id="btnPip" title="子母畫面 (PiP)">🖼️</button>
+                        <button class="btn btn-icon-only" id="btnFullscreen" title="全螢幕">⛶</button>
+                    </div>
+                </div>
+
+                <!-- Overlay Bottom Info -->
+                <div class="video-overlay-bottom">
+                    <span class="badge" id="streamStatsBadge" style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                        -- FPS | -- kbps
+                    </span>
+                    <span class="badge" id="statusMessageBadge">等待連線...</span>
+                </div>
+
+                <!-- Placeholder (when video is offline) -->
+                <div class="video-placeholder" id="videoPlaceholder">
+                    <div class="icon">📷</div>
+                    <div style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);" id="placeholderTitle">尚未連接鏡頭</div>
+                    <div style="font-size: 0.85rem; max-width: 320px;" id="placeholderDesc">
+                        點擊右上角「➕ 配對鏡頭」，或直接掃描 Android 鏡頭端的配對 QR Code 即可連線。
+                    </div>
+                    <button class="btn btn-primary" id="btnConnectCurrent" style="margin-top: 8px;">
+                        <span>⚡ 開始連線</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Action Bar below Video -->
+            <div class="quick-control-bar">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn" id="btnSnapshot">📸 截圖保存</button>
+                    <button class="btn" id="btnReconnect">🔄 重新連線</button>
+                    <button class="btn btn-danger" id="btnDisconnect" style="display: none;">⏹ 斷開</button>
+                </div>
+
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">數位變焦:</span>
+                    <input type="range" id="digitalZoomSlider" min="1" max="5" step="0.1" value="1" style="width: 100px;">
+                    <span id="zoomVal" style="font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; width: 35px;">1.0x</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Sidebar, Hardware Stats, & DataChannel Controls -->
+        <aside class="sidebar">
+            
+            <!-- Push-To-Talk Two-Way Audio -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h3><span>🎤</span> 雙向對講 (Push-to-Talk)</h3>
+                </div>
+                <button class="btn-ptt" id="btnPtt">
+                    <span>🎙️</span> 按住說話 (對講廣播)
+                </button>
+                <canvas id="audioVisualizer"></canvas>
+            </div>
+
+            <!-- Real-time Hardware Telemetry -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h3><span>📊</span> 即時硬體遙測</h3>
+                    <span id="telemetryStatus" style="font-size: 0.75rem; color: var(--text-muted);">待機</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">CPU 使用率</span>
+                        <span class="stat-value" id="statCpu">--%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">記憶體 RAM</span>
+                        <span class="stat-value" id="statRam">--%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">機身溫度</span>
+                        <span class="stat-value" id="statTemp">--°C</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">電池電量</span>
+                        <span class="stat-value" id="statBattery">--%</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">視訊解析度</span>
+                        <span class="stat-value" id="statRes">--</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">幀率 FPS</span>
+                        <span class="stat-value" id="statFps">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Remote Camera Control Panel (via WebRTC DataChannel) -->
+            <div class="panel-card">
+                <div class="panel-header">
+                    <h3><span>⚙️</span> 遠端鏡頭控制 (DataChannel)</h3>
+                </div>
+                
+                <div class="controls-grid">
+                    <button class="btn" id="btnTorchToggle">
+                        <span>🔦</span> 手電筒: <span id="torchStatus">關</span>
+                    </button>
+                    <button class="btn" id="btnNightVision">
+                        <span>🌙</span> 夜視: <span id="nightStatus">自動</span>
+                    </button>
+                    <button class="btn" id="btnSwitchCamera">
+                        <span>🔄</span> 切換前後鏡頭
+                    </button>
+                    <button class="btn btn-danger" id="btnTriggerAlarm">
+                        <span>🚨</span> 觸發警報聲
+                    </button>
+                </div>
+
+                <!-- Hardware Optical/Sensor Zoom Slider -->
+                <div class="slider-group" style="margin-top: 6px;">
+                    <div class="slider-header">
+                        <span>相機光學/感光變焦</span>
+                        <span id="hardwareZoomVal">1.0x</span>
+                    </div>
+                    <input type="range" id="hardwareZoomSlider" min="1" max="5" step="0.2" value="1">
+                </div>
+            </div>
+
+            <!-- E2EE Security & Network Info -->
+            <div class="panel-card" style="background: rgba(139, 92, 246, 0.05); border-color: rgba(139, 92, 246, 0.3);">
+                <div class="panel-header">
+                    <h3><span>🔒</span> 隱私與端對端加密 (E2EE)</h3>
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5;">
+                    ✓ 密鑰儲存於網址列 Hash (#)，絕不上傳任何伺服器。<br>
+                    ✓ 信令經 Web Crypto (AES-128-GCM) 本地硬體加密。<br>
+                    ✓ 視訊影像經 DTLS-SRTP 點對點直連傳輸。
+                </div>
+            </div>
+
+        </aside>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div style="max-width: 1380px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div>© 2026 OcularNode. 開源去中心化安全監控系統.</div>
+            <div>
+                <a href="https://github.com/iokkai/OcularNode" target="_blank" rel="noopener">GitHub 儲存庫</a> · 
+                <a href="../ARCHITECTURE.md" target="_blank">架構白皮書</a> · 
+                <a href="../PRIVACY.md" target="_blank">隱私政策</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ======================================================================
+         Modal: Add / Pair Camera
+         ====================================================================== -->
+    <div class="modal-backdrop" id="pairModal">
+        <div class="modal-box">
+            <div class="modal-title">
+                <span>➕ 配對 / 新增相機</span>
+                <button class="btn btn-icon-only" id="btnClosePairModal">✕</button>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <button class="btn btn-primary" id="btnTabManual" style="flex: 1;">鍵盤輸入 / 貼上</button>
+                <button class="btn" id="btnTabQrScan" style="flex: 1;">📷 筆電鏡頭掃描</button>
+            </div>
+
+            <!-- Tab 1: Manual Input / Paste -->
+            <div id="tabContentManual" style="display: flex; flex-direction: column; gap: 12px;">
+                <div class="form-group">
+                    <label>一鍵貼上配對字串 / 網址 (Quick Paste)</label>
+                    <textarea class="form-input" id="pasteInput" rows="2" placeholder="貼上 ocular://pair?... 或 https://.../#id=... 字串"></textarea>
+                    <button class="btn" id="btnParsePaste" style="font-size: 0.8rem; align-self: flex-end;">自動解析填入 ➔</button>
+                </div>
+
+                <div class="form-group">
+                    <label>鏡頭名稱 (Name)</label>
+                    <input type="text" class="form-input" id="inputName" placeholder="例如: 客廳鏡頭, 大門口">
+                </div>
+
+                <div class="form-group">
+                    <label>設備 ID (Device ID / UUID)</label>
+                    <input type="text" class="form-input" id="inputId" placeholder="例如: cam-8a2f-...">
+                </div>
+
+                <div class="form-group">
+                    <label>E2EE 加密金鑰 (Device Secret)</label>
+                    <input type="password" class="form-input" id="inputSecret" placeholder="16 位元組 Hex 密鑰">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px;">
+                    <div class="form-group">
+                        <label>區網 IP (選填)</label>
+                        <input type="text" class="form-input" id="inputIp" placeholder="192.168.1.100">
+                    </div>
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input type="number" class="form-input" id="inputPort" value="8080">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: QR Code WebCam Scanner -->
+            <div id="tabContentQrScan" style="display: none; flex-direction: column; gap: 12px;">
+                <div id="qrReader" style="width: 100%; border-radius: var(--radius-md); overflow: hidden; background: #000;"></div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                    請將筆電/手機鏡頭對準 Android 舊手機螢幕上的配對 QR Code
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+                <button class="btn" id="btnCancelPair">取消</button>
+                <button class="btn btn-primary" id="btnSaveAndConnect">儲存並連線</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Logic -->
+    <script src="webrtc-client.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

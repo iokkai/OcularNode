@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OcularNode - 開源去中心化安全監控系統</title>
+    <meta name="description" content="OcularNode - 將舊 Android 手機化身為企業級安全監視器，支援去中心化 WebRTC P2P 影音直連與端對端加密 (E2EE)。">
+    <meta name="theme-color" content="#0B0F19">
+
+    <link rel="stylesheet" href="viewer/style.css">
+    <script>
+        // If URL hash is provided at root, forward directly to viewer
+        if (window.location.hash) {
+            window.location.href = 'viewer/' + window.location.hash;
+        }
+    </script>
+</head>
+<body style="align-items: center; justify-content: center;">
+
+    <div style="width: 100%; max-width: 800px; padding: 40px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 24px;">
+        <div class="brand-icon" style="width: 72px; height: 72px; font-size: 38px;">👁️</div>
+        
+        <h1 style="font-size: 2.4rem; font-weight: 800; background: linear-gradient(to right, #FFFFFF, #CBD5E1); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            OcularNode
+        </h1>
+
+        <p style="font-size: 1.1rem; color: var(--text-secondary); max-width: 600px; line-height: 1.6;">
+            開源、去中心化、零伺服器依賴的智慧安全監控系統。<br>
+            將閒置 Android 舊手機轉化為軍規級端對端加密 (E2EE) 網路攝影機。
+        </p>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 8px;">
+            <a href="viewer/" class="btn btn-primary" style="padding: 14px 28px; font-size: 1.05rem;">
+                <span>🌐 開啟 WebRTC 網頁監控端</span>
+            </a>
+            <a href="https://github.com/iokkai/OcularNode" target="_blank" rel="noopener" class="btn" style="padding: 14px 24px; font-size: 1.05rem;">
+                <span>⭐ GitHub 原始碼</span>
+            </a>
+        </div>
+
+        <!-- Features Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; width: 100%; margin-top: 24px; text-align: left;">
+            <div class="panel-card">
+                <div style="font-size: 1.5rem; margin-bottom: 6px;">⚡</div>
+                <div style="font-weight: 700; color: var(--text-primary);">WebRTC P2P 直連</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">STUN / 全球雙棧 IPv6 直通打洞，毫秒級超低延遲即時影像。</div>
+            </div>
+
+            <div class="panel-card">
+                <div style="font-size: 1.5rem; margin-bottom: 6px;">🔒</div>
+                <div style="font-weight: 700; color: var(--text-primary);">端對端加密 (E2EE)</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">AES-256-GCM 本地硬體加密，絕無雲端中繼外洩疑慮。</div>
+            </div>
+
+            <div class="panel-card">
+                <div style="font-size: 1.5rem; margin-bottom: 6px;">🤖</div>
+                <div style="font-weight: 700; color: var(--text-primary);">邊緣 AI 辨識</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Google ML Kit 晶片端人物物件偵測，即時 Telegram / Webhook 告警。</div>
+            </div>
+        </div>
+
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 32px;">
+            © 2026 OcularNode · GPL-3.0 License · 支援 Chrome / Edge / Safari / Firefox
+        </div>
+    </div>
+
+</body>
+</html>
