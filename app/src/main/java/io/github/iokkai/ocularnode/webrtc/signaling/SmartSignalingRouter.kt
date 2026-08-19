@@ -4,6 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
@@ -161,7 +162,7 @@ class SmartSignalingRouter(
      * LAN channels are wrapped in [withTimeoutOrNull] with [LAN_PROBE_TIMEOUT_MS] to prevent
      * blocking the [select] indefinitely if the camera is not on the local network.
      */
-    private suspend fun runHappyEyeballs(message: SignalingPayload): Boolean {
+    private suspend fun runHappyEyeballs(message: SignalingPayload): Boolean = coroutineScope {
         val lanIpv6 = localChannelIpv6
         val lanIpv4 = localChannelIpv4
         val mqtt = mqttChannel
@@ -200,11 +201,11 @@ class SmartSignalingRouter(
             activeConnectionTier = resolveChannelTier(winnerChannel)
             val wssInfo = if (winnerChannel is MqttSignalingChannel && winnerChannel.isUsingWss) " (WSS Mode)" else ""
             Log.i(TAG, "Happy Eyeballs selected channel: ${activeConnectionTier.label}$wssInfo")
-            return true
+            return@coroutineScope true
         }
 
         Log.e(TAG, "All signaling channels failed to deliver message: ${message.type}")
-        return false
+        return@coroutineScope false
     }
 
     private fun resolveChannelTier(channel: SignalingChannel): ConnectionTier = when {

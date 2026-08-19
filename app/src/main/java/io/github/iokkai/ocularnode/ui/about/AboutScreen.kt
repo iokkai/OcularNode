@@ -552,7 +552,7 @@ fun AboutScreen(onBack: () -> Unit) {
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = AppBorderLight)
 
                     HighlightItem(
-                        icon = Icons.Default.Bolt,
+                        icon = Icons.Default.Videocam,
                         title = "WebRTC P2P 極速直連",
                         description = "RFC 8445 ICE 打洞與全球雙棧 IPv6，免 VPN 實現毫秒級超低延遲端對端即時影音傳輸。"
                     )

@@ -959,7 +959,7 @@ fun StepScanScreen(
                             color = WizardPrimaryColor
                         )
                         Text(
-                            text = stringResource(R.string.wizard_s4_req_ts_key),
+                            text = "正在生成專用設備配置 QR Code...",
                             fontSize = 13.sp,
                             color = WizardTextSecondaryColor,
                             textAlign = TextAlign.Center
@@ -970,7 +970,7 @@ fun StepScanScreen(
                 uiState.qrCodeBitmap != null -> {
                     Image(
                         bitmap = uiState.qrCodeBitmap.asImageBitmap(),
-                        contentDescription = stringResource(R.string.wizard_s4_qr_desc),
+                        contentDescription = "Device Owner Provisioning QR Code",
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(14.dp)

@@ -97,6 +97,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val currentResolution by viewModel.currentResolution.collectAsState()
     val currentQuality by viewModel.currentQuality.collectAsState()
     val isMotionEnabled by viewModel.isMotionEnabled.collectAsState()
+    val isMlKitFilterEnabled by viewModel.isMlKitFilterEnabled.collectAsState()
     val localIp by viewModel.localIp.collectAsState()
     val ipv6Address by viewModel.ipv6GlobalAddress.collectAsState()
 
@@ -385,6 +386,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                             }) {
                                                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy IPv6", tint = AppTextSecondary)
                                             }
+                                        }
                                     }
                                 }
                                 
