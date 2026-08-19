@@ -1,0 +1,40 @@
+changelog:
+  categories:
+    - title: "✨ 新增功能 (Features)"
+      labels:
+        - "feat"
+        - "feature"
+        - "enhancement"
+    - title: "🐛 問題修復 (Bug Fixes)"
+      labels:
+        - "fix"
+        - "bug"
+    - title: "⚡ 效能優化 (Performance)"
+      labels:
+        - "perf"
+        - "performance"
+    - title: "🔨 程式碼重構 (Refactoring)"
+      labels:
+        - "refactor"
+    - title: "📚 文件變更 (Documentation)"
+      labels:
+        - "docs"
+        - "documentation"
+    - title: "🎨 格式修正 (Style)"
+      labels:
+        - "style"
+    - title: "🧪 測試變更 (Testing)"
+      labels:
+        - "test"
+        - "testing"
+    - title: "🔧 雜項與建置 (Chore)"
+      labels:
+        - "chore"
+        - "build"
+        - "ci"
+    - title: "⏪ 還原變更 (Reverts)"
+      labels:
+        - "revert"
+    - title: "📝 其他更新 (Other Changes)"
+      labels:
+        - "*"
