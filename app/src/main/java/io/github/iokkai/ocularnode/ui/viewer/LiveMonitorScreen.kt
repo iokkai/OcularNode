@@ -34,6 +34,8 @@ import androidx.compose.material.icons.filled.FlipCameraAndroid
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Nightlight
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -131,6 +133,7 @@ fun LiveMonitorScreen(
 
     var torchOn by remember { mutableStateOf(false) }
     var showRemoteSettingsDialog by remember { mutableStateOf(false) }
+    var showShareWebLinkDialog by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val currentStreamRotation = cameraStatusJson?.optInt("streamRotation", 0) ?: 0
@@ -152,6 +155,13 @@ fun LiveMonitorScreen(
             onFetchLogs = { viewModel.fetchRemoteLogs(camera) }
         )
         return
+    }
+
+    if (showShareWebLinkDialog && camera != null) {
+        ShareWebLinkDialog(
+            camera = camera,
+            onDismiss = { showShareWebLinkDialog = false }
+        )
     }
 
     if (camera == null) {
@@ -316,6 +326,13 @@ fun LiveMonitorScreen(
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 IconButton(
+                    onClick = { showShareWebLinkDialog = true },
+                    modifier = Modifier.size(34.dp).background(AppSecondaryContainer, CircleShape)
+                ) {
+                    Icon(Icons.Default.Language, contentDescription = stringResource(R.string.btn_share_web_link), tint = AppPrimary, modifier = Modifier.size(18.dp))
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                IconButton(
                     onClick = {
                         coroutineScope.launch {
                             viewModel.fetchCameraStatus(camera)
@@ -324,7 +341,7 @@ fun LiveMonitorScreen(
                     },
                     modifier = Modifier.size(34.dp).background(AppSecondaryContainer, CircleShape)
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = AppPrimary, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = AppTextSecondary, modifier = Modifier.size(18.dp))
                 }
             }
         }

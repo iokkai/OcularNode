@@ -22,6 +22,13 @@
     <string name="btn_close">關閉</string>
     <string name="btn_refresh">🔄 重新整理</string>
     <string name="copied_to_clipboard">已複製到剪貼簿</string>
+    <string name="share_web_link_title">網頁版遠端觀看連結</string>
+    <string name="share_web_link_desc">在任何電腦或手機瀏覽器（Chrome、Edge、Safari）打開此連結，即可透過 WebRTC P2P 端對端直連觀看此鏡頭，免安裝任何 App 或 VPN。</string>
+    <string name="btn_copy_web_link">📋 複製網頁連結</string>
+    <string name="btn_share_web_link">📤 分享連結</string>
+    <string name="btn_open_in_browser">🌐 於瀏覽器開啟</string>
+    <string name="toast_web_link_copied">已複製網頁版監控連結至剪貼簿</string>
+    <string name="share_web_link_privacy_notice">🔒 端對端加密保護：金鑰存放於網址 Hash (#) 中，絕不上傳任何伺服器。在任何現代瀏覽器打開即可免安裝 P2P 直連觀看。</string>
     <string name="permission_required_title">啟動鏡頭端需要權限</string>
     <string name="permission_required_desc">請授權相機與麥克風權限，以建立 MJPEG 影像與雙向語音串流伺服器。</string>
     <string name="btn_grant_permissions">授權並啟動鏡頭端</string>

@@ -25,4 +25,29 @@ data class CameraDevice(
     fun getControlUrl(): String = "${getBaseUrl()}/control"
     fun getAudioUrl(): String = "${getBaseUrl()}/audio"
     fun getSpeakUrl(): String = "${getBaseUrl()}/speak"
+
+    /**
+     * Generates a decentralized, zero-server Web Viewer URL with credentials stored in URL Hash fragment (#).
+     * The Hash fragment is never transmitted to HTTP servers, ensuring 100% client-side privacy.
+     */
+    fun getWebViewerUrl(baseUrl: String = "https://iokkai.github.io/OcularNode/viewer/"): String {
+        val params = mutableListOf<String>()
+        if (!deviceId.isNullOrBlank()) {
+            params.add("id=" + java.net.URLEncoder.encode(deviceId, "UTF-8"))
+        }
+        if (!deviceSecret.isNullOrBlank()) {
+            params.add("secret=" + java.net.URLEncoder.encode(deviceSecret, "UTF-8"))
+        }
+        if (name.isNotBlank()) {
+            params.add("name=" + java.net.URLEncoder.encode(name, "UTF-8"))
+        }
+        if (ipAddress.isNotBlank()) {
+            params.add("ip=" + java.net.URLEncoder.encode(ipAddress, "UTF-8"))
+        }
+        if (!ipv6Address.isNullOrBlank()) {
+            params.add("ipv6=" + java.net.URLEncoder.encode(ipv6Address, "UTF-8"))
+        }
+        params.add("port=$port")
+        return "$baseUrl#${params.joinToString("&")}"
+    }
 }

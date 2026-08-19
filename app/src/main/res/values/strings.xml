@@ -22,6 +22,13 @@
     <string name="btn_close">Close</string>
     <string name="btn_refresh">🔄 Refresh</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="share_web_link_title">Web Viewer Link</string>
+    <string name="share_web_link_desc">Open this link in any PC or mobile browser (Chrome, Edge, Safari) to monitor this camera via WebRTC P2P direct streaming without installing any apps.</string>
+    <string name="btn_copy_web_link">📋 Copy Web Link</string>
+    <string name="btn_share_web_link">📤 Share Web Link</string>
+    <string name="btn_open_in_browser">🌐 Open in Browser</string>
+    <string name="toast_web_link_copied">Web viewer link copied to clipboard</string>
+    <string name="share_web_link_privacy_notice">🔒 End-to-End Encrypted: Credentials are kept in the URL hash fragment (#) and are never sent to any server. Open in any modern web browser to connect P2P.</string>
     <string name="permission_required_title">Permissions Required</string>
     <string name="permission_required_desc">Camera and microphone permissions are required to establish streaming servers and two-way audio.</string>
     <string name="btn_grant_permissions">Grant Permissions &amp; Start</string>

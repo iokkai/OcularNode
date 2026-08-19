@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -111,6 +113,7 @@ fun ViewerListScreen(
 
     var prefilledInfo by remember { mutableStateOf<ScannedCameraInfo?>(null) }
     var editingCamera by remember { mutableStateOf<CameraDevice?>(null) }
+    var sharingWebLinkCamera by remember { mutableStateOf<CameraDevice?>(null) }
     var remoteSettingsCamera by remember { mutableStateOf<CameraDevice?>(null) }
     var remoteStatusJson by remember { mutableStateOf<JSONObject?>(null) }
 
@@ -359,6 +362,7 @@ fun ViewerListScreen(
                                     remoteSettingsCamera = camera
                                 }
                             },
+                            onShareWebLink = { sharingWebLinkCamera = camera },
                             onEdit = { editingCamera = camera },
                             onDelete = { viewModel.deleteCamera(camera) }
                         )
@@ -435,6 +439,14 @@ fun ViewerListScreen(
             )
         }
 
+        // Share Web Link Dialog Overlay
+        sharingWebLinkCamera?.let { camera ->
+            ShareWebLinkDialog(
+                camera = camera,
+                onDismiss = { sharingWebLinkCamera = null }
+            )
+        }
+
         if (isSpeedDialExpanded) {
             Box(
                 modifier = Modifier
@@ -453,6 +465,7 @@ fun CameraDeviceCard(
     isLivePreviewAll: Boolean,
     onConnect: () -> Unit,
     onRemoteSettings: () -> Unit,
+    onShareWebLink: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -771,8 +784,11 @@ fun CameraDeviceCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    IconButton(onClick = onShareWebLink, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Language, contentDescription = stringResource(R.string.btn_share_web_link), tint = AppPrimary, modifier = Modifier.size(18.dp))
+                    }
                     IconButton(onClick = onRemoteSettings, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Settings, contentDescription = "Remote Settings", tint = AppPrimary, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Settings, contentDescription = "Remote Settings", tint = AppTextSecondary, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit", tint = AppTextSecondary, modifier = Modifier.size(18.dp))
