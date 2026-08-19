@@ -38,6 +38,9 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val _localIp = MutableStateFlow<String?>(null)
     val localIp: StateFlow<String?> = _localIp.asStateFlow()
 
+    private val _ipv6GlobalAddress = MutableStateFlow<String?>(null)
+    val ipv6GlobalAddress: StateFlow<String?> = _ipv6GlobalAddress.asStateFlow()
+
     private val _isTailscaleConnected = MutableStateFlow(false)
     val isTailscaleConnected: StateFlow<Boolean> = _isTailscaleConnected.asStateFlow()
 
@@ -55,6 +58,7 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
             NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
                 _tailscaleIp.value = ipInfo.tailscaleIp
                 _localIp.value = ipInfo.localIp
+                _ipv6GlobalAddress.value = ipInfo.ipv6GlobalAddress
                 _isTailscaleConnected.value = ipInfo.isTailscaleConnected
                 _isVpnActive.value = ipInfo.isVpnActive
 
@@ -120,6 +124,7 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
         val ipInfo = NetworkUtils.getIpAddresses(getApplication())
         _tailscaleIp.value = ipInfo.tailscaleIp
         _localIp.value = ipInfo.localIp
+        _ipv6GlobalAddress.value = ipInfo.ipv6GlobalAddress
         _isTailscaleConnected.value = ipInfo.isTailscaleConnected
         _isVpnActive.value = ipInfo.isVpnActive
 

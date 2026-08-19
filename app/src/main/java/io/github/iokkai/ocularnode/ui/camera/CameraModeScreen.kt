@@ -37,8 +37,7 @@ import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.FlipCameraAndroid
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QrCode2
@@ -47,6 +46,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.ui.graphics.asImageBitmap
 import io.github.iokkai.ocularnode.util.QRCodeUtils
+import io.github.iokkai.ocularnode.webrtc.crypto.PairingSecretManager
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -98,6 +98,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
     val isMlKitFilterEnabled by viewModel.isMlKitFilterEnabled.collectAsState()
     val tailscaleIp by viewModel.tailscaleIp.collectAsState()
     val localIp by viewModel.localIp.collectAsState()
+    val ipv6Address by viewModel.ipv6GlobalAddress.collectAsState()
 
     val isTailscaleConnected by viewModel.isTailscaleConnected.collectAsState()
     val isVpnActive by viewModel.isVpnActive.collectAsState()
@@ -460,14 +461,51 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                                 Icon(Icons.Default.ContentCopy, contentDescription = "Copy IP", tint = AppTextSecondary)
                                             }
                                         }
+
+                                        if (!ipv6Address.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(Icons.Default.Language, contentDescription = null, tint = AppPrimary)
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text("IPv6 (公網直連)", color = AppTextSecondary, fontSize = 11.sp)
+                                                    Text("http://[$ipv6Address]:${viewModel.settingsManager.serverPort}", color = AppTextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                                }
+                                                IconButton(onClick = {
+                                                    copyToClipboard(context, "http://[$ipv6Address]:${viewModel.settingsManager.serverPort}")
+                                                }) {
+                                                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy IPv6", tint = AppTextSecondary)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
 
                                 Spacer(modifier = Modifier.height(14.dp))
 
-                                // QR Code Card for Viewer Joining & Web Streaming
-                                val qrBitmap = remember(streamUrl) {
-                                    QRCodeUtils.generateQRCodeBitmap(streamUrl, 360)
+                                // QR Code Card for WebRTC P2P Pairing & Streaming
+                                val pairingSecretMgr = remember(context) { PairingSecretManager.getInstance(context) }
+                                val devSecret = remember(pairingSecretMgr) { pairingSecretMgr.getOrCreateDeviceSecret() }
+                                val devId = remember(pairingSecretMgr) { pairingSecretMgr.getOrCreateDeviceId() }
+                                val camDeviceName = viewModel.settingsManager.cameraDeviceName.ifBlank { "Camera Node" }
+                                val sPort = viewModel.settingsManager.serverPort
+
+                                val webrtcQrJson = remember(camDeviceName, activeLocal, ipv6Address, sPort, devId, devSecret) {
+                                    QRCodeUtils.generateWebRtcQrContent(
+                                        name = camDeviceName,
+                                        ipAddress = activeLocal,
+                                        port = sPort,
+                                        deviceId = devId,
+                                        deviceSecret = devSecret,
+                                        ipv6Address = ipv6Address
+                                    )
+                                }
+
+                                val qrBitmap = remember(webrtcQrJson) {
+                                    QRCodeUtils.generateQRCodeBitmap(webrtcQrJson, 360)
                                 }
 
                                 Card(
@@ -513,8 +551,8 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
                                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                                Text(stringResource(R.string.qr_quick_add_title), fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTextPrimary)
-                                                Text(stringResource(R.string.qr_quick_add_desc), fontSize = 10.sp, color = AppTextSecondary)
+                                                Text("⚡ WebRTC P2P 配對", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = AppTextPrimary)
+                                                Text("包含端到端加密金鑰與雙棧位址，掃描後直連", fontSize = 10.sp, color = AppTextSecondary)
                                             }
                                         }
                                     }

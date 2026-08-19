@@ -149,12 +149,22 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         // cameraList is directly bound to cameraDao.getAllCameras() via stateIn
     }
 
-    fun addCamera(name: String, ipAddress: String, port: Int = 8080) {
+    fun addCamera(
+        name: String,
+        ipAddress: String,
+        port: Int = 8080,
+        deviceSecret: String? = null,
+        deviceId: String? = null,
+        ipv6Address: String? = null
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             val camera = CameraDevice(
                 name = name.ifBlank { "Camera Node" },
                 ipAddress = ipAddress.trim(),
-                port = port
+                port = port,
+                deviceSecret = deviceSecret,
+                deviceId = deviceId,
+                ipv6Address = ipv6Address
             )
             cameraDao.insertCamera(camera)
         }

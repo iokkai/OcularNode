@@ -513,6 +513,9 @@ fun ViewerListScreen(
                 initialName = prefilledInfo?.name ?: "",
                 initialIp = prefilledInfo?.ipAddress ?: "100.",
                 initialPort = prefilledInfo?.port?.toString() ?: "8080",
+                initialSecret = prefilledInfo?.deviceSecret,
+                initialDeviceId = prefilledInfo?.deviceId,
+                initialIpv6 = prefilledInfo?.ipv6Address,
                 onScanQrClick = {
                     showAddDialog = false
                     showQrScannerDialog = true
@@ -521,8 +524,8 @@ fun ViewerListScreen(
                     showAddDialog = false
                     prefilledInfo = null
                 },
-                onSave = { name, ip, port ->
-                    viewModel.addCamera(name, ip, port)
+                onSave = { name, ip, port, secret, devId, ipv6 ->
+                    viewModel.addCamera(name, ip, port, secret, devId, ipv6)
                     showAddDialog = false
                     prefilledInfo = null
                     Toast.makeText(context, context.getString(R.string.camera_added_success, name), Toast.LENGTH_SHORT).show()
@@ -537,13 +540,23 @@ fun ViewerListScreen(
                 initialName = camera.name,
                 initialIp = camera.ipAddress,
                 initialPort = camera.port.toString(),
+                initialSecret = camera.deviceSecret,
+                initialDeviceId = camera.deviceId,
+                initialIpv6 = camera.ipv6Address,
                 onScanQrClick = {
                     editingCamera = null
                     showQrScannerDialog = true
                 },
                 onDismiss = { editingCamera = null },
-                onSave = { name, ip, port ->
-                    viewModel.updateCamera(camera.copy(name = name, ipAddress = ip, port = port))
+                onSave = { name, ip, port, secret, devId, ipv6 ->
+                    viewModel.updateCamera(camera.copy(
+                        name = name,
+                        ipAddress = ip,
+                        port = port,
+                        deviceSecret = secret,
+                        deviceId = devId,
+                        ipv6Address = ipv6
+                    ))
                     editingCamera = null
                 }
             )
@@ -897,6 +910,45 @@ fun CameraDeviceCard(
                             }
                         }
                     }
+
+                    if (camera.deviceSecret != null || !camera.ipv6Address.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (camera.deviceSecret != null) {
+                                Surface(
+                                    color = AppPrimaryContainerLight,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, AppPrimary.copy(alpha = 0.3f))
+                                ) {
+                                    Text(
+                                        text = "⚡ WebRTC P2P",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppPrimary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            if (!camera.ipv6Address.isNullOrBlank()) {
+                                Surface(
+                                    color = AppSecondaryContainer,
+                                    shape = RoundedCornerShape(6.dp),
+                                    border = BorderStroke(1.dp, AppBorderSubtle)
+                                ) {
+                                    Text(
+                                        text = "🌐 IPv6",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppTextSecondary,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -921,14 +973,20 @@ fun AddOrEditCameraDialog(
     initialName: String,
     initialIp: String,
     initialPort: String,
+    initialSecret: String? = null,
+    initialDeviceId: String? = null,
+    initialIpv6: String? = null,
     onScanQrClick: () -> Unit,
     onDismiss: () -> Unit,
-    onSave: (String, String, Int) -> Unit
+    onSave: (name: String, ip: String, port: Int, secret: String?, deviceId: String?, ipv6: String?) -> Unit
 ) {
     val context = LocalContext.current
     var name by remember { mutableStateOf(initialName) }
     var ipAddress by remember { mutableStateOf(initialIp) }
     var portStr by remember { mutableStateOf(initialPort) }
+    var deviceSecret by remember { mutableStateOf(initialSecret) }
+    var deviceId by remember { mutableStateOf(initialDeviceId) }
+    var ipv6Address by remember { mutableStateOf(initialIpv6) }
 
     fun processInputUrl(input: String) {
         val parsed = io.github.iokkai.ocularnode.util.QRCodeUtils.parseScannedQrCode(input)
@@ -936,6 +994,9 @@ fun AddOrEditCameraDialog(
             if (name.isBlank() || name == "Camera Node" || name == "鏡頭裝置") name = parsed.name
             ipAddress = parsed.ipAddress
             portStr = parsed.port.toString()
+            if (parsed.deviceSecret != null) deviceSecret = parsed.deviceSecret
+            if (parsed.deviceId != null) deviceId = parsed.deviceId
+            if (parsed.ipv6Address != null) ipv6Address = parsed.ipv6Address
         }
     }
 
@@ -1027,7 +1088,7 @@ fun AddOrEditCameraDialog(
             Button(
                 onClick = {
                     val port = portStr.toIntOrNull() ?: 8080
-                    onSave(name, ipAddress, port)
+                    onSave(name, ipAddress, port, deviceSecret, deviceId, ipv6Address)
                 },
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppPrimary, contentColor = Color.White)

@@ -14,7 +14,10 @@ data class CameraDevice(
     val lastOnlineTimestamp: Long = 0L,
     val batteryLevel: Int = -1,
     val isOnline: Boolean = false,
-    val modelInfo: String = ""
+    val modelInfo: String = "",
+    val deviceSecret: String? = null,
+    val deviceId: String? = null,
+    val ipv6Address: String? = null
 ) {
     fun getBaseUrl(): String = "http://$ipAddress:$port"
     fun getMjpegUrl(): String = "${getBaseUrl()}/mjpeg"
