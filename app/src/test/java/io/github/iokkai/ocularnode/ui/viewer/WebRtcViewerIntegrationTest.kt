@@ -13,14 +13,14 @@ class WebRtcViewerIntegrationTest {
     fun testDataChannelCommandCreation() {
         val torchCmd = DataChannelCommand.fromLegacy("torch", "on")
         assertEquals(DataChannelCommand.ACTION_TORCH_TOGGLE, torchCmd.action)
-        assertEquals("on", torchCmd.parameters["value"])
+        assertEquals("on", torchCmd.params["value"])
 
         val cameraSwitchCmd = DataChannelCommand.fromLegacy("camera", "switch")
         assertEquals(DataChannelCommand.ACTION_SWITCH_CAMERA, cameraSwitchCmd.action)
 
         val nightVisionCmd = DataChannelCommand.fromLegacy("night_vision", "auto")
         assertEquals(DataChannelCommand.ACTION_NIGHT_VISION, nightVisionCmd.action)
-        assertEquals("auto", nightVisionCmd.parameters["mode"])
+        assertEquals("auto", nightVisionCmd.params["value"])
     }
 
     @Test
@@ -84,10 +84,10 @@ class WebRtcViewerIntegrationTest {
         val zoomScale = 2.5f
         val zoomCmd = DataChannelCommand(
             action = DataChannelCommand.ACTION_PTZ_ZOOM,
-            parameters = mapOf("zoom" to zoomScale)
+            params = mapOf("zoom" to zoomScale)
         )
         assertEquals(DataChannelCommand.ACTION_PTZ_ZOOM, zoomCmd.action)
-        assertEquals(2.5f, zoomCmd.parameters["zoom"])
+        assertEquals(2.5f, zoomCmd.params["zoom"])
         val jsonStr = zoomCmd.toJson()
         assertNotNull(jsonStr)
         assertTrue(jsonStr.contains("zoom") && jsonStr.contains("2.5"))
