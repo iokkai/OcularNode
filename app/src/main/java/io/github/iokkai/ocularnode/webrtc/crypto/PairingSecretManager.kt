@@ -63,6 +63,23 @@ class PairingSecretManager private constructor(context: Context) {
     }
 
     /**
+     * Sets or overrides the device pairing secret (e.g. from Zero-Touch DO Provisioning).
+     */
+    fun setDeviceSecret(secret: String) {
+        if (secret.isNotBlank()) {
+            securePrefs.edit().putString(KEY_DEVICE_SECRET, secret).apply()
+            Log.i(TAG, "Configured permanent device pairing secret from external provision")
+        }
+    }
+
+    /**
+     * Returns the current device secret if set.
+     */
+    fun getDeviceSecret(): String? {
+        return securePrefs.getString(KEY_DEVICE_SECRET, null)
+    }
+
+    /**
      * Gets or generates the unique device ID for WebRTC node identification.
      */
     fun getOrCreateDeviceId(): String {

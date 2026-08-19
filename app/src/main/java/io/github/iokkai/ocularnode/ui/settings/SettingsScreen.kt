@@ -58,6 +58,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -1310,7 +1311,7 @@ fun SettingsScreen(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Tune, contentDescription = null, tint = AppPrimary)
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = AppPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         stringResource(R.string.settings_connection_mode_group),
