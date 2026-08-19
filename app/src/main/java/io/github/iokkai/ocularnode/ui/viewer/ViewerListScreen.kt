@@ -919,7 +919,7 @@ fun CameraDeviceCard(
                         ) {
                             if (camera.deviceSecret != null) {
                                 Surface(
-                                    color = AppPrimaryContainerLight,
+                                    color = AppPrimaryContainer,
                                     shape = RoundedCornerShape(6.dp),
                                     border = BorderStroke(1.dp, AppPrimary.copy(alpha = 0.3f))
                                 ) {
