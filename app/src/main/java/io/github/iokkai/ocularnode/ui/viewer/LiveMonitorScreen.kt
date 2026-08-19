@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.iokkai.ocularnode.R
 import io.github.iokkai.ocularnode.ui.theme.*
+import io.github.iokkai.ocularnode.webrtc.ui.WebRtcVideoView
 
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.activity.compose.BackHandler
@@ -118,6 +119,12 @@ fun LiveMonitorScreen(
     val cameraStatusJson by viewModel.streamClient.cameraStatusJson.collectAsState()
     val nightMode = cameraStatusJson?.optString("nightVisionMode", "off") ?: "off"
 
+    val remoteVideoTrack by viewModel.webRtcClient.remoteVideoTrack.collectAsState()
+    val isWebRtcConnected by viewModel.webRtcClient.isConnected.collectAsState()
+    val isWebRtcConnecting by viewModel.webRtcClient.isConnecting.collectAsState()
+    val isWebRtcRoaming by viewModel.webRtcClient.isRoaming.collectAsState()
+    val webRtcStatusMsg by viewModel.webRtcClient.statusMessage.collectAsState()
+
     val isListening by viewModel.streamClient.isListeningAudio.collectAsState()
     val isSpeaking by viewModel.streamClient.isSpeakingAudio.collectAsState()
     val adaptiveState by viewModel.adaptiveState.collectAsState()
@@ -153,8 +160,32 @@ fun LiveMonitorScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // MJPEG Video Frame Canvas with Zoom & Rotation
-        if (frame != null) {
+        // Primary: WebRTC VideoTrack Hardware Rendering; Secondary: MJPEG Stream Fallback
+        if (remoteVideoTrack != null) {
+            WebRtcVideoView(
+                videoTrack = remoteVideoTrack,
+                sessionManager = viewModel.webRtcSessionManager,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            zoomScale = (zoomScale * zoom).coerceIn(1f, 5f)
+                            if (zoomScale == 1f) {
+                                panOffset = Offset.Zero
+                            } else {
+                                panOffset += pan
+                            }
+                            viewModel.webRtcClient.setZoom(zoomScale)
+                        }
+                    }
+                    .graphicsLayer(
+                        scaleX = zoomScale,
+                        scaleY = zoomScale,
+                        translationX = panOffset.x,
+                        translationY = panOffset.y
+                    )
+            )
+        } else if (frame != null) {
             Image(
                 bitmap = frame!!.asImageBitmap(),
                 contentDescription = "Live Stream Frame",
@@ -184,11 +215,16 @@ fun LiveMonitorScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (isConnecting) {
+                if (isConnecting || isWebRtcConnecting || isWebRtcRoaming) {
                     CircularProgressIndicator(color = AppPrimary)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-                Text(statusMsg, color = Color.LightGray, fontSize = 15.sp)
+                val displayMsg = if (webRtcStatusMsg.isNotBlank() && webRtcStatusMsg != "Unconnected") {
+                    webRtcStatusMsg
+                } else {
+                    statusMsg
+                }
+                Text(displayMsg, color = Color.LightGray, fontSize = 15.sp)
             }
         }
 
@@ -251,17 +287,31 @@ fun LiveMonitorScreen(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                val (statusBg, statusText) = when {
+                    isWebRtcRoaming -> AppWarning to "⏳ 漫遊重連中"
+                    isWebRtcConnecting -> AppPrimary to "🔄 ICE 連線中"
+                    isWebRtcConnected -> {
+                        when {
+                            !camera.ipv6Address.isNullOrBlank() -> AppSuccess to "⚡ P2P (IPv6)"
+                            viewModel.settingsManager.customTurnServerUrl.isNotBlank() -> AppPrimary to "🛡️ TURN 中繼"
+                            else -> AppSuccess to "⚡ P2P (STUN)"
+                        }
+                    }
+                    isConnected -> AppSecondary to "📡 MJPEG (${fps}FPS)"
+                    else -> AppError to stringResource(R.string.monitor_reconnecting)
+                }
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(if (isConnected) AppSuccess else AppError)
+                        .background(statusBg)
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = if (isConnected) "LIVE ${fps}FPS" else stringResource(R.string.monitor_reconnecting),
+                        text = statusText,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
+                        fontSize = 11.sp
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))

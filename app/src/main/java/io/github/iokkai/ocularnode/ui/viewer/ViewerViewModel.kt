@@ -189,6 +189,23 @@ class ViewerViewModel(application: Application) : AndroidViewModel(application) 
         _selectedCamera.value = camera
         val botToken = settingsManager.telegramBotToken
         val chatId = settingsManager.telegramChatId
+
+        // Connect WebRTC client as primary stream pipeline
+        val secret = camera.deviceSecret ?: "default-secret"
+        val channelKey = camera.deviceId ?: camera.ipAddress
+        webRtcClient.connect(
+            scope = viewModelScope,
+            channelKey = channelKey,
+            secret = secret,
+            context = getApplication(),
+            cameraLocalIp = camera.ipAddress,
+            cameraPort = camera.port,
+            telegramBotToken = botToken,
+            telegramChatId = chatId,
+            cameraIpv6 = camera.ipv6Address
+        )
+
+        // Parallel HTTP StreamClient for status telemetry and MJPEG fallback
         streamClient.connect(camera, viewModelScope, botToken, chatId)
         if (_adaptiveState.value.isEnabled) {
             startAdaptiveResolutionMonitor()
