@@ -1,3 +1,4 @@
+@file:Suppress("DEPRECATION")
 package io.github.iokkai.ocularnode.webrtc.crypto
 
 import android.content.Context
