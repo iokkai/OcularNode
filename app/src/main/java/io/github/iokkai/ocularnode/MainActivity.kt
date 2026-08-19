@@ -158,7 +158,7 @@ fun MainAppScreen(
     }
     var viewingMonitorDevice by remember { mutableStateOf<CameraDevice?>(null) }
     val unreadCount by eventLogsViewModel.unreadCount.collectAsState()
-    val tailscaleProgress by ZeroTouchProvisionManager.tailscaleDownloadProgress.collectAsState()
+    val tailscaleProgress by io.github.iokkai.ocularnode.util.TailscaleLegacyManager.tailscaleDownloadProgress.collectAsState()
 
     // Force CAMERA role & sync if Device Owner
     LaunchedEffect(isDeviceOwner) {
@@ -194,13 +194,13 @@ fun MainAppScreen(
                 Log.i("MainActivity", "自動啟動相機串流服務")
             }
 
-            // 確保 Tailscale 處於安裝與連線狀態
+            // 僅在明確設定為 Tailscale 模式時執行 Tailscale 連線
             val authKey = settingsManager.tailscaleAuthKey
-            if (authKey.isNotBlank()) {
+            if (settingsManager.connectionMode == "TAILSCALE" && authKey.isNotBlank()) {
                 if (NetworkUtils.isTailscaleInstalled(context)) {
-                    ZeroTouchProvisionManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
+                    io.github.iokkai.ocularnode.util.TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
                 } else {
-                    ZeroTouchProvisionManager.startZeroTouchPipeline(context, authKey)
+                    io.github.iokkai.ocularnode.util.TailscaleLegacyManager.startZeroTouchPipeline(context, authKey)
                 }
             }
 

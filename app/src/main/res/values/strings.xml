@@ -687,4 +687,10 @@
     <string name="settings_turn_server_url">TURN Server URL (e.g. turn:turn.cloudflare.com:3478)</string>
     <string name="settings_turn_username">TURN Username (Optional)</string>
     <string name="settings_turn_password">TURN Password (Optional)</string>
+
+    <!-- Advanced Connection Mode Selection -->
+    <string name="settings_connection_mode_group">Advanced Connection Mode</string>
+    <string name="settings_connection_mode_desc">Select preferred streaming connection technology</string>
+    <string name="settings_connection_mode_webrtc">⚡ WebRTC P2P (Default / Direct Stream &amp; Low Latency)</string>
+    <string name="settings_connection_mode_tailscale">🔒 Tailscale VPN (Advanced / Legacy Overlay Network)</string>
 </resources>

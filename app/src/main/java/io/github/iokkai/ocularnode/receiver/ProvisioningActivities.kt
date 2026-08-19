@@ -58,17 +58,26 @@ class AdminPolicyComplianceActivity : Activity() {
                 PersistableBundle::class.java
             )
             val authKey = extras?.getString("tailscale_auth_key") ?: ""
+            val mqttSecret = extras?.getString("mqtt_device_secret") ?: ""
             val role = extras?.getString("device_role") ?: "CAMERA"
             val wifiSsid = extras?.getString("wifi_ssid") ?: ""
+            val connectionMode = extras?.getString("connection_mode") ?: (if (authKey.isNotBlank()) "TAILSCALE" else "WEBRTC")
 
-            Log.i(TAG, "Compliance intercepted extras: Role=$role, AuthKeyLength=${authKey.length}, WifiSSID=$wifiSsid")
+            Log.i(TAG, "Compliance intercepted extras: Role=$role, Mode=$connectionMode, SecretLength=${mqttSecret.length}, WifiSSID=$wifiSsid")
 
             val settingsManager = SettingsManager.getInstance(applicationContext)
             settingsManager.deviceRoleMode = role
+            settingsManager.connectionMode = connectionMode
             settingsManager.isKioskModeActive = true
             if (authKey.isNotBlank()) {
                 settingsManager.tailscaleAuthKey = authKey
             }
+            if (mqttSecret.isNotBlank()) {
+                io.github.iokkai.ocularnode.webrtc.crypto.PairingSecretManager.getInstance(applicationContext).setDeviceSecret(mqttSecret)
+            }
+
+            // 電池最佳化豁免
+            ZeroTouchProvisionManager.exemptFromBatteryOptimizations(applicationContext)
 
             // 1. 喚醒並啟動 MainActivity (因為當前為 SetupWizard 信任的前景 Activity，可安全發起 Activity 轉移)
             try {
@@ -81,8 +90,10 @@ class AdminPolicyComplianceActivity : Activity() {
                 Log.e(TAG, "啟動 MainActivity 失敗", e)
             }
 
-            // 2. 觸發零接觸安裝與設定流程 (下載 Tailscale、靜默安裝、政策注入、Always-On VPN)
-            ZeroTouchProvisionManager.startZeroTouchPipeline(applicationContext, authKey)
+            // 2. 僅在明確配置 Tailscale 模式時觸發 Tailscale 部署 (WebRTC P2P 預設秒級完成)
+            if (connectionMode == "TAILSCALE" && authKey.isNotBlank()) {
+                io.github.iokkai.ocularnode.util.TailscaleLegacyManager.startZeroTouchPipeline(applicationContext, authKey)
+            }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error during admin policy compliance", e)

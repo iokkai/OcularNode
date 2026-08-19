@@ -687,4 +687,10 @@
     <string name="settings_turn_server_url">TURN 伺服器網址 (如 turn:turn.cloudflare.com:3478)</string>
     <string name="settings_turn_username">TURN 帳號 (選填)</string>
     <string name="settings_turn_password">TURN 密碼 (選填)</string>
+
+    <!-- Advanced Connection Mode Selection -->
+    <string name="settings_connection_mode_group">進階連線模式</string>
+    <string name="settings_connection_mode_desc">選擇預設的影音串流與打洞通道</string>
+    <string name="settings_connection_mode_webrtc">⚡ WebRTC P2P（預設、極速直連與抗發熱）</string>
+    <string name="settings_connection_mode_tailscale">🔒 Tailscale VPN（進階、相容特定虛擬網段）</string>
 </resources>

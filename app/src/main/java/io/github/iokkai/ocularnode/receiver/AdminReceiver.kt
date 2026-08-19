@@ -4,11 +4,12 @@ import android.app.admin.DeviceAdminReceiver
 import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageInstaller
 import android.os.PersistableBundle
 import android.util.Log
 import io.github.iokkai.ocularnode.data.SettingsManager
+import io.github.iokkai.ocularnode.util.TailscaleLegacyManager
 import io.github.iokkai.ocularnode.util.ZeroTouchProvisionManager
+import io.github.iokkai.ocularnode.webrtc.crypto.PairingSecretManager
 
 class AdminReceiver : DeviceAdminReceiver() {
 
@@ -29,17 +30,26 @@ class AdminReceiver : DeviceAdminReceiver() {
         try {
             val extras = androidx.core.content.IntentCompat.getParcelableExtra(intent, DevicePolicyManager.EXTRA_PROVISIONING_ADMIN_EXTRAS_BUNDLE, PersistableBundle::class.java)
             val authKey = extras?.getString("tailscale_auth_key") ?: ""
+            val mqttSecret = extras?.getString("mqtt_device_secret") ?: ""
             val role = extras?.getString("device_role") ?: "CAMERA"
             val wifiSsid = extras?.getString("wifi_ssid") ?: ""
+            val connectionMode = extras?.getString("connection_mode") ?: (if (authKey.isNotBlank()) "TAILSCALE" else "WEBRTC")
 
-            Log.i("AdminReceiver", "Provisioning extras intercepted: Role=$role, AuthKeyLength=${authKey.length}, WifiSSID=$wifiSsid")
+            Log.i("AdminReceiver", "Provisioning extras intercepted: Role=$role, Mode=$connectionMode, SecretLength=${mqttSecret.length}, WifiSSID=$wifiSsid")
 
             val settingsManager = SettingsManager.getInstance(context)
             settingsManager.deviceRoleMode = role
+            settingsManager.connectionMode = connectionMode
             settingsManager.isKioskModeActive = true
             if (authKey.isNotBlank()) {
                 settingsManager.tailscaleAuthKey = authKey
             }
+            if (mqttSecret.isNotBlank()) {
+                PairingSecretManager.getInstance(context).setDeviceSecret(mqttSecret)
+            }
+
+            // 電池最佳化豁免
+            ZeroTouchProvisionManager.exemptFromBatteryOptimizations(context)
 
             // 強制開啟系統 NTP 自動校時 (防止長期斷網離線導致時鐘漂移與 TLS 證書失效)
             try {
@@ -69,8 +79,10 @@ class AdminReceiver : DeviceAdminReceiver() {
                 Log.e("AdminReceiver", "啟動 MainActivity 失敗", e)
             }
 
-            // 2. 觸發零接觸安裝與設定流程 (下載 Tailscale、靜默安裝、政策注入、Always-On VPN)
-            ZeroTouchProvisionManager.startZeroTouchPipeline(context, authKey)
+            // 2. 僅在明確配置 Tailscale 模式時觸發 Tailscale 下載與 VPN 安裝 (WebRTC P2P 預設秒級完成)
+            if (connectionMode == "TAILSCALE" && authKey.isNotBlank()) {
+                TailscaleLegacyManager.startZeroTouchPipeline(context, authKey)
+            }
         } catch (e: Exception) {
             Log.e("AdminReceiver", "Error in onProfileProvisioningComplete", e)
         }

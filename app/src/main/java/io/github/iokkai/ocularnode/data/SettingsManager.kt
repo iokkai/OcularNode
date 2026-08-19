@@ -72,6 +72,7 @@ class SettingsManager(context: Context) {
         private const val KEY_LAST_SCHEDULED_REBOOT_DATE = "last_scheduled_reboot_date"
         private const val KEY_CUSTOM_TURN_SERVER_URL = "custom_turn_server_url"
         private const val KEY_CUSTOM_TURN_USERNAME = "custom_turn_username"
+        private const val KEY_CONNECTION_MODE = "connection_mode"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
@@ -376,4 +377,8 @@ class SettingsManager(context: Context) {
     var lastScheduledRebootDate: String
         get() = prefs.getString(KEY_LAST_SCHEDULED_REBOOT_DATE, "") ?: ""
         set(value) = prefs.edit().putString(KEY_LAST_SCHEDULED_REBOOT_DATE, value).apply()
+
+    var connectionMode: String
+        get() = prefs.getString(KEY_CONNECTION_MODE, "WEBRTC") ?: "WEBRTC"
+        set(value) = prefs.edit().putString(KEY_CONNECTION_MODE, value).apply()
 }

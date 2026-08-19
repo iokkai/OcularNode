@@ -47,8 +47,7 @@ object ZeroTouchProvisionManager {
     private const val TAILSCALE_PACKAGE = "com.tailscale.ipn"
     private val DEFAULT_TAILSCALE_APK_URL = io.github.iokkai.ocularnode.BuildConfig.TAILSCALE_APK_URL.ifBlank { "https://pkgs.tailscale.com/stable/tailscale-android-universal-1.102.2.apk" }
 
-    private val _tailscaleDownloadProgress = MutableStateFlow(TailscaleDownloadProgress())
-    val tailscaleDownloadProgress = _tailscaleDownloadProgress.asStateFlow()
+    val tailscaleDownloadProgress = TailscaleLegacyManager.tailscaleDownloadProgress
 
     fun getAdminComponent(context: Context): ComponentName {
         return ComponentName(context, AdminReceiver::class.java)
@@ -200,201 +199,26 @@ object ZeroTouchProvisionManager {
     }
 
     /**
-     * 啟動完整的零接觸部署管道 (下載 APK -> 靜默安裝 -> 政策注入 -> VPN -> Kiosk)
+     * 啟動 Tailscale 零接觸部署管道 (已移至 TailscaleLegacyManager)
      */
+    @Deprecated("Use TailscaleLegacyManager.startZeroTouchPipeline directly", ReplaceWith("TailscaleLegacyManager.startZeroTouchPipeline(context, authKey, apkUrl)"))
     fun startZeroTouchPipeline(context: Context, authKey: String, apkUrl: String = DEFAULT_TAILSCALE_APK_URL) {
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-        val admin = getAdminComponent(context)
-        val isDO = dpm?.isDeviceOwnerApp(context.packageName) == true
-
-        Log.i(TAG, "Starting Zero-Touch Pipeline. Is Device Owner: $isDO")
-
-        // 執行電池最佳化豁免 (OcularNode + Tailscale)
-        exemptFromBatteryOptimizations(context)
-
-        if (!isDO) {
-            Log.w(TAG, "Not Device Owner. Skipping Device Owner特權步驟.")
-            return
-        }
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                // 1. 下載 Tailscale APK
-                val apkFile = downloadTailscaleApk(context, apkUrl)
-                if (apkFile != null && apkFile.exists()) {
-                    // 2. 靜默安裝
-                    installTailscaleApkSilently(context, apkFile)
-                } else {
-                    Log.e(TAG, "Tailscale APK 下載失敗，嘗試直接進行 MDM 政策注入")
-                    injectTailscaleRestrictionsAndEnableVpn(context, authKey)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Zero Touch Pipeline Exception: ${e.message}", e)
-            }
-        }
+        TailscaleLegacyManager.startZeroTouchPipeline(context, authKey, apkUrl)
     }
 
-    /**
-     * 背景靜默下載 Tailscale APK，並即時更新下載進度條狀態
-     */
-    suspend fun downloadTailscaleApk(context: Context, downloadUrl: String): File? = withContext(Dispatchers.IO) {
-        try {
-            val url = downloadUrl.ifBlank { DEFAULT_TAILSCALE_APK_URL }
-            Log.i(TAG, "開始下載 Tailscale APK: $url")
-
-            _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
-                isDownloading = true,
-                progressPercent = 0,
-                downloadedBytes = 0L,
-                totalBytes = -1L,
-                status = "Connecting to download Tailscale APK..."
-            )
-
-            val client = OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(180, TimeUnit.SECONDS)
-                .build()
-
-            val request = Request.Builder().url(url).build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    Log.e(TAG, "Failed to download APK HTTP ${response.code}")
-                    _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
-                        isDownloading = false,
-                        status = "Failed to download Tailscale APK (HTTP ${response.code})"
-                    )
-                    return@withContext null
-                }
-
-                val body = response.body
-                val totalBytes = body?.contentLength() ?: -1L
-                val destFile = File(context.cacheDir, "tailscale_download.apk")
-
-                body?.byteStream()?.use { input ->
-                    FileOutputStream(destFile).use { output ->
-                        val buffer = ByteArray(16384)
-                        var bytesRead = 0L
-                        var read: Int
-                        var lastEmitTime = System.currentTimeMillis()
-
-                        while (input.read(buffer).also { read = it } != -1) {
-                            output.write(buffer, 0, read)
-                            bytesRead += read
-
-                            val now = System.currentTimeMillis()
-                            if (now - lastEmitTime > 200 || (totalBytes > 0 && bytesRead == totalBytes)) {
-                                lastEmitTime = now
-                                val percent = if (totalBytes > 0) ((bytesRead * 100) / totalBytes).toInt().coerceIn(0, 100) else -1
-                                _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
-                                    isDownloading = true,
-                                    progressPercent = percent,
-                                    downloadedBytes = bytesRead,
-                                    totalBytes = totalBytes,
-                                    status = if (percent >= 0) "Downloading Tailscale APK ($percent%)..." else "Downloading Tailscale APK (${bytesRead / 1024 / 1024} MB)..."
-                                )
-                            }
-                        }
-                        output.flush()
-                    }
-                }
-
-                _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
-                    isDownloading = false,
-                    progressPercent = 100,
-                    downloadedBytes = destFile.length(),
-                    totalBytes = destFile.length(),
-                    status = "Tailscale APK download completed, installing silently..."
-                )
-                Log.i(TAG, "Tailscale APK download successful: ${destFile.absolutePath} (${destFile.length()} bytes)")
-                destFile
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error downloading Tailscale APK", e)
-            _tailscaleDownloadProgress.value = TailscaleDownloadProgress(
-                isDownloading = false,
-                status = "Error downloading Tailscale: ${e.localizedMessage}"
-            )
-            null
-        }
+    @Deprecated("Use TailscaleLegacyManager.downloadTailscaleApk directly", ReplaceWith("TailscaleLegacyManager.downloadTailscaleApk(context, downloadUrl)"))
+    suspend fun downloadTailscaleApk(context: Context, downloadUrl: String): File? {
+        return TailscaleLegacyManager.downloadTailscaleApk(context, downloadUrl)
     }
 
-    /**
-     * 靜默安裝 APK (使用 PackageInstaller + DO 權限)
-     */
+    @Deprecated("Use TailscaleLegacyManager.installTailscaleApkSilently directly", ReplaceWith("TailscaleLegacyManager.installTailscaleApkSilently(context, apkFile)"))
     fun installTailscaleApkSilently(context: Context, apkFile: File) {
-        try {
-            Log.i(TAG, "開始呼叫 PackageInstaller 靜默安裝 Tailscale")
-            val packageInstaller = context.packageManager.packageInstaller
-            val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-                setAppPackageName(TAILSCALE_PACKAGE)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
-                }
-            }
-
-            val sessionId = packageInstaller.createSession(params)
-            val session = packageInstaller.openSession(sessionId)
-
-            apkFile.inputStream().use { input ->
-                session.openWrite("tailscale_install_session", 0, apkFile.length()).use { output ->
-                    input.copyTo(output)
-                    session.fsync(output)
-                }
-            }
-
-            val intent = Intent(context, PackageInstallReceiver::class.java).apply {
-                action = "io.github.iokkai.ocularnode.ACTION_INSTALL_COMPLETE"
-            }
-            val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                sessionId,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-            )
-
-            session.commit(pendingIntent.intentSender)
-            session.close()
-            Log.i(TAG, "PackageInstaller session 提交完畢，等待安裝結果...")
-        } catch (e: Exception) {
-            Log.e(TAG, "靜默安裝 Tailscale 異常", e)
-        }
+        TailscaleLegacyManager.installTailscaleApkSilently(context, apkFile)
     }
 
-    /**
-     * MDM 政策注入 (將 Auth Key 注入 Tailscale 的 Application Restrictions) 並啟用 Always-On VPN
-     */
+    @Deprecated("Use TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn directly", ReplaceWith("TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)"))
     fun injectTailscaleRestrictionsAndEnableVpn(context: Context, authKey: String) {
-        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager ?: return
-        val admin = getAdminComponent(context)
-
-        if (!dpm.isDeviceOwnerApp(context.packageName)) {
-            Log.w(TAG, "非 Device Owner，無法注入 ApplicationRestrictions")
-            return
-        }
-
-        try {
-            // 1. 注入 Restriction (Auth Key) - 依照 Tailscale 官方 MDM 規範 (AuthKey)
-            if (authKey.isNotBlank()) {
-                val restrictions = Bundle().apply {
-                    putString("AuthKey", authKey)
-                    putString("authkey", authKey)
-                    putString("authKey", authKey)
-                }
-                dpm.setApplicationRestrictions(admin, TAILSCALE_PACKAGE, restrictions)
-                Log.i(TAG, "成功注入 Tailscale Restriction (AuthKey: ${authKey.take(10)}...)")
-            }
-
-            // 2. 啟動 Always-On VPN (lockdownEnabled 設為 false，避免封鎖非 VPN 連線導致無法連線或解析 Telegram 等外網服務)
-            try {
-                dpm.setAlwaysOnVpnPackage(admin, TAILSCALE_PACKAGE, false)
-                Log.i(TAG, "成功設置 Tailscale 為 Always-On VPN (非封鎖模式)")
-            } catch (e: Exception) {
-                Log.e(TAG, "設置 Always-On VPN 失敗 (Tailscale 可能尚未安裝完成)", e)
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "MDM 政策注入失敗", e)
-        }
+        TailscaleLegacyManager.injectTailscaleRestrictionsAndEnableVpn(context, authKey)
     }
 
     /**
