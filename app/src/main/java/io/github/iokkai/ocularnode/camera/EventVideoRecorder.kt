@@ -33,7 +33,7 @@ class EventVideoRecorder(
     private val outputDir: File,
     private val width: Int = 1280,
     private val height: Int = 720,
-    private val fps: Int = 15,
+    private val fps: Int = 30,
     private val preRecordSeconds: Int = 5,
     private val basePostRecordSeconds: Int = 10,
     private val maxRecordSeconds: Int = 180 // 最大錄製 3 分鐘 (180秒)
@@ -43,13 +43,13 @@ class EventVideoRecorder(
     // 狀態管理：使用 AtomicReference 確保跨執行緒狀態切換的原子性與安全性
     private val state = AtomicReference(RecorderState.IDLE)
     
-    // 環狀緩衝區，存放過去特定秒數的畫面
-    private val maxBufferSize = fps * preRecordSeconds
+    // 環狀緩衝區，存放過去特定秒數的畫面 (以微秒時間窗口 + 記憶體安全上限管理)
+    private val maxBufferSize = 30 * preRecordSeconds * 2 // 安全上限容量保護
     private val preRollBuffer = ArrayDeque<FrameData>(maxBufferSize)
     private val bufferMutex = Mutex()
     
-    // 動態目標幀數 (支援延長錄影)
-    private val dynamicTargetPostFrames = java.util.concurrent.atomic.AtomicInteger(0)
+    // 動態目標錄影時長 (微秒，支援動態 FPS 與延長錄影)
+    private val dynamicTargetPostDurationUs = java.util.concurrent.atomic.AtomicLong(0L)
     
     // 錄影相關 CoroutineScope (在背景執行緒中處理耗時編碼)
     private val recorderScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -62,11 +62,11 @@ class EventVideoRecorder(
     
     /**
      * 接收即時畫面供分析或錄影。
-     * - 若為 IDLE：將畫面存入環狀緩衝區 (滿了則剔除最舊)。
+     * - 若為 IDLE：將畫面存入環狀緩衝區 (依據時間窗口淘汰超過 preRecordSeconds 的舊幀)。
      * - 若為 RECORDING：將畫面送入即時通道供編碼器處理。
      * - 若為 COOLDOWN：直接捨棄並釋放。
      *
-     * @param bitmap 相機擷取之 Bitmap 畫面。
+     * @param jpegBytes 相機壓縮之 JPEG 畫面。
      * @param presentationTimeUs 畫面的呈現時間戳 (微秒)。
      */
     fun pushFrame(jpegBytes: ByteArray, presentationTimeUs: Long) {
@@ -76,6 +76,13 @@ class EventVideoRecorder(
             when (state.get()) {
                 RecorderState.IDLE -> {
                     bufferMutex.withLock {
+                        // 依據時間窗口剔除超過 preRecordSeconds 的過期畫面
+                        if (presentationTimeUs > 0) {
+                            val cutoffTimeUs = presentationTimeUs - (preRecordSeconds * 1_000_000L)
+                            while (preRollBuffer.isNotEmpty() && preRollBuffer.first().presentationTimeUs > 0 && preRollBuffer.first().presentationTimeUs < cutoffTimeUs) {
+                                preRollBuffer.removeFirst()
+                            }
+                        }
                         if (preRollBuffer.size >= maxBufferSize) {
                             preRollBuffer.removeFirst()
                         }
@@ -103,7 +110,7 @@ class EventVideoRecorder(
             Log.i(tag, "觸發事件錄影，狀態切換為 RECORDING")
             onFinishedCallbacks.clear()
             onFinishedCallbacks.add(onFinished)
-            dynamicTargetPostFrames.set(fps * basePostRecordSeconds)
+            dynamicTargetPostDurationUs.set(basePostRecordSeconds * 1_000_000L)
             val outputFile = File(outputDir, "event_video_${System.currentTimeMillis()}.mp4")
             
             recordingJob = recorderScope.launch {
@@ -130,12 +137,12 @@ class EventVideoRecorder(
             }
         } else if (state.get() == RecorderState.RECORDING) {
             // 如果已經在錄影中，則延長錄影時間（不重複註冊完成回呼，避免 Telegram 重複發送同一影片）
-            val maxFrames = fps * maxRecordSeconds
-            val currentTarget = dynamicTargetPostFrames.get()
+            val maxDurationUs = maxRecordSeconds * 1_000_000L
+            val currentTarget = dynamicTargetPostDurationUs.get()
             // 延長 basePostRecordSeconds，但不能超過最大限制
-            val newTarget = (currentTarget + (fps * basePostRecordSeconds)).coerceAtMost(maxFrames)
-            dynamicTargetPostFrames.set(newTarget)
-            Log.i(tag, "持續偵測到動態，延長錄影時間！新目標幀數: $newTarget / 最大限制: $maxFrames")
+            val newTarget = (currentTarget + (basePostRecordSeconds * 1_000_000L)).coerceAtMost(maxDurationUs)
+            dynamicTargetPostDurationUs.set(newTarget)
+            Log.i(tag, "持續偵測到動態，延長錄影時間！新目標時長: ${newTarget / 1_000_000L}s / 最大限制: ${maxRecordSeconds}s")
         } else {
             Log.d(tag, "忽略觸發：目前狀態為 COOLDOWN")
             // In cooldown, we might just return null immediately or ignore
@@ -267,6 +274,9 @@ class EventVideoRecorder(
             }
         }
 
+        var baseTimestampUs = -1L
+        var lastPtsUs = -1L
+
         // 內部 Helper：將 FrameData 轉碼放入 MediaCodec (維持比例，防止畫面變形)
         fun encodeFrame(frame: FrameData, isEndOfStream: Boolean) {
             val options = android.graphics.BitmapFactory.Options().apply {
@@ -310,8 +320,22 @@ class EventVideoRecorder(
                     inputBuffer.clear()
                     val bytesToPut = Math.min(yuvBytes.size, inputBuffer.remaining())
                     inputBuffer.put(yuvBytes, 0, bytesToPut)
-                    val ptsUs = frameIndex * 1_000_000L / fps
-                    frameIndex++
+                    
+                    val framePtsUs: Long = if (frame.presentationTimeUs > 0) {
+                        if (baseTimestampUs < 0) {
+                            baseTimestampUs = frame.presentationTimeUs
+                            0L
+                        } else {
+                            (frame.presentationTimeUs - baseTimestampUs).coerceAtLeast(0L)
+                        }
+                    } else {
+                        if (lastPtsUs < 0) 0L else lastPtsUs + (1_000_000L / fps)
+                    }
+
+                    // 確保 PTS 嚴格單調遞增，避免 MediaMuxer 寫入錯誤
+                    val ptsUs = if (framePtsUs > lastPtsUs) framePtsUs else lastPtsUs + 1_000L
+                    lastPtsUs = ptsUs
+
                     val flags = if (isEndOfStream) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0
                     codec.queueInputBuffer(inputBufferIndex, 0, bytesToPut, ptsUs, flags)
                 }
@@ -329,6 +353,7 @@ class EventVideoRecorder(
             Log.i(tag, "歷史畫面編碼完成。開始擷取即時畫面")
 
             // 2. 持續從 Channel 獲取新的即時畫面並進行編碼
+            var triggerTimeUs = -1L
             while (kotlin.coroutines.coroutineContext.isActive && !isEos) {
                 val frameData = withTimeoutOrNull(2000L) {
                     realTimeFrames.receive()
@@ -336,15 +361,23 @@ class EventVideoRecorder(
 
                 if (frameData != null) {
                     encodedPostFrames++
-                    val currentTargetPostFrames = dynamicTargetPostFrames.get()
-                    val isLastFrame = encodedPostFrames >= currentTargetPostFrames
+                    if (triggerTimeUs < 0) {
+                        triggerTimeUs = if (frameData.presentationTimeUs > 0) frameData.presentationTimeUs else android.os.SystemClock.elapsedRealtimeNanos() / 1000
+                    }
+                    val targetDurationUs = dynamicTargetPostDurationUs.get()
+                    val elapsedPostUs = if (frameData.presentationTimeUs > 0) {
+                        (frameData.presentationTimeUs - triggerTimeUs).coerceAtLeast(0L)
+                    } else {
+                        encodedPostFrames * (1_000_000L / fps)
+                    }
+                    val isLastFrame = elapsedPostUs >= targetDurationUs
 
                     encodeFrame(frameData, isLastFrame)
                     drainOutput()
 
                     if (isLastFrame) {
                         isEos = true
-                        Log.i(tag, "已達成目標即時幀數 ($currentTargetPostFrames)，正常結束錄製。")
+                        Log.i(tag, "已達成目標錄影時長 (${targetDurationUs / 1_000_000L}s，共 $encodedPostFrames 幀)，正常結束錄製。")
                     }
                 } else {
                     Log.w(tag, "超過 2 秒未收到新畫面，將強制結束錄製流程。")

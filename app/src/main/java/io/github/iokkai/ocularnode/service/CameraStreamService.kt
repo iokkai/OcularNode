@@ -264,7 +264,7 @@ class CameraStreamService : Service(), LifecycleOwner {
             outputDir = mediaDir,
             width = 1280,
             height = 720,
-            fps = 15,
+            fps = 30,
             preRecordSeconds = 5,
             basePostRecordSeconds = 10,
             maxRecordSeconds = 180
