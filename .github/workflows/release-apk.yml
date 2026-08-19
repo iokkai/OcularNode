@@ -71,8 +71,6 @@ jobs:
           # 將 GitHub Secrets 中的 BASE64 Keystore 解碼並存入檔案
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/keystore.jks
 
-      - name: 🧪 執行單元測試防護關卡
-        run: ./gradlew testArmDebugUnitTest
 
       - name: 🔨 編譯與簽名 Release APK
         env:

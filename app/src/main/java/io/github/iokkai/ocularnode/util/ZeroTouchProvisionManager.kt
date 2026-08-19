@@ -639,6 +639,47 @@ object ZeroTouchProvisionManager {
                 flags
             )
 
+            // 註冊 AlarmManager 6 秒硬體級定時自啟動看門狗 (Fallback for Process Death & Launcher Animation)
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? android.app.AlarmManager
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    putExtra("EXTRA_AUTO_STARTED_BY", "AlarmManager Watchdog Relaunch")
+                } ?: Intent(context, io.github.iokkai.ocularnode.MainActivity::class.java).apply {
+                    action = Intent.ACTION_MAIN
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    putExtra("EXTRA_AUTO_STARTED_BY", "AlarmManager Watchdog Relaunch")
+                }
+                val alarmFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+                val alarmPendingIntent = PendingIntent.getActivity(
+                    context,
+                    9977,
+                    launchIntent,
+                    alarmFlags
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager?.setExactAndAllowWhileIdle(
+                        android.app.AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + 6000L,
+                        alarmPendingIntent
+                    )
+                } else {
+                    alarmManager?.setExact(
+                        android.app.AlarmManager.RTC_WAKEUP,
+                        System.currentTimeMillis() + 6000L,
+                        alarmPendingIntent
+                    )
+                }
+                Log.i(TAG, "已預先註冊 AlarmManager 6秒硬體級看門狗，確保安裝後必能自動拉起 Activity")
+            } catch (e: Exception) {
+                Log.w(TAG, "註冊 AlarmManager 看門狗異常", e)
+            }
+
             // 安裝完成後系統會自動觸發 MY_PACKAGE_REPLACED 廣播，將由 BootAndPowerReceiver 接管並無縫重啟進入 Kiosk 模式。
             session.commit(pendingIntent.intentSender)
             session.close()
