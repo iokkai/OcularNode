@@ -15,8 +15,10 @@ jobs:
       contents: write # 允許 GitHub Actions 建立 Release 並上傳檔案
 
     steps:
-      - name: 📥 取得程式碼
+      - name: 📥 取得程式碼 (完整歷史與 Tags)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: ☕ 設定 JDK 17
         uses: actions/setup-java@v5
@@ -79,6 +81,112 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease -PversionCode=${{ steps.parse_version.outputs.version_code }} -PversionName=${{ steps.parse_version.outputs.version_name }}
 
+      - name: 📝 自動產生 Release 變更說明與校驗碼 (Changelog & Checksums)
+        id: generate_release_notes
+        run: |
+          TAG_NAME="${{ steps.parse_version.outputs.release_tag }}"
+          
+          # 尋找前一個 Tag
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG_NAME}^" 2>/dev/null || echo "")
+          echo "前一個 Tag: $PREV_TAG"
+          
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..$TAG_NAME"
+            COMPARE_URL="https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG_NAME}"
+          else
+            RANGE="$TAG_NAME"
+            COMPARE_URL="https://github.com/${{ github.repository }}/commits/${TAG_NAME}"
+          fi
+          
+          echo "## 🚀 OcularNode $TAG_NAME" > release_notes.md
+          echo "" >> release_notes.md
+          
+          # 提取分類 Commit 紀錄 (嚴格依照 Conventional Commits 規範)
+          FEAT=$(git log $RANGE --no-merges -i --grep="^feat" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          FIX=$(git log $RANGE --no-merges -i --grep="^fix" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          PERF=$(git log $RANGE --no-merges -i --grep="^perf" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          REFACTOR=$(git log $RANGE --no-merges -i --grep="^refactor" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          DOCS=$(git log $RANGE --no-merges -i --grep="^docs" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          STYLE=$(git log $RANGE --no-merges -i --grep="^style" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          TEST=$(git log $RANGE --no-merges -i --grep="^test" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          CHORE=$(git log $RANGE --no-merges -i --grep="^chore" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          REVERT=$(git log $RANGE --no-merges -i --grep="^revert" --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          OTHER=$(git log $RANGE --no-merges -i --grep="^feat" --grep="^fix" --grep="^perf" --grep="^refactor" --grep="^docs" --grep="^style" --grep="^test" --grep="^chore" --grep="^revert" --invert-grep --pretty=format:"- %s ([%h](https://github.com/${{ github.repository }}/commit/%H))" || true)
+          
+          if [ -n "$FEAT" ]; then
+            echo "### ✨ 新增功能 (Features)" >> release_notes.md
+            echo "$FEAT" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ -n "$FIX" ]; then
+            echo "### 🐛 問題修復 (Bug Fixes)" >> release_notes.md
+            echo "$FIX" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
+          if [ -n "$PERF" ]; then
+            echo "### ⚡ 效能優化 (Performance)" >> release_notes.md
+            echo "$PERF" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ -n "$REFACTOR" ]; then
+            echo "### 🔨 程式碼重構 (Refactoring)" >> release_notes.md
+            echo "$REFACTOR" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
+          if [ -n "$DOCS" ]; then
+            echo "### 📚 文件變更 (Documentation)" >> release_notes.md
+            echo "$DOCS" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
+          if [ -n "$STYLE" ]; then
+            echo "### 🎨 格式修正 (Style)" >> release_notes.md
+            echo "$STYLE" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
+          if [ -n "$TEST" ]; then
+            echo "### 🧪 測試變更 (Testing)" >> release_notes.md
+            echo "$TEST" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
+          if [ -n "$CHORE" ]; then
+            echo "### 🔧 雜項與建置 (Chore)" >> release_notes.md
+            echo "$CHORE" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
+          if [ -n "$REVERT" ]; then
+            echo "### ⏪ 還原變更 (Reverts)" >> release_notes.md
+            echo "$REVERT" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ -n "$OTHER" ]; then
+            echo "### 📝 其他變更 (Other Changes)" >> release_notes.md
+            echo "$OTHER" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          echo "---" >> release_notes.md
+          echo "🔗 **完整變更比對 (Full Changelog)**: [$RANGE]($COMPARE_URL)" >> release_notes.md
+          echo "" >> release_notes.md
+          
+          # 加入 APK SHA-256 Checksums
+          echo "### 🔐 APK SHA-256 Checksums" >> release_notes.md
+          echo '```' >> release_notes.md
+          cd app/build/outputs/apk
+          sha256sum **/*.apk 2>/dev/null | awk '{print $1 "  " $2}' >> ../../../release_notes.md || true
+          cd ../../..
+          echo '```' >> release_notes.md
+          
+          cat release_notes.md
+
       - name: 📦 上傳 APK 到 Action Artifacts (備份)
         uses: actions/upload-artifact@v4
         with:
@@ -91,5 +199,5 @@ jobs:
         with:
           tag_name: ${{ steps.parse_version.outputs.release_tag }}
           name: OcularNode Release ${{ steps.parse_version.outputs.release_tag }}
+          body_path: release_notes.md
           files: app/build/outputs/apk/**/release/*.apk
-          generate_release_notes: true
