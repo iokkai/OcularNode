@@ -33,6 +33,7 @@ class RemoteCommandHandler(
 
     fun handleRemoteControl(command: String, value: String) {
         scope.launch(Dispatchers.Main) {
+            AppLogger.d("RemoteCmd", "收到遠端指令: $command = $value")
             when (command.lowercase()) {
                 "mode", "operating_mode" -> {
                     val targetMode = if (value.lowercase().contains("det")) "detection" else "monitor"

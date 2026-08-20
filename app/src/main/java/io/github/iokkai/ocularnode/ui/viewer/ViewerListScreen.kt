@@ -156,6 +156,9 @@ fun ViewerListScreen(
             onNavigateBack = {
                 remoteSettingsCamera = null
                 remoteStatusJson = null
+            },
+            onFetchLogs = {
+                viewModel.fetchRemoteLogs(camera)
             }
         )
         return

@@ -60,7 +60,15 @@ class WebRtcPeerConnection(
 
         override fun onConnectionChange(newState: PeerConnection.PeerConnectionState?) {
             Log.i(TAG, "PeerConnection state changed: $newState")
-            newState?.let { _connectionState.value = it }
+            newState?.let { 
+                _connectionState.value = it
+                when (it) {
+                    PeerConnection.PeerConnectionState.CONNECTED -> io.github.iokkai.ocularnode.util.AppLogger.d("WebRTC", "P2P 連線已建立 (CONNECTED)")
+                    PeerConnection.PeerConnectionState.DISCONNECTED -> io.github.iokkai.ocularnode.util.AppLogger.w("WebRTC", "P2P 連線中斷 (DISCONNECTED)")
+                    PeerConnection.PeerConnectionState.FAILED -> io.github.iokkai.ocularnode.util.AppLogger.e("WebRTC", "P2P 連線失敗 (FAILED)")
+                    else -> {}
+                }
+            }
         }
 
         override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState?) {

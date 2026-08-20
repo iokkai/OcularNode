@@ -224,6 +224,7 @@ class CameraManagerHelper(private val context: Context) {
             } else {
                 camera = provider.bindToLifecycle(owner, cameraSelector, imageAnalysis, videoCapture)
             }
+            io.github.iokkai.ocularnode.util.AppLogger.d("Camera", "相機啟動成功 (解析度: $currentResolutionString, 目標幀率: $targetFps)")
             if (lensFacing == CameraSelector.LENS_FACING_BACK && isTorchOn) {
                 camera?.cameraControl?.enableTorch(true)
             }
@@ -324,7 +325,11 @@ class CameraManagerHelper(private val context: Context) {
     fun setResolution(resolution: String, lifecycleOwner: LifecycleOwner? = null, previewSurface: Preview.SurfaceProvider? = null) {
         if (lifecycleOwner != null) this.currentLifecycleOwner = lifecycleOwner
         if (previewSurface != null) this.currentPreviewSurface = previewSurface
+        val oldRes = currentResolutionString
         currentResolutionString = resolution
+        if (oldRes != resolution) {
+            io.github.iokkai.ocularnode.util.AppLogger.d("Camera", "相機解析度從 $oldRes 切換為 $resolution")
+        }
         bindCameraUseCases()
     }
 
@@ -376,6 +381,7 @@ class CameraManagerHelper(private val context: Context) {
             onLumaMeasured?.invoke(avgLuma)
 
             // Determine Night Vision state with Hysteresis (磁滯區間防頻繁切換)
+            val oldNightVisionState = isNightVisionActive
             isNightVisionActive = when (nightVisionMode) {
                 "on" -> true
                 "off" -> false
@@ -390,6 +396,11 @@ class CameraManagerHelper(private val context: Context) {
                         avgLuma < lowThreshold
                     }
                 }
+            }
+            
+            if (oldNightVisionState != isNightVisionActive) {
+                val modeStr = if (isNightVisionActive) "紅外線模式" else "一般模式"
+                io.github.iokkai.ocularnode.util.AppLogger.d("Camera", "自動切換至: $modeStr (環境亮度: ${String.format("%.1f", avgLuma)})")
             }
 
             // 1.5. If motion detection is enabled, we can run it on Y-buffer directly without Bitmap

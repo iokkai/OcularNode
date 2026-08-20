@@ -85,6 +85,7 @@ class BatteryPowerMonitor(
                     _isThermalThrottled.value = true
                     val triggerDesc = if (isCpuHot) "CPU: ${currentCpuTemp}°C (>= ${highCpuThreshold}°C)" else "Battery: ${tempCelsius}°C (>= ${highBatteryThreshold}°C)"
                     Log.w("BatteryPowerMonitor", "🔥 Thermal Throttling ACTIVATED! $triggerDesc")
+                    io.github.iokkai.ocularnode.util.AppLogger.w("System", "設備過熱，觸發降頻保護 ($triggerDesc)")
 
                     onThermalThrottleStart()
 
@@ -106,6 +107,7 @@ class BatteryPowerMonitor(
                 } else if (isCooledDown && _isThermalThrottled.value) {
                     _isThermalThrottled.value = false
                     Log.i("BatteryPowerMonitor", "🧊 Thermal Throttling DEACTIVATED! Battery: ${tempCelsius}°C, CPU: ${currentCpuTemp ?: "--"}°C")
+                    io.github.iokkai.ocularnode.util.AppLogger.d("System", "溫度恢復正常，解除降頻保護 (Battery: ${tempCelsius}°C, CPU: ${currentCpuTemp ?: "--"}°C)")
 
                     // Send recovery alert via Telegram
                     scope.launch(Dispatchers.IO) {
@@ -127,6 +129,7 @@ class BatteryPowerMonitor(
                     if (lastIsCharging != false) {
                         lastIsCharging = false
                         Log.w("BatteryPowerMonitor", "Power disconnected! Battery: $batteryPct%")
+                        io.github.iokkai.ocularnode.util.AppLogger.w("System", "市電已斷開，切換至電池供電 (剩餘: $batteryPct%)")
                         scope.launch(Dispatchers.IO) {
                             TelegramNotifier.sendSystemAlert(
                                 botToken = settingsManager.telegramBotToken,
@@ -146,6 +149,7 @@ class BatteryPowerMonitor(
                         lastIsCharging = true
                         hasSentLowBatteryAlert = false
                         Log.i("BatteryPowerMonitor", "Power connected! Battery: $batteryPct%")
+                        io.github.iokkai.ocularnode.util.AppLogger.d("System", "市電已接通，開始充電 (當前: $batteryPct%)")
                         scope.launch(Dispatchers.IO) {
                             TelegramNotifier.sendSystemAlert(
                                 botToken = settingsManager.telegramBotToken,
@@ -163,6 +167,7 @@ class BatteryPowerMonitor(
                 if (batteryPct in 1..settingsManager.lowBatteryAlertThreshold && !isCharging && !hasSentLowBatteryAlert) {
                     hasSentLowBatteryAlert = true
                     Log.w("BatteryPowerMonitor", "Low battery threshold hit! Battery: $batteryPct%")
+                    io.github.iokkai.ocularnode.util.AppLogger.w("System", "電池電量過低警告 (剩餘: $batteryPct%)")
                     scope.launch(Dispatchers.IO) {
                         TelegramNotifier.sendSystemAlert(
                             botToken = settingsManager.telegramBotToken,

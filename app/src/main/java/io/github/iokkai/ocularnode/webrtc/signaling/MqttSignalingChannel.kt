@@ -104,6 +104,7 @@ class MqttSignalingChannel(
                 client.connect(options)
                 activeBrokerUrl = brokerUrl
                 Log.i(TAG, "Successfully connected to MQTT broker: $brokerUrl (isWSS: $isUsingWss)")
+                io.github.iokkai.ocularnode.util.AppLogger.d("MQTT", "信令伺服器連線成功 ($brokerUrl)")
                 return@withContext client
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to connect to broker: $brokerUrl (${e.message}), trying next...")
@@ -132,6 +133,7 @@ class MqttSignalingChannel(
                 client.setCallback(object : MqttCallback {
                     override fun connectionLost(cause: Throwable?) {
                         Log.w(TAG, "MQTT connection lost: ${cause?.message}")
+                        io.github.iokkai.ocularnode.util.AppLogger.w("MQTT", "信令伺服器連線中斷 (${cause?.message ?: "Unknown"})")
                     }
 
                     override fun messageArrived(incomingTopic: String?, message: MqttMessage?) {
