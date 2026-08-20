@@ -103,6 +103,7 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
 
     val isThermalThrottled by viewModel.isThermalThrottled.collectAsState()
     val batteryTemp by viewModel.batteryTemp.collectAsState()
+    val activeViewerCount by viewModel.activeViewerCount.collectAsState()
 
     var showResolutionDialog by remember { mutableStateOf(false) }
     var isAddressSectionExpanded by remember { mutableStateOf(true) }
@@ -241,6 +242,15 @@ fun CameraModeScreen(viewModel: CameraServerViewModel) {
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp
                                         )
+                                        if (isServiceRunning) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = "👥 $activeViewerCount/4",
+                                                color = if (activeViewerCount > 0) AppPrimary else AppTextDisabled,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
                                         Spacer(modifier = Modifier.width(2.dp))
                                         Icon(
                                             imageVector = if (isAddressSectionExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,

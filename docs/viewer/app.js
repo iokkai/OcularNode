@@ -208,6 +208,9 @@ function handleTelemetryUpdate(json) {
     if (json.batteryPct !== undefined) {
         document.getElementById('statBattery').textContent = `${json.batteryPct}%`;
     }
+    if (json.activeViewers !== undefined) {
+        document.getElementById('statViewers').textContent = `${json.activeViewers}/4`;
+    }
     if (json.isTorchOn !== undefined) {
         isTorchOn = json.isTorchOn;
         document.getElementById('torchStatus').textContent = isTorchOn ? "開" : "關";

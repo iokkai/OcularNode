@@ -44,6 +44,9 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
     private val _batteryTemp = MutableStateFlow(0.0f)
     val batteryTemp: StateFlow<Float> = _batteryTemp.asStateFlow()
 
+    private val _activeViewerCount = MutableStateFlow(0)
+    val activeViewerCount: StateFlow<Int> = _activeViewerCount.asStateFlow()
+
     init {
         viewModelScope.launch {
             NetworkUtils.observeNetworkStatus(application).collect { ipInfo ->
@@ -71,6 +74,9 @@ class CameraServerViewModel(application: Application) : AndroidViewModel(applica
             }
             viewModelScope.launch {
                 service.batteryTemp.collect { _batteryTemp.value = it }
+            }
+            viewModelScope.launch {
+                service.activeViewerCount.collect { _activeViewerCount.value = it }
             }
         }
 

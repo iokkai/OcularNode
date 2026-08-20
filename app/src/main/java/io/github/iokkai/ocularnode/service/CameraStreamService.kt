@@ -90,6 +90,9 @@ class CameraStreamService : Service(), LifecycleOwner {
     val batteryTemp: StateFlow<Float> get() = batteryMonitor.batteryTemp
     val cpuTemp: StateFlow<Float?> get() = batteryMonitor.cpuTemp
 
+    private val _activeViewerCount = MutableStateFlow(0)
+    val activeViewerCount: StateFlow<Int> get() = _activeViewerCount.asStateFlow()
+
     inner class LocalBinder : Binder() {
         fun getService(): CameraStreamService = this@CameraStreamService
     }
@@ -318,6 +321,7 @@ class CameraStreamService : Service(), LifecycleOwner {
     }
 
     private fun onClientsChanged(count: Int) {
+        _activeViewerCount.value = count
         if (settingsManager.operatingMode == "monitor" && count == 0) {
             // Disconnected in Monitor mode: Turn off flash & pause camera capture
             cameraHelper.setTorch(false)

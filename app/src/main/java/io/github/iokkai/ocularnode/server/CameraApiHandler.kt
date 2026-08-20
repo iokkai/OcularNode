@@ -192,6 +192,7 @@ class CameraApiHandler(
             put("memoryUsage", memoryPct)
             put("memoryUsedMB", usedMemMB)
             put("memoryTotalMB", totalMemMB)
+            put("activeViewers", connectedClients)
             put("lensFacing", lensFacingGetter())
             put("isTorchOn", torchStateGetter())
             put("resolution", resolutionGetter())
