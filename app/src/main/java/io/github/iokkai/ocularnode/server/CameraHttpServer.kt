@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * 負責 OcularNode 區域網路 HTTP 伺服器主核心。
  * 協調 HttpAuthHandler (認證授權)、MjpegStreamHandler (串流推播) 與 CameraApiHandler (REST API)。
  */
-class MjpegHttpServer(
+class CameraHttpServer(
     private val context: Context,
     val port: Int = 8080,
     private val audioEngine: AudioEngine
@@ -136,7 +136,6 @@ class MjpegHttpServer(
         isRunning = true
 
         apiHandler.startCategoryObservation(scope)
-        startUdpDiscoveryResponder(scope)
         startRateLimitCleanup(scope)
 
         scope.launch(Dispatchers.IO) {
@@ -145,14 +144,14 @@ class MjpegHttpServer(
                     reuseAddress = true
                     bind(InetSocketAddress(InetAddress.getByName("0.0.0.0"), port))
                 }
-                Log.i("MjpegHttpServer", "Server bound to 0.0.0.0:$port (Local Network)")
+                Log.i("CameraHttpServer", "Server bound to 0.0.0.0:$port (Local Network)")
 
                 while (isRunning && serverSocket?.isClosed == false) {
                     val socket = serverSocket?.accept() ?: break
 
                     // 最大同時連線數限制
                     if (activeConnections.get() >= MAX_CONCURRENT_CONNECTIONS) {
-                        Log.w("MjpegHttpServer", "Max concurrent connections ($MAX_CONCURRENT_CONNECTIONS) reached, rejecting ${socket.inetAddress.hostAddress}")
+                        Log.w("CameraHttpServer", "Max concurrent connections ($MAX_CONCURRENT_CONNECTIONS) reached, rejecting ${socket.inetAddress.hostAddress}")
                         try {
                             val out = socket.getOutputStream()
                             out.write("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
@@ -166,71 +165,13 @@ class MjpegHttpServer(
                 }
             } catch (e: Exception) {
                 if (isRunning) {
-                    Log.e("MjpegHttpServer", "Server socket error", e)
+                    Log.e("CameraHttpServer", "Server socket error", e)
                 }
             }
         }
     }
 
-    private fun startUdpDiscoveryResponder(scope: CoroutineScope) {
-        scope.launch(Dispatchers.IO) {
-            var udpSocket: DatagramSocket? = null
-            var broadcastSocket: DatagramSocket? = null
-            try {
-                udpSocket = DatagramSocket(null).apply {
-                    reuseAddress = true
-                    bind(InetSocketAddress(NodeDiscoveryManager.UDP_PORT))
-                    soTimeout = 2000
-                }
-                broadcastSocket = DatagramSocket().apply { broadcast = true }
 
-                // Announce loop coroutine (重用 broadcastSocket)
-                launch {
-                    while (isRunning && isActive) {
-                        try {
-                            val ipInfo = NetworkUtils.getIpAddresses(context)
-                            val activeIp = ipInfo.localIp ?: "127.0.0.1"
-                            val announceMsg = "${NodeDiscoveryManager.ANNOUNCE_PREFIX}$deviceName|$port|$activeIp"
-                            val data = announceMsg.toByteArray()
-
-                            val p1 = DatagramPacket(data, data.size, InetAddress.getByName("255.255.255.255"), NodeDiscoveryManager.UDP_PORT)
-                            broadcastSocket.send(p1)
-                        } catch (_: Exception) {}
-                        delay(3000)
-                    }
-                }
-
-                // Listener loop
-                val buffer = ByteArray(2048)
-                while (isRunning && isActive) {
-                    try {
-                        val packet = DatagramPacket(buffer, buffer.size)
-                        udpSocket.receive(packet)
-                        val msg = String(packet.data, 0, packet.length).trim()
-
-                        if (msg == NodeDiscoveryManager.DISCOVERY_REQUEST) {
-                            val ipInfo = NetworkUtils.getIpAddresses(context)
-                            val activeIp = ipInfo.localIp ?: "127.0.0.1"
-                            val responseMsg = "${NodeDiscoveryManager.RESPONSE_PREFIX}$deviceName|$port|$activeIp"
-                            val respData = responseMsg.toByteArray()
-
-                            val respPacket = DatagramPacket(respData, respData.size, packet.address, packet.port)
-                            udpSocket.send(respPacket)
-                        }
-                    } catch (_: java.net.SocketTimeoutException) {
-                        // Loop check
-                    } catch (e: Exception) {
-                        delay(1000)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("MjpegHttpServer", "UDP Responder error: ${e.message}")
-            } finally {
-                udpSocket?.close()
-                try { broadcastSocket?.close() } catch (_: Exception) {}
-            }
-        }
-    }
 
     private fun handleClient(socket: Socket, scope: CoroutineScope) {
         activeConnections.incrementAndGet()
@@ -240,7 +181,7 @@ class MjpegHttpServer(
 
             // IP-based Rate Limiting (滑動視窗)
             if (!checkRateLimit(clientIp)) {
-                Log.w("MjpegHttpServer", "Rate limit exceeded for $clientIp")
+                Log.w("CameraHttpServer", "Rate limit exceeded for $clientIp")
                 val out = socket.getOutputStream()
                 apiHandler.sendJsonResponse(out, 429, "{\"error\":\"Too Many Requests\",\"retryAfterSeconds\":10}")
                 socket.close()
@@ -332,6 +273,11 @@ class MjpegHttpServer(
 
                 // 2. MJPEG 即時影像串流 (需授權)
                 path.startsWith("/mjpeg") || path.startsWith("/stream") || path.startsWith("/live") -> {
+                    if (!settingsManager.isMjpegStreamEnabled) {
+                        apiHandler.sendJsonResponse(output, 403, "{\"status\":\"error\",\"message\":\"MJPEG stream is disabled in settings\"}")
+                        socket.close()
+                        return
+                    }
                     if (!isRequestAuthorized(headers, rawPath)) {
                         apiHandler.sendJsonResponse(output, 401, "{\"status\":\"error\",\"error\":\"Unauthorized\",\"authRequired\":true}")
                         socket.close()
@@ -532,7 +478,7 @@ class MjpegHttpServer(
             ipRequestLog.clear()
             activeConnections.set(0)
         } catch (e: Exception) {
-            Log.e("MjpegHttpServer", "Error stopping server", e)
+            Log.e("CameraHttpServer", "Error stopping server", e)
         }
     }
 
@@ -579,7 +525,7 @@ class MjpegHttpServer(
                 }
                 expiredIps.forEach { ipRequestLog.remove(it) }
                 if (expiredIps.isNotEmpty()) {
-                    Log.d("MjpegHttpServer", "Rate limiter cleanup: removed ${expiredIps.size} stale IP entries")
+                    Log.d("CameraHttpServer", "Rate limiter cleanup: removed ${expiredIps.size} stale IP entries")
                 }
             }
         }

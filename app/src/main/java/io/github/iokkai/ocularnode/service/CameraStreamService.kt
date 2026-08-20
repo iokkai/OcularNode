@@ -28,7 +28,7 @@ import io.github.iokkai.ocularnode.camera.CameraManagerHelper
 import io.github.iokkai.ocularnode.camera.EventVideoRecorder
 import io.github.iokkai.ocularnode.data.AppDatabase
 import io.github.iokkai.ocularnode.data.SettingsManager
-import io.github.iokkai.ocularnode.server.MjpegHttpServer
+import io.github.iokkai.ocularnode.server.CameraHttpServer
 import io.github.iokkai.ocularnode.util.NetworkUtils
 import io.github.iokkai.ocularnode.util.TelegramNotifier
 import kotlinx.coroutines.CoroutineScope
@@ -66,7 +66,7 @@ class CameraStreamService : Service(), LifecycleOwner {
 
     lateinit var cameraHelper: CameraManagerHelper
         private set
-    lateinit var httpServer: MjpegHttpServer
+    lateinit var httpServer: CameraHttpServer
         private set
     lateinit var audioEngine: AudioEngine
         private set
@@ -217,7 +217,7 @@ class CameraStreamService : Service(), LifecycleOwner {
     }
 
     private fun setupHttpServer() {
-        httpServer = MjpegHttpServer(this, settingsManager.serverPort, audioEngine).apply {
+        httpServer = CameraHttpServer(this, settingsManager.serverPort, audioEngine).apply {
             deviceNameGetter = { settingsManager.cameraDeviceName }
             operatingModeGetter = { settingsManager.operatingMode }
             lensFacingGetter = { if (cameraHelper.lensFacing == CameraSelector.LENS_FACING_BACK) "back" else "front" }
@@ -299,6 +299,12 @@ class CameraStreamService : Service(), LifecycleOwner {
     fun startServer() {
         cameraHelper.startCamera(this)
         httpServer.start(serviceScope)
+        io.github.iokkai.ocularnode.util.NodeDiscoveryManager.startResponder(
+            context = this,
+            deviceName = settingsManager.cameraDeviceName,
+            port = settingsManager.serverPort,
+            scope = serviceScope
+        )
         val ipInfo = NetworkUtils.getIpAddresses(this)
         val ipDisplay = ipInfo.localIp ?: "127.0.0.1"
         _serviceStatus.value = "Streaming on http://$ipDisplay:${settingsManager.serverPort}"

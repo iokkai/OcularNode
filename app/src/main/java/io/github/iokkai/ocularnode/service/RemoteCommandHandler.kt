@@ -8,7 +8,7 @@ import io.github.iokkai.ocularnode.camera.CameraManagerHelper
 import io.github.iokkai.ocularnode.data.NotificationCategory
 import io.github.iokkai.ocularnode.data.SettingsDataStore
 import io.github.iokkai.ocularnode.data.SettingsManager
-import io.github.iokkai.ocularnode.server.MjpegHttpServer
+import io.github.iokkai.ocularnode.server.CameraHttpServer
 import io.github.iokkai.ocularnode.util.AppLogger
 import io.github.iokkai.ocularnode.util.UpdateManager
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +26,7 @@ class RemoteCommandHandler(
     private val settingsManager: SettingsManager,
     private val cameraHelper: CameraManagerHelper,
     private val lifecycleOwner: LifecycleOwner? = context as? LifecycleOwner,
-    private val httpServerGetter: () -> MjpegHttpServer?,
+    private val httpServerGetter: () -> CameraHttpServer?,
     private val updateOperatingMode: (String) -> Unit,
     private val playAlarmSound: () -> Unit
 ) {

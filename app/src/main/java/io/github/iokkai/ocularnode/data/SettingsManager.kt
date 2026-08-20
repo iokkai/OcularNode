@@ -71,6 +71,7 @@ class SettingsManager(context: Context) {
         private const val KEY_LAST_SCHEDULED_REBOOT_DATE = "last_scheduled_reboot_date"
         private const val KEY_CUSTOM_TURN_SERVER_URL = "custom_turn_server_url"
         private const val KEY_CUSTOM_TURN_USERNAME = "custom_turn_username"
+        private const val KEY_MJPEG_STREAM_ENABLED = "mjpeg_stream_enabled"
 
         // --- 敏感憑證 Key（存於 EncryptedSharedPreferences）---
         private const val KEY_TG_BOT_TOKEN = "tg_bot_token"
@@ -209,6 +210,10 @@ class SettingsManager(context: Context) {
     var serverPort: Int
         get() = prefs.getInt(KEY_PORT, 8080)
         set(value) = prefs.edit().putInt(KEY_PORT, value).apply()
+
+    var isMjpegStreamEnabled: Boolean
+        get() = prefs.getBoolean(KEY_MJPEG_STREAM_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_MJPEG_STREAM_ENABLED, value).apply()
 
     var cameraDeviceName: String
         get() = prefs.getString(KEY_DEVICE_NAME, android.os.Build.MODEL) ?: "Android Camera"

@@ -91,6 +91,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _systemLogEnabled = MutableStateFlow(settingsManager.systemLogEnabled)
     val systemLogEnabled: StateFlow<Boolean> = _systemLogEnabled.asStateFlow()
 
+    private val _isMjpegStreamEnabled = MutableStateFlow(settingsManager.isMjpegStreamEnabled)
+    val isMjpegStreamEnabled: StateFlow<Boolean> = _isMjpegStreamEnabled.asStateFlow()
+
     private val _dynamicFpsAdjustmentEnabled = MutableStateFlow(settingsManager.dynamicFpsAdjustmentEnabled)
     val dynamicFpsAdjustmentEnabled: StateFlow<Boolean> = _dynamicFpsAdjustmentEnabled.asStateFlow()
 
@@ -231,6 +234,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateMlKitFilterEnabled(enabled: Boolean) {
         _mlKitFilterEnabled.value = enabled
         settingsManager.mlKitFilterEnabled = enabled
+    }
+
+    fun updateMjpegStreamEnabled(enabled: Boolean) {
+        _isMjpegStreamEnabled.value = enabled
+        settingsManager.isMjpegStreamEnabled = enabled
     }
 
     fun updateBotToken(token: String) {

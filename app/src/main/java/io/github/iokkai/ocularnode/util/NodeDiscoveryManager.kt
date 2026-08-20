@@ -99,6 +99,72 @@ object NodeDiscoveryManager {
         }
     }
 
+    private var responderJob: Job? = null
+
+    /**
+     * Camera Node 專用：啟動 UDP Responder 以回應 Viewer 的尋找請求
+     */
+    fun startResponder(context: Context, deviceName: String, port: Int, scope: CoroutineScope) {
+        if (responderJob?.isActive == true) return
+        responderJob = scope.launch(Dispatchers.IO) {
+            var udpSocket: DatagramSocket? = null
+            var broadcastSocket: DatagramSocket? = null
+            try {
+                udpSocket = DatagramSocket(null).apply {
+                    reuseAddress = true
+                    bind(InetSocketAddress(UDP_PORT))
+                    soTimeout = 2000
+                }
+                broadcastSocket = DatagramSocket().apply { broadcast = true }
+
+                // Announce loop coroutine
+                launch {
+                    while (isActive) {
+                        try {
+                            val ipInfo = NetworkUtils.getIpAddresses(context)
+                            val activeIp = ipInfo.localIp ?: "127.0.0.1"
+                            val announceMsg = "$ANNOUNCE_PREFIX$deviceName|$port|$activeIp"
+                            val data = announceMsg.toByteArray()
+
+                            val p1 = DatagramPacket(data, data.size, InetAddress.getByName("255.255.255.255"), UDP_PORT)
+                            broadcastSocket.send(p1)
+                        } catch (_: Exception) {}
+                        delay(3000)
+                    }
+                }
+
+                // Listener loop
+                val buffer = ByteArray(2048)
+                while (isActive) {
+                    try {
+                        val packet = DatagramPacket(buffer, buffer.size)
+                        udpSocket.receive(packet)
+                        val msg = String(packet.data, 0, packet.length).trim()
+
+                        if (msg == DISCOVERY_REQUEST) {
+                            val ipInfo = NetworkUtils.getIpAddresses(context)
+                            val activeIp = ipInfo.localIp ?: "127.0.0.1"
+                            val responseMsg = "$RESPONSE_PREFIX$deviceName|$port|$activeIp"
+                            val respData = responseMsg.toByteArray()
+
+                            val respPacket = DatagramPacket(respData, respData.size, packet.address, packet.port)
+                            udpSocket.send(respPacket)
+                        }
+                    } catch (_: java.net.SocketTimeoutException) {
+                        // Loop check
+                    } catch (e: Exception) {
+                        delay(1000)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "UDP Responder error: ${e.message}")
+            } finally {
+                udpSocket?.close()
+                try { broadcastSocket?.close() } catch (_: Exception) {}
+            }
+        }
+    }
+
     fun stopDiscovery() {
         discoveryJob?.cancel()
         discoveryJob = null

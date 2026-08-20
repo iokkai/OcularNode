@@ -1329,6 +1329,34 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(14.dp))
 
+                val isMjpegStreamEnabled by viewModel.isMjpegStreamEnabled.collectAsState()
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { viewModel.updateMjpegStreamEnabled(!isMjpegStreamEnabled) }
+                        .padding(vertical = 12.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("相容性串流 (MJPEG)", color = AppTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                        Text("為舊版設備或第三方系統 (如 Home Assistant) 啟動備用 HTTP 影像串流。", color = AppTextMuted, fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = isMjpegStreamEnabled,
+                        onCheckedChange = { viewModel.updateMjpegStreamEnabled(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = AppPrimary,
+                            uncheckedThumbColor = AppTextMuted,
+                            uncheckedTrackColor = AppSurfaceDark
+                        )
+                    )
+                }
+                
+                HorizontalDivider(color = AppBorder, modifier = Modifier.padding(vertical = 16.dp))
+
                 OutlinedTextField(
                     value = customTurnServerUrl,
                     onValueChange = { viewModel.updateCustomTurnServerUrl(it) },
