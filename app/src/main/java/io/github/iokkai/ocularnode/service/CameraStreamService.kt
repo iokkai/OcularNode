@@ -54,6 +54,7 @@ class CameraStreamService : Service(), LifecycleOwner {
 
     private val binder = LocalBinder()
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     override val lifecycle: Lifecycle get() = lifecycleRegistry
@@ -345,6 +346,19 @@ class CameraStreamService : Service(), LifecycleOwner {
         } catch (e: Exception) {
             Log.e("CameraStreamService", "Error acquiring WakeLock", e)
         }
+
+        try {
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+            wifiLock = wifiManager?.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "OcularNode::CameraStreamWifiLock")?.apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+            if (wifiLock != null) {
+                Log.i("CameraStreamService", "Acquired high-performance WifiLock")
+            }
+        } catch (e: Exception) {
+            Log.e("CameraStreamService", "Error acquiring WifiLock", e)
+        }
     }
 
     private fun startForegroundServiceNotification() {
@@ -442,6 +456,9 @@ class CameraStreamService : Service(), LifecycleOwner {
         cameraHelper.release()
         audioEngine.release()
         wakeLock?.let {
+            if (it.isHeld) it.release()
+        }
+        wifiLock?.let {
             if (it.isHeld) it.release()
         }
         batteryMonitor.unregister()

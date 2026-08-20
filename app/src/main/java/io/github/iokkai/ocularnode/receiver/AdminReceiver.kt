@@ -41,8 +41,6 @@ class AdminReceiver : DeviceAdminReceiver() {
                 PairingSecretManager.getInstance(context).setDeviceSecret(mqttSecret)
             }
 
-            // 電池最佳化豁免
-            ZeroTouchProvisionManager.exemptFromBatteryOptimizations(context)
 
             // 強制開啟系統 NTP 自動校時 (防止長期斷網離線導致時鐘漂移與 TLS 證書失效)
             try {

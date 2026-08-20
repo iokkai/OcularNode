@@ -69,8 +69,6 @@ class AdminPolicyComplianceActivity : Activity() {
                 io.github.iokkai.ocularnode.webrtc.crypto.PairingSecretManager.getInstance(applicationContext).setDeviceSecret(mqttSecret)
             }
 
-            // 電池最佳化豁免
-            ZeroTouchProvisionManager.exemptFromBatteryOptimizations(applicationContext)
 
             // 喚醒並啟動 MainActivity (因為當前為 SetupWizard 信任的前景 Activity，可安全發起 Activity 轉移)
             try {

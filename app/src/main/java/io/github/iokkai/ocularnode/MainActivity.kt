@@ -100,6 +100,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // 請求電池最佳化豁免 (若為 DO 會自動跳過，一般裝置則彈出對話框)
+        io.github.iokkai.ocularnode.util.PowerManagementUtils.exemptFromBatteryOptimizations(this)
+        
         val settingsManager = io.github.iokkai.ocularnode.data.SettingsManager.getInstance(this)
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
         val isDeviceOwner = dpm?.isDeviceOwnerApp(packageName) == true
