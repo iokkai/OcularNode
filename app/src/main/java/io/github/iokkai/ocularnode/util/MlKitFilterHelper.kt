@@ -106,13 +106,13 @@ object MlKitFilterHelper {
 
             // 各分類獨立開關判斷：
             // 將偵測到的標籤映射至分類，並透過 LabelTranslator 進行多國語言在地化翻譯
-            val detectedCategories = mutableSetOf<NotificationCategory>()
-            val translatedLabels = allLabelTexts.map { LabelTranslator.translate(it) }
-
-            for (label in allLabelTexts) {
-                val cat = LabelMapper.getCategory(label)
-                detectedCategories.add(cat)
+            val labeledItems = allLabelTexts.map { raw ->
+                val cat = LabelMapper.getCategory(raw)
+                val translated = LabelTranslator.translate(raw)
+                Pair(cat, translated)
             }
+            val detectedCategories = labeledItems.map { it.first }.toSet()
+            val translatedLabels = labeledItems.map { it.second }
 
             val enabledMatchedNotifCats = detectedCategories.filter { enabledCategories.contains(it) }
             val disabledMatchedNotifCats = detectedCategories.filter { !enabledCategories.contains(it) }
@@ -135,7 +135,14 @@ object MlKitFilterHelper {
             }
 
             // 3. 組合 summaryText 顯示在地化分類與標籤內容
-            val labelsPreview = translatedLabels.take(5).joinToString(", ")
+            // 優先排序：將促成推播/過濾的核心分類標籤排在最前面，避免被周遭次要背景物品截斷
+            val sortedTranslatedLabels = if (!shouldSuppressNotification) {
+                labeledItems.sortedByDescending { enabledMatchedNotifCats.contains(it.first) }
+            } else {
+                labeledItems.sortedByDescending { disabledMatchedNotifCats.contains(it.first) }
+            }.map { it.second }
+
+            val labelsPreview = sortedTranslatedLabels.take(5).joinToString(", ")
             val summaryText = if (!shouldSuppressNotification) {
                 val enabledCatNames = enabledMatchedNotifCats.map { LabelTranslator.getCategoryDisplayName(context, it) }.distinct().joinToString("/")
                 if (enabledCatNames.isNotBlank() && labelsPreview.isNotBlank()) {
@@ -155,7 +162,7 @@ object MlKitFilterHelper {
             }
 
             AppLogger.d(TAG, "原始物件標籤: $allLabelTexts")
-            AppLogger.d(TAG, "翻譯標籤: $translatedLabels")
+            AppLogger.d(TAG, "翻譯標籤 (優先排序): $sortedTranslatedLabels")
             AppLogger.d(TAG, "偵測分類: $detectedCategories, 命中開啟推播分類: $enabledMatchedNotifCats, 關閉分類: $disabledMatchedNotifCats")
             AppLogger.d(TAG, "最終決定: suppressNotif=$shouldSuppressNotification, triggerRec=$shouldTriggerRecording (摘要: $summaryText)")
 
