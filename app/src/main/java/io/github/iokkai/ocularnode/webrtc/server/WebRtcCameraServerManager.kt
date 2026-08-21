@@ -56,18 +56,35 @@ class WebRtcCameraServerManager(
 
     private var signalingRouter: SmartSignalingRouter? = null
 
+    private var userTargetWidth: Int = 1280
+    private var userTargetHeight: Int = 720
+    private var userTargetFps: Int = 30
+
     fun start(
         router: SmartSignalingRouter,
         width: Int = 1280,
         height: Int = 720,
         fps: Int = 30,
-        useFrontCamera: Boolean = false
+        useFrontCamera: Boolean = false,
+        thermalThrottleFlow: StateFlow<Boolean>? = null
     ) {
         this.signalingRouter = router
+        this.userTargetWidth = width
+        this.userTargetHeight = height
+        this.userTargetFps = fps
 
         // Start hardware camera capture and audio
         cameraCapturer.startCapture(width, height, fps, useFrontCamera)
         audioSource.start()
+
+        // Observe thermal throttle StateFlow for dynamic resolution/bitrate throttling
+        thermalThrottleFlow?.let { flow ->
+            scope.launch(Dispatchers.Main) {
+                flow.collect { isThrottled ->
+                    applyThermalThrottle(isThrottled)
+                }
+            }
+        }
 
         // Start listening to incoming signaling requests
         scope.launch(Dispatchers.IO) {
@@ -80,16 +97,20 @@ class WebRtcCameraServerManager(
 
     /**
      * Handles dynamic thermal throttling: reduces video bitrate and frame rate
-     * when device temperature exceeds safe thresholds.
+     * when device temperature exceeds safe thresholds using minOf cap logic.
      */
     fun applyThermalThrottle(isThrottled: Boolean) {
         val targetBitrate = if (isThrottled) BITRATE_THROTTLED else BITRATE_NORMAL
-        val targetFps = if (isThrottled) 15 else 30
-        Log.i(TAG, "Applying thermal throttle state: $isThrottled (Target bitrate: $targetBitrate bps, FPS: $targetFps)")
+        val targetFps = if (isThrottled) minOf(userTargetFps, 15) else userTargetFps
+        val targetWidth = if (isThrottled) minOf(userTargetWidth, 640) else userTargetWidth
+        val targetHeight = if (isThrottled) minOf(userTargetHeight, 360) else userTargetHeight
+
+        Log.i(TAG, "Applying thermal throttle state: $isThrottled (Target bitrate: $targetBitrate bps, Resolution: ${targetWidth}x${targetHeight}, FPS: $targetFps)")
+        io.github.iokkai.ocularnode.util.AppLogger.d("WebRTC", "溫控狀態變更 (isThrottled=$isThrottled) -> 設定上限: ${targetWidth}x${targetHeight} @ ${targetFps}fps, 碼率: ${targetBitrate / 1000}kbps")
 
         cameraCapturer.changeCaptureFormat(
-            if (isThrottled) 640 else 1280,
-            if (isThrottled) 360 else 720,
+            targetWidth,
+            targetHeight,
             targetFps
         )
 
